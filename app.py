@@ -89,21 +89,21 @@ STAFF = {
         "nombre": "DARIO MINAN ESPINOZA",
         "telefono": "958000191",
         "email": "dario.minanespinoza@gmail.com",
-        "telegram_chat_id": "",
+        "telegram_chat_id": "1330744031",
         "rol": "Tecnico de Mantenimiento"
     },
     "asesor": {
         "nombre": "JORDY ALBERTO SERNAQUE SABA",
         "telefono": "902631386",
         "email": "ajordyss0602@gmail.com",
-        "telegram_chat_id": "",
+        "telegram_chat_id": "8665066190",
         "rol": "Asesor de Mantenimiento"
     },
     "gerencia": {
         "nombre": "Irina Nicole Castillo Coronado",
         "telefono": "966153839",
         "email": "nicolecastc@gmail.com",
-        "telegram_chat_id": "",
+        "telegram_chat_id": "8533612747",
         "rol": "Gerencia"
     }
 }
@@ -122,7 +122,7 @@ def render_letzy(size="50px"):
     return f'<img src="{LETZY_BASE64}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block;" />'
 
 # ============================================================================
-# CONFIGURACION PAGINA
+# CONFIGURACION PAGINA - SIN SIDEBAR, FONDO CLARO
 # ============================================================================
 
 st.set_page_config(
@@ -197,7 +197,7 @@ FMECA_KNOWLEDGE = [
 ]
 
 # ============================================================================
-# ESTILOS CSS PERSONALIZADOS
+# ESTILOS CSS PERSONALIZADOS - TEMA CLARO COMPACTO
 # ============================================================================
 
 def apply_custom_styles():
@@ -206,52 +206,55 @@ def apply_custom_styles():
     /* Fondo claro general */
     .stApp {{ 
         background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; 
+        padding-top: 0 !important;
     }}
     
-    /* Forzar texto oscuro en TODA la aplicación */
-    .stApp, .stApp * {{
-        color: #1a2b4c !important;
+    /* Reducir padding superior e inferior */
+    .block-container {{
+        padding-top: 0.5rem !important;
+        padding-bottom: 1rem !important;
+        max-width: 100% !important;
     }}
     
-    /* Header */
+    /* Header compacto sin fondo */
     .main-header {{
-        background: linear-gradient(90deg, {COLORS['azul']} 0%, #2a7bc8 100%);
-        padding: 20px 30px;
-        border-radius: 0 0 24px 24px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(26,95,168,0.2);
+        padding: 10px 0;
+        margin-bottom: 8px;
     }}
     
-    /* Tarjetas */
+    /* Tarjetas metricas con fondo completo de color */
     .metric-card {{
-        background: #ffffff;
         border-radius: 16px;
         padding: 20px;
-        border-left: 6px solid;
         box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
-        border-top: 1px solid #e8ecf1;
         text-align: center;
+        border: none;
     }}
     .metric-card:hover {{ 
         transform: translateY(-5px); 
         box-shadow: 0 8px 25px rgba(0,0,0,0.12);
     }}
     
-    .status-normal {{ border-left-color: {COLORS['verde']} !important; }}
-    .badge-normal {{ color: {COLORS['verde']} !important; font-weight: bold; }}
-    .status-alerta {{ border-left-color: {COLORS['amarillo']} !important; }}
-    .badge-alerta {{ color: {COLORS['amarillo']} !important; font-weight: bold; }}
-    .status-critico {{ border-left-color: {COLORS['rojo']} !important; }}
-    .badge-critico {{ color: {COLORS['rojo']} !important; font-weight: bold; }}
+    /* Semafaro verde - fondo completo */
+    .status-normal {{ background: {COLORS['verde']} !important; }}
+    .badge-normal-text {{ color: #ffffff; font-weight: bold; }}
+    
+    /* Semafaro amarillo - fondo completo */
+    .status-alerta {{ background: {COLORS['amarillo']} !important; }}
+    .badge-alerta-text {{ color: #ffffff; font-weight: bold; }}
+    
+    /* Semafaro rojo - fondo completo */
+    .status-critico {{ background: {COLORS['rojo']} !important; }}
+    .badge-critico-text {{ color: #ffffff; font-weight: bold; }}
     
     /* Alarmas */
     .alarm-banner {{
         background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
         border-left: 5px solid {COLORS['amarillo']};
         border-radius: 12px;
-        padding: 15px 20px;
-        margin-bottom: 15px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
         border: 1px solid rgba(245,166,35,0.3);
     }}
     .alarm-critical {{
@@ -260,113 +263,85 @@ def apply_custom_styles():
         border: 1px solid rgba(211,47,47,0.3);
     }}
     
-    /* Títulos */
-    h1, h2, h3 {{ 
-        color: #1a2b4c !important; 
-        font-weight: 700;
+    /* Texto oscuro para fondo claro */
+    h1, h2, h3, p, label, span, div {{ 
+        color: {COLORS['texto_oscuro']} !important; 
     }}
-    h1 {{ font-size: 2.2rem !important; }}
-    h2 {{ font-size: 1.6rem !important; }}
-    h3 {{ font-size: 1.3rem !important; }}
-    
-    /* Párrafos y texto general */
-    p, label, span, div, li {{ 
-        color: #1a2b4c !important; 
-    }}
-    .stMarkdown p {{ color: #1a2b4c !important; }}
+    .stMarkdown p {{ color: {COLORS['texto_oscuro']} !important; }}
     .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {{ 
         color: {COLORS['azul']} !important; 
     }}
     
-    /* Texto secundario (gris) */
-    .tmp-small, .text-muted, small {{
+    /* Tabs compactos */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 4px;
+        margin-bottom: 8px;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        background: rgba(26,95,168,0.1) !important;
+        color: {COLORS['texto_oscuro']} !important;
+        border-radius: 8px 8px 0 0;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }}
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+        background: {COLORS['azul']} !important;
+        color: white !important;
+    }}
+    
+    /* Selectbox compacto */
+    .stSelectbox {{
+        margin-bottom: 8px;
+    }}
+    
+    /* Dataframe centrado para KPIs */
+    .stDataFrame {{
+        margin: 0 auto;
+    }}
+    
+    /* Chatbot tema claro */
+    div[data-testid="stDialog"] {{
+        background: #f5f7fa !important;
+        color: #1a2b4c !important;
+    }}
+    div[data-testid="stDialog"] * {{
+        color: #1a2b4c !important;
+    }}
+    div[data-testid="stDialog"] h3 {{
+        color: #1a5fa8 !important;
+    }}
+    div[data-testid="stDialog"] .stMarkdown p {{
+        color: #1a2b4c !important;
+    }}
+    div[data-testid="stDialog"] .stCaption {{
         color: #5a6b7c !important;
     }}
-    
-    /* Selectbox y inputs */
-    .stSelectbox label, .stTextInput label, .stNumberInput label {{
-        color: #1a2b4c !important;
-        font-weight: 600;
-    }}
-    .stSelectbox [data-baseweb="select"] {{
-        background: #ffffff !important;
-        color: #1a2b4c !important;
-    }}
-    .stTextInput input, .stNumberInput input {{
-        background: #ffffff !important;
-        color: #1a2b4c !important;
-        border: 1px solid #e8ecf1 !important;
-    }}
-    
-    /* Botones */
-    .stButton > button {{
-        background: {COLORS['azul']} !important;
+    div[data-testid="stDialog"] .stButton > button {{
+        background: #1a5fa8 !important;
         color: #ffffff !important;
         border: none !important;
         border-radius: 8px !important;
-        font-weight: 600;
+        font-weight: 600 !important;
     }}
-    .stButton > button:hover {{
+    div[data-testid="stDialog"] .stButton > button:hover {{
         background: #2a7bc8 !important;
-        color: #ffffff !important;
     }}
-    
-    /* Tabs */
-    button[data-baseweb="tab"] {{
+    div[data-testid="stDialog"] input {{
+        background: #ffffff !important;
         color: #1a2b4c !important;
-        font-weight: 600;
+        border: 1px solid #e8ecf1 !important;
     }}
-    button[data-baseweb="tab"][aria-selected="true"] {{
-        color: {COLORS['azul']} !important;
-        border-bottom: 3px solid {COLORS['azul']} !important;
-    }}
-    
-    /* Dataframes */
-    .stDataFrame {{
-        color: #1a2b4c !important;
-    }}
-    
-    /* Métricas nativas de Streamlit */
-    [data-testid="stMetricValue"] {{
-        color: #1a2b4c !important;
-        font-size: 2rem !important;
-    }}
-    [data-testid="stMetricLabel"] {{
-        color: #5a6b7c !important;
-        font-weight: 600;
-    }}
-    
-    /* Chatbot */
-    .stChatMessage {{
+    div[data-testid="stChatMessage"] {{
         background: #ffffff !important;
         border: 1px solid #e8ecf1 !important;
     }}
-    .stChatMessage p {{
+    div[data-testid="stChatMessage"] p {{
         color: #1a2b4c !important;
-    }}
-    
-    /* Alertas y mensajes */
-    .stAlert {{
-        color: #1a2b4c !important;
-    }}
-    .stSuccess {{
-        color: {COLORS['verde']} !important;
-    }}
-    .stWarning {{
-        color: {COLORS['amarillo']} !important;
-    }}
-    .stError {{
-        color: {COLORS['rojo']} !important;
-    }}
-    
-    /* Caption */
-    .stCaption {{
-        color: #5a6b7c !important;
     }}
     
     @media (max-width: 768px) {{
         .metric-value {{ font-size: 1.5rem !important; }}
-        .main-header {{ padding: 15px 20px; }}
+        .main-header {{ padding: 8px 0; }}
         h1 {{ font-size: 1.6rem !important; }}
         h2 {{ font-size: 1.3rem !important; }}
     }}
@@ -663,8 +638,11 @@ def chatbot_response(user_text, latest, kpi_values, asset_name, use_generative_a
     
     if any(k in text for k in ["circular", "impacto", "residuo"]):
         return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
+    
+    return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
+
 # ============================================================================
-# CHATBOT FLOTANTE AUTOMATICO - VERSION CORREGIDA
+# CHATBOT FLOTANTE CON LETZY
 # ============================================================================
 
 def process_floating_query(query):
@@ -681,10 +659,9 @@ def process_floating_query(query):
 
 @st.dialog("Asistente Tech Maint Pro", width="large")
 def floating_chat_dialog():
-    # CSS específico para el chatbot claro
+    # CSS especifico para el chatbot claro
     st.markdown("""
     <style>
-    /* Fondo del diálogo claro */
     div[data-testid="stDialog"] {
         background: #f5f7fa !important;
         color: #1a2b4c !important;
@@ -701,7 +678,6 @@ def floating_chat_dialog():
     div[data-testid="stDialog"] .stCaption {
         color: #5a6b7c !important;
     }
-    /* Botones del chatbot en azul */
     div[data-testid="stDialog"] .stButton > button {
         background: #1a5fa8 !important;
         color: #ffffff !important;
@@ -712,13 +688,11 @@ def floating_chat_dialog():
     div[data-testid="stDialog"] .stButton > button:hover {
         background: #2a7bc8 !important;
     }
-    /* Input del chat */
     div[data-testid="stDialog"] input {
         background: #ffffff !important;
         color: #1a2b4c !important;
         border: 1px solid #e8ecf1 !important;
     }
-    /* Mensajes del chat */
     div[data-testid="stChatMessage"] {
         background: #ffffff !important;
         border: 1px solid #e8ecf1 !important;
@@ -740,10 +714,10 @@ def floating_chat_dialog():
     </div>
     """, unsafe_allow_html=True)
     
-    st.caption("Respuestas instantáneas basadas en datos reales")
+    st.caption("Respuestas instantaneas basadas en datos reales")
     st.divider()
     
-    # Mensaje de bienvenida de Letzy
+    # Mensaje de bienvenida de Letzy si no hay historial
     if not st.session_state.floating_chat_history:
         with st.chat_message("assistant", avatar=LETZY_BASE64):
             st.markdown("**HOLA, SOY LETZY TU ASISTENTE DE TECH MAINT PRO**\n\n¿En qué puedo ayudarte hoy? Puedo asistirte con diagnóstico, órdenes de trabajo, KPIs, modos de falla e impacto circular.")
@@ -759,7 +733,7 @@ def floating_chat_dialog():
                     st.markdown(msg["content"])
     
     st.divider()
-    st.markdown("#### Consultas rápidas:")
+    st.markdown("#### Consultas rapidas:")
     c1, c2, c3 = st.columns(3)
     with c1:
         if st.button("Estado actual", key="qr1", use_container_width=True):
@@ -803,6 +777,11 @@ btn_html = f"""
 """
 st.markdown(btn_html, unsafe_allow_html=True)
 
+if st.button("Abrir asistente", key="fc_toggle", help="Abrir asistente"):
+    st.session_state.floating_chat_open = not st.session_state.floating_chat_open
+
+st.markdown("</div>", unsafe_allow_html=True)
+
 # Mostrar el dialogo si esta abierto
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
@@ -810,9 +789,9 @@ if st.session_state.get("floating_chat_open", False):
 # Abrir chat automaticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
-    
+
 # ============================================================================
-# VISUALIZACION - GRAFICAS CORREGIDAS (sin titlefont)
+# VISUALIZACION - GRAFICAS CORREGIDAS
 # ============================================================================
 
 def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None, threshold_alert=None, reverse=False):
@@ -853,14 +832,15 @@ def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None
     fig.update_layout(
         title=dict(text=title, font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
         template="plotly_white",
-        paper_bgcolor="rgba(255,255,255,0.9)",
-        plot_bgcolor="rgba(255,255,255,0.9)",
+        paper_bgcolor="rgba(255,255,255,0.95)",
+        plot_bgcolor="rgba(255,255,255,0.95)",
         margin=dict(l=20, r=20, t=78, b=30),
         xaxis=dict(
             title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)),
             showgrid=True,
             gridcolor="rgba(0,0,0,0.08)",
-            tickfont=dict(color=COLORS["texto_oscuro"], size=10)
+            tickfont=dict(color=COLORS["texto_oscuro"], size=10),
+            tickangle=-45
         ),
         yaxis=dict(
             title=dict(text=y_title, font=dict(color=COLORS["texto_oscuro"], size=12)),
@@ -871,7 +851,8 @@ def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None
         ),
         hovermode="x unified",
         showlegend=False,
-        height=280
+        height=280,
+        font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12)
     )
     return fig
 
@@ -919,13 +900,14 @@ def create_risk_chart(df):
     fig.update_layout(
         title=dict(text="Indice de riesgo", font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
         template="plotly_white",
-        paper_bgcolor="rgba(255,255,255,0.9)",
-        plot_bgcolor="rgba(255,255,255,0.9)",
+        paper_bgcolor="rgba(255,255,255,0.95)",
+        plot_bgcolor="rgba(255,255,255,0.95)",
         margin=dict(l=20, r=20, t=52, b=20),
         xaxis=dict(
             title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)),
             showgrid=True, gridcolor="rgba(0,0,0,0.08)",
-            tickfont=dict(color=COLORS["texto_oscuro"], size=10)
+            tickfont=dict(color=COLORS["texto_oscuro"], size=10),
+            tickangle=-45
         ),
         yaxis=dict(
             title=dict(text="IR", font=dict(color=COLORS["texto_oscuro"], size=12)),
@@ -933,7 +915,8 @@ def create_risk_chart(df):
             tickfont=dict(color=COLORS["texto_oscuro"], size=10)
         ),
         hovermode="x unified",
-        height=280
+        height=280,
+        font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12)
     )
     return fig
 
@@ -982,21 +965,22 @@ for k, v in sd.items():
 apply_custom_styles()
 
 # ============================================================================
-# HEADER CON TITULO ARRIBA Y NAVEGACION HORIZONTAL
+# HEADER CON LOGO Y SUBTITULO
 # ============================================================================
 
-col_logo, col_title = st.columns([1, 9])
-with col_logo:
-    st.markdown(render_logo("70px"), unsafe_allow_html=True)
-with col_title:
-    st.markdown("<h1 style='margin:0;color:white;font-size:2.5rem;'>Tech Maint Pro</h1>", unsafe_allow_html=True)
-    tagline = f"<p style='margin:5px 0 0 0;color:{COLORS['amarillo']};font-size:1.1rem;font-weight:600;'>Mantenimiento Inteligente + Economia Circular</p>"
-    st.markdown(tagline, unsafe_allow_html=True)
+st.markdown(f"""
+<div style="display:flex; align-items:center; gap:20px; margin-bottom:10px; padding:10px 0;">
+    {render_logo("100px")}
+    <div style="flex:1;">
+        <p style="margin:0; color:{COLORS['amarillo']}; font-size:1.3rem; font-weight:700;">Mantenimiento Inteligente + Economia Circular</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # Tabs de navegacion horizontal
 tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Impacto Circular", "KPIs"])
 
-# Selector de activo debajo de los tabs
+# Selector de activo integrado compacto
 asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visibility="collapsed")
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
 
@@ -1033,7 +1017,7 @@ if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado 
     else:
         play_observation_alarm(f"{latest['fecha_hora']}-alert")
     
-    alert_msg = f"¡Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. Se requiere atención inmediata. ¿En qué puedo ayudarte?"
+    alert_msg = f"¡Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. Se requiere atencion inmediata. ¿En qué puedo ayudarte?"
     st.session_state.floating_chat_history.append({"role": "assistant", "content": alert_msg})
 
 st.session_state.previous_estado = current_estado
@@ -1054,13 +1038,12 @@ if latest["estado"] in ["Alerta", "Critico"]:
         st.session_state.last_order_event = ek
 
 # ============================================================================
-# TAB 1: MONITOREO EN VIVO - 4 INDICADORES EN FILA CON GRAFICAS DEBAJO
+# TAB 1: MONITOREO EN VIVO - 4 INDICADORES CON FONDO DE COLOR
 # ============================================================================
 
 with tabs[0]:
     statuses = variable_status(latest)
     
-    # Función auxiliar para obtener color del estado
     def get_status_color(status):
         if status == "Normal":
             return COLORS["verde"]
@@ -1069,18 +1052,19 @@ with tabs[0]:
         else:
             return COLORS["rojo"]
     
-    # 4 columnas: cada una con métrica + gráfica debajo
+    def get_text_color(status):
+        return "#ffffff"
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         sc = get_status_color(statuses["Vibracion"])
-        bc = f"badge-{statuses['Vibracion'].lower()}"
         card_html = f"""
         <div class="metric-card status-{statuses['Vibracion'].lower()}">
-            <div style="font-size:1.1rem;font-weight:800;color:{sc};margin-bottom:8px;">VIBRACION RMS</div>
-            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{COLORS['texto_oscuro']};">{latest['vibracion_rms_mm_s']:.2f} <span style="font-size:1rem;">mm/s</span></div>
-            <div class="{bc}" style="font-size:1.1rem;">{statuses['Vibracion'].upper()}</div>
-            <div style="font-size:0.8rem;color:{COLORS['texto_gris']};margin-top:8px;">Ref: {THRESHOLDS['vibration_normal']} / {THRESHOLDS['vibration_alert']}</div>
+            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Vibracion'])};margin-bottom:8px;">VIBRACION RMS</div>
+            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Vibracion'])};">{latest['vibracion_rms_mm_s']:.2f} <span style="font-size:1rem;">mm/s</span></div>
+            <div style="font-size:1.1rem;color:{get_text_color(statuses['Vibracion'])};font-weight:bold;">{statuses['Vibracion'].upper()}</div>
+            <div style="font-size:0.8rem;color:{get_text_color(statuses['Vibracion'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['vibration_normal']} / {THRESHOLDS['vibration_alert']}</div>
         </div>
         """
         st.markdown(card_html, unsafe_allow_html=True)
@@ -1088,13 +1072,12 @@ with tabs[0]:
     
     with col2:
         sc = get_status_color(statuses["Temperatura"])
-        bc = f"badge-{statuses['Temperatura'].lower()}"
         card_html = f"""
         <div class="metric-card status-{statuses['Temperatura'].lower()}">
-            <div style="font-size:1.1rem;font-weight:800;color:{sc};margin-bottom:8px;">TEMPERATURA</div>
-            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{COLORS['texto_oscuro']};">{latest['temperatura_c']:.1f} <span style="font-size:1rem;">C</span></div>
-            <div class="{bc}" style="font-size:1.1rem;">{statuses['Temperatura'].upper()}</div>
-            <div style="font-size:0.8rem;color:{COLORS['texto_gris']};margin-top:8px;">Ref: {THRESHOLDS['temperature_normal']} / {THRESHOLDS['temperature_alert']}</div>
+            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Temperatura'])};margin-bottom:8px;">TEMPERATURA</div>
+            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Temperatura'])};">{latest['temperatura_c']:.1f} <span style="font-size:1rem;">C</span></div>
+            <div style="font-size:1.1rem;color:{get_text_color(statuses['Temperatura'])};font-weight:bold;">{statuses['Temperatura'].upper()}</div>
+            <div style="font-size:0.8rem;color:{get_text_color(statuses['Temperatura'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['temperature_normal']} / {THRESHOLDS['temperature_alert']}</div>
         </div>
         """
         st.markdown(card_html, unsafe_allow_html=True)
@@ -1102,13 +1085,12 @@ with tabs[0]:
     
     with col3:
         sc = get_status_color(statuses["Presion de vacio"])
-        bc = f"badge-{statuses['Presion de vacio'].lower()}"
         card_html = f"""
         <div class="metric-card status-{statuses['Presion de vacio'].lower()}">
-            <div style="font-size:1.1rem;font-weight:800;color:{sc};margin-bottom:8px;">PRESION DE VACIO</div>
-            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{COLORS['texto_oscuro']};">{latest['presion_vacio_kpa']:.1f} <span style="font-size:1rem;">kPa</span></div>
-            <div class="{bc}" style="font-size:1.1rem;">{statuses['Presion de vacio'].upper()}</div>
-            <div style="font-size:0.8rem;color:{COLORS['texto_gris']};margin-top:8px;">Mas negativo = mejor</div>
+            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Presion de vacio'])};margin-bottom:8px;">PRESION DE VACIO</div>
+            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Presion de vacio'])};">{latest['presion_vacio_kpa']:.1f} <span style="font-size:1rem;">kPa</span></div>
+            <div style="font-size:1.1rem;color:{get_text_color(statuses['Presion de vacio'])};font-weight:bold;">{statuses['Presion de vacio'].upper()}</div>
+            <div style="font-size:0.8rem;color:{get_text_color(statuses['Presion de vacio'])};margin-top:8px;opacity:0.9;">Mas negativo = mejor</div>
         </div>
         """
         st.markdown(card_html, unsafe_allow_html=True)
@@ -1117,11 +1099,11 @@ with tabs[0]:
     with col4:
         ec = get_status_color(latest["estado"])
         card_html = f"""
-        <div class="metric-card" style="border-left-color:{ec};">
-            <div style="font-size:1.1rem;font-weight:800;color:{ec};margin-bottom:8px;">ESTADO GLOBAL</div>
-            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{ec};">{latest['estado'].upper()}</div>
-            <div style="font-size:1.1rem;color:{COLORS['texto_gris']};">IR: {latest['indice_riesgo']:.1f}/100</div>
-            <div style="font-size:0.8rem;color:{COLORS['texto_gris']};margin-top:8px;">Avance: {st.session_state.sim_idx}/{max_idx}</div>
+        <div class="metric-card status-{latest['estado'].lower()}">
+            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(latest['estado'])};margin-bottom:8px;">ESTADO GLOBAL</div>
+            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(latest['estado'])};">{latest['estado'].upper()}</div>
+            <div style="font-size:1.1rem;color:{get_text_color(latest['estado'])};">IR: {latest['indice_riesgo']:.1f}/100</div>
+            <div style="font-size:0.8rem;color:{get_text_color(latest['estado'])};margin-top:8px;opacity:0.9;">Avance: {st.session_state.sim_idx}/{max_idx}</div>
         </div>
         """
         st.markdown(card_html, unsafe_allow_html=True)
@@ -1130,7 +1112,7 @@ with tabs[0]:
     # Alarmas activas
     alarms = get_alarms(latest)
     if alarms:
-        st.markdown(f"<h3 style='margin-top:30px;color:{COLORS['texto_oscuro']};'>Alarmas Activas</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='margin-top:20px;color:{COLORS['texto_oscuro']};'>Alarmas Activas</h3>", unsafe_allow_html=True)
         for level, name, value in alarms:
             ac = "alarm-critical" if level == "Critico" else ""
             icon = "[!]" if level == "Critico" else "[*]"
@@ -1284,11 +1266,11 @@ with tabs[3]:
         st.dataframe(pd.DataFrame(interventions), use_container_width=True, hide_index=True)
 
 # ============================================================================
-# TAB 5: KPIs
+# TAB 5: KPIs CON TABLA CENTRADA
 # ============================================================================
 
 with tabs[4]:
-    st.markdown("<h2>KPIs e Indicadores</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center;'>KPIs e Indicadores</h2>", unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3)
     oh = c1.number_input("Horas operativas", value=720.0, min_value=0.0)
@@ -1307,7 +1289,10 @@ with tabs[4]:
     kk3.metric("Disponibilidad", f"{kpis['Disponibilidad (%)']:.2f}%")
     kk4.metric("Perdida productiva", f"{kpis['Perdida productiva (t)']:.1f} t")
     
-    st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
+    # Tabla centrada usando columnas
+    col_center1, col_center2, col_center3 = st.columns([1, 3, 1])
+    with col_center2:
+        st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
 
 # ============================================================================
 # FOOTER
