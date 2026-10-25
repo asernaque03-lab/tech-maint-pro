@@ -239,6 +239,20 @@ def apply_custom_styles():
         .metric-value {{ font-size: 1.5rem !important; }}
         .main-header {{ padding: 15px 20px; }}
     }}
+   /* Mejorar contraste de gráficas Plotly */
+.js-plotly-plot .plotly .xtitle,
+.js-plotly-plot .plotly .ytitle {
+    fill: #1a2b4c !important;
+    font-weight: 600 !important;
+}
+.js-plotly-plot .plotly .xtick text,
+.js-plotly-plot .plotly .ytick text {
+    fill: #1a2b4c !important;
+}
+.js-plotly-plot .plotly .annotation-text {
+    fill: #1a2b4c !important;
+    font-weight: 600 !important;
+} 
     </style>
     """, unsafe_allow_html=True)
 
@@ -704,60 +718,65 @@ if latest["estado"] in ["Alerta", "Critico"]:
 with tabs[0]:
     statuses = variable_status(latest)
     
-    # 4 metricas en fila
+    # Función auxiliar para obtener color del estado
+    def get_status_color(status):
+        return COLORS["verde"] if status == "Normal" else COLORS["amarillo"] if status == "Alerta" else COLORS["rojo"]
+    
+    # 4 columnas: cada una con métrica + gráfica debajo
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        status_class = f"status-{statuses['Vibracion'].lower()}"
-        badge_class = f"badge-{statuses['Vibracion'].lower()}"
+        status_color_vib = get_status_color(statuses["Vibracion"])
         st.markdown(f"""
-        <div class="metric-card {status_class}">
-            <div style="font-size:0.9rem;color:{COLORS['texto_gris']};">VIBRACION RMS</div>
+        <div class="metric-card status-{statuses['Vibracion'].lower()}">
+            <div style="font-size:1.1rem;font-weight:800;color:{status_color_vib};margin-bottom:8px;">VIBRACION RMS</div>
             <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{COLORS['texto_oscuro']};">{latest['vibracion_rms_mm_s']:.2f} <span style="font-size:1rem;">mm/s</span></div>
-            <div class="{badge_class}" style="font-size:1.1rem;">{statuses['Vibracion'].upper()}</div>
+            <div class="badge-{statuses['Vibracion'].lower()}" style="font-size:1.1rem;">{statuses['Vibracion'].upper()}</div>
             <div style="font-size:0.8rem;color:{COLORS['texto_gris']};margin-top:8px;">Ref: {THRESHOLDS['vibration_normal']} / {THRESHOLDS['vibration_alert']}</div>
         </div>
         """, unsafe_allow_html=True)
+        st.plotly_chart(create_vibration_chart(DF), use_container_width=True)
     
     with col2:
-        status_class = f"status-{statuses['Temperatura'].lower()}"
-        badge_class = f"badge-{statuses['Temperatura'].lower()}"
+        status_color_temp = get_status_color(statuses["Temperatura"])
         st.markdown(f"""
-        <div class="metric-card {status_class}">
-            <div style="font-size:0.9rem;color:{COLORS['texto_gris']};">TEMPERATURA</div>
+        <div class="metric-card status-{statuses['Temperatura'].lower()}">
+            <div style="font-size:1.1rem;font-weight:800;color:{status_color_temp};margin-bottom:8px;">TEMPERATURA</div>
             <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{COLORS['texto_oscuro']};">{latest['temperatura_c']:.1f} <span style="font-size:1rem;">C</span></div>
-            <div class="{badge_class}" style="font-size:1.1rem;">{statuses['Temperatura'].upper()}</div>
+            <div class="badge-{statuses['Temperatura'].lower()}" style="font-size:1.1rem;">{statuses['Temperatura'].upper()}</div>
             <div style="font-size:0.8rem;color:{COLORS['texto_gris']};margin-top:8px;">Ref: {THRESHOLDS['temperature_normal']} / {THRESHOLDS['temperature_alert']}</div>
         </div>
         """, unsafe_allow_html=True)
+        st.plotly_chart(create_temperature_chart(DF), use_container_width=True)
     
     with col3:
-        status_class = f"status-{statuses['Presion de vacio'].lower()}"
-        badge_class = f"badge-{statuses['Presion de vacio'].lower()}"
+        status_color_vac = get_status_color(statuses["Presion de vacio"])
         st.markdown(f"""
-        <div class="metric-card {status_class}">
-            <div style="font-size:0.9rem;color:{COLORS['texto_gris']};">PRESION DE VACIO</div>
+        <div class="metric-card status-{statuses['Presion de vacio'].lower()}">
+            <div style="font-size:1.1rem;font-weight:800;color:{status_color_vac};margin-bottom:8px;">PRESION DE VACIO</div>
             <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{COLORS['texto_oscuro']};">{latest['presion_vacio_kpa']:.1f} <span style="font-size:1rem;">kPa</span></div>
-            <div class="{badge_class}" style="font-size:1.1rem;">{statuses['Presion de vacio'].upper()}</div>
+            <div class="badge-{statuses['Presion de vacio'].lower()}" style="font-size:1.1rem;">{statuses['Presion de vacio'].upper()}</div>
             <div style="font-size:0.8rem;color:{COLORS['texto_gris']};margin-top:8px;">Mas negativo = mejor</div>
         </div>
         """, unsafe_allow_html=True)
+        st.plotly_chart(create_vacuum_chart(DF), use_container_width=True)
     
     with col4:
-        estado_color = COLORS["verde"] if latest["estado"] == "Normal" else COLORS["amarillo"] if latest["estado"] == "Alerta" else COLORS["rojo"]
+        estado_color = get_status_color(latest["estado"])
         st.markdown(f"""
         <div class="metric-card" style="border-left-color:{estado_color};">
-            <div style="font-size:0.9rem;color:{COLORS['texto_gris']};">ESTADO GLOBAL</div>
+            <div style="font-size:1.1rem;font-weight:800;color:{estado_color};margin-bottom:8px;">ESTADO GLOBAL</div>
             <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{estado_color};">{latest['estado'].upper()}</div>
             <div style="font-size:1.1rem;color:{COLORS['texto_gris']};">IR: {latest['indice_riesgo']:.1f}/100</div>
             <div style="font-size:0.8rem;color:{COLORS['texto_gris']};margin-top:8px;">Avance: {st.session_state.sim_idx}/{max_idx}</div>
         </div>
         """, unsafe_allow_html=True)
+        st.plotly_chart(create_risk_chart(DF), use_container_width=True)
     
     # Alarmas activas
     alarms = get_alarms(latest)
     if alarms:
-        st.markdown("<h3 style='margin-top:30px;'>Alarmas Activas</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin-top:30px;color:" + COLORS["texto_oscuro"] + ";'>Alarmas Activas</h3>", unsafe_allow_html=True)
         for level, name, value in alarms:
             alarm_class = "alarm-critical" if level == "Critico" else ""
             icon = "[!]" if level == "Critico" else "[*]"
@@ -768,16 +787,6 @@ with tabs[0]:
                 <div style="margin-top:5px;">{name} fuera de rango: <strong>{value}</strong></div>
             </div>
             """, unsafe_allow_html=True)
-    
-    # Graficas en tiempo real - 2x2 grid
-    st.markdown("<h3 style='margin-top:30px;'>Tendencias Temporales en Tiempo Real</h3>", unsafe_allow_html=True)
-    col_g1, col_g2 = st.columns(2)
-    with col_g1:
-        st.plotly_chart(create_vibration_chart(DF), use_container_width=True)
-        st.plotly_chart(create_temperature_chart(DF), use_container_width=True)
-    with col_g2:
-        st.plotly_chart(create_vacuum_chart(DF), use_container_width=True)
-        st.plotly_chart(create_risk_chart(DF), use_container_width=True)
 
 # ============================================================================
 # TAB 2: DIAGNOSTICO
