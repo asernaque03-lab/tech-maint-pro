@@ -790,28 +790,19 @@ btn_html = f"""
 st.markdown(btn_html, unsafe_allow_html=True)
 
 # ============================================================================
-# CHATBOT FLOTANTE - SOLUCIÓN DEFINITIVA
+# CHATBOT FLOTANTE - VERSIÓN DEFINITIVA (SIN DUPLICADOS)
 # ============================================================================
 
-# CSS AGRESIVO para ocultar completamente el botón de Streamlit
+# CSS para ocultar el botón de Streamlit
 st.markdown("""
 <style>
-/* Ocultar el botón fc_toggle completamente */
-div[data-testid="stHorizontalBlock"] button[kind="secondary"][data-testid="baseButton-secondary"],
-button[data-testid="baseButton-secondary"][aria-label=""] {
+/* Ocultar botón fc_toggle fuera de la pantalla */
+div[data-testid="stVerticalBlock"] > div:has(button[aria-label="Abrir asistente"]) {
     display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    position: absolute !important;
-    left: -9999px !important;
-    top: -9999px !important;
-    pointer-events: none !important;
 }
 
-/* Asegurar que el botón de Letzy sea clickeable */
-.letzy-float-btn {
+/* Estilos del botón flotante de Letzy */
+.letzy-btn {
     position: fixed !important;
     bottom: 30px !important;
     right: 30px !important;
@@ -826,34 +817,42 @@ button[data-testid="baseButton-secondary"][aria-label=""] {
     overflow: hidden !important;
     padding: 0 !important;
     margin: 0 !important;
+    transition: transform 0.3s ease !important;
 }
 
-.letzy-float-btn:hover {
+.letzy-btn:hover {
     transform: scale(1.1) !important;
-    transition: transform 0.3s ease !important;
+}
+
+.letzy-btn img {
+    width: 84px !important;
+    height: 84px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Botón OCULTO de Streamlit (invisible para el usuario)
-st.button("", key="fc_toggle", help="", use_container_width=False)
+# UN SOLO botón de Streamlit (oculto con CSS)
+open_chat = st.button("Abrir asistente", key="fc_toggle", help="Abrir asistente")
 
-# Botón circular flotante de Letzy (ÚNICO visible)
+if open_chat:
+    st.session_state.floating_chat_open = True
+
+# Botón circular de Letzy (ÚNICO visible)
 st.markdown(f"""
-<div class="letzy-float-btn" onclick="document.querySelector('button[data-testid="baseButton-secondary"][aria-label=""]').click()">
+<div class="letzy-btn" onclick="document.querySelector('button[aria-label="Abrir asistente"]').click()">
     {render_letzy("84px")}
 </div>
 """, unsafe_allow_html=True)
 
-# Mostrar el diálogo si está abierto
+# Mostrar diálogo si está abierto
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
 
 # Abrir chat automáticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
-# Botón de Streamlit (se renderiza pero lo ocultamos con CSS)
-open_chat = st.button("🤖", key="fc_toggle", help="Abrir asistente Letzy")
 
 if open_chat:
     st.session_state.floating_chat_open = True
