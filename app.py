@@ -536,21 +536,71 @@ if st.session_state.get("auto_chat_triggered", False) and not st.session_state.g
 
 def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None, threshold_alert=None, reverse=False):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df[column], mode="lines+markers", name=title, line=dict(color=color, width=3), marker=dict(size=4), fill="tozeroy" if not reverse else None, fillcolor="rgba(26,95,168,0.08)" if not reverse else None))
-    if threshold_normal is not None: fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], annotation_text="Alerta")
-    if threshold_alert is not None: fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], annotation_text="Critico")
-    fig.update_layout(title=dict(text=title, y=0.96, x=0.01, xanchor="left"), template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=20, r=20, t=78, b=30), xaxis=dict(title="Fecha/hora", showgrid=False), yaxis=dict(title=y_title, autorange="reversed" if reverse else True), hovermode="x unified", showlegend=False, height=300)
+    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df[column], mode="lines+markers", name=title, 
+                             line=dict(color=color, width=3), marker=dict(size=4), 
+                             fill="tozeroy" if not reverse else None, 
+                             fillcolor="rgba(26,95,168,0.08)" if not reverse else None))
+    if threshold_normal is not None: 
+        fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], 
+                      line_width=2, annotation_text="Alerta", annotation_position="top right",
+                      annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
+    if threshold_alert is not None: 
+        fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], 
+                      line_width=2, annotation_text="Critico", annotation_position="top right",
+                      annotation_font_color=COLORS["rojo"], annotation_font_size=11)
+    fig.update_layout(
+        title=dict(text=title, y=0.96, x=0.01, xanchor="left", font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
+        template="plotly_white", 
+        paper_bgcolor="rgba(255,255,255,0.9)", 
+        plot_bgcolor="rgba(255,255,255,0.9)",
+        margin=dict(l=20, r=20, t=78, b=30), 
+        xaxis=dict(title="Fecha/hora", showgrid=True, gridcolor="rgba(0,0,0,0.08)", 
+                   tickfont=dict(color=COLORS["texto_oscuro"], size=10),
+                   titlefont=dict(color=COLORS["texto_oscuro"], size=12)),
+        yaxis=dict(title=y_title, autorange="reversed" if reverse else True, 
+                   showgrid=True, gridcolor="rgba(0,0,0,0.08)",
+                   tickfont=dict(color=COLORS["texto_oscuro"], size=10),
+                   titlefont=dict(color=COLORS["texto_oscuro"], size=12)),
+        hovermode="x unified", showlegend=False, height=280,
+        font=dict(color=COLORS["texto_oscuro"], family="Arial")
+    )
     return fig
 
-def create_vibration_chart(df): return create_sensor_chart(df, "vibracion_rms_mm_s", "Vibracion RMS", "mm/s", COLORS["azul"], THRESHOLDS["vibration_normal"], THRESHOLDS["vibration_alert"])
-def create_temperature_chart(df): return create_sensor_chart(df, "temperatura_c", "Temperatura", "C", COLORS["amarillo"], THRESHOLDS["temperature_normal"], THRESHOLDS["temperature_alert"])
-def create_vacuum_chart(df): return create_sensor_chart(df, "presion_vacio_kpa", "Presion de vacio", "kPa", COLORS["verde"], THRESHOLDS["vacuum_normal"], THRESHOLDS["vacuum_alert"], reverse=True)
+def create_vibration_chart(df): 
+    return create_sensor_chart(df, "vibracion_rms_mm_s", "Vibracion RMS", "mm/s", COLORS["azul"], THRESHOLDS["vibration_normal"], THRESHOLDS["vibration_alert"])
+
+def create_temperature_chart(df): 
+    return create_sensor_chart(df, "temperatura_c", "Temperatura", "C", COLORS["amarillo"], THRESHOLDS["temperature_normal"], THRESHOLDS["temperature_alert"])
+
+def create_vacuum_chart(df): 
+    return create_sensor_chart(df, "presion_vacio_kpa", "Presion de vacio", "kPa", COLORS["verde"], THRESHOLDS["vacuum_normal"], THRESHOLDS["vacuum_alert"], reverse=True)
+
 def create_risk_chart(df):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df["indice_riesgo"], mode="lines+markers", name="IR", line=dict(color=COLORS["amarillo"], width=3), fill="tozeroy", fillcolor="rgba(245,166,35,0.10)", marker=dict(size=4)))
-    fig.add_hline(y=40, line_dash="dash", line_color=COLORS["amarillo"], annotation_text="Alerta")
-    fig.add_hline(y=70, line_dash="dash", line_color=COLORS["rojo"], annotation_text="Critico")
-    fig.update_layout(title="Indice de riesgo", template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=20, r=20, t=52, b=20), xaxis=dict(title="Fecha/hora", showgrid=False), yaxis=dict(title="IR", range=[0, 100]), hovermode="x unified", height=300)
+    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df["indice_riesgo"], mode="lines+markers", name="IR", 
+                             line=dict(color=COLORS["amarillo"], width=3), 
+                             fill="tozeroy", fillcolor="rgba(245,166,35,0.10)", marker=dict(size=4)))
+    fig.add_hline(y=40, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, 
+                  annotation_text="Alerta", annotation_position="top right",
+                  annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
+    fig.add_hline(y=70, line_dash="dash", line_color=COLORS["rojo"], line_width=2, 
+                  annotation_text="Critico", annotation_position="top right",
+                  annotation_font_color=COLORS["rojo"], annotation_font_size=11)
+    fig.update_layout(
+        title="Indice de riesgo", 
+        template="plotly_white", 
+        paper_bgcolor="rgba(255,255,255,0.9)", 
+        plot_bgcolor="rgba(255,255,255,0.9)",
+        margin=dict(l=20, r=20, t=52, b=20), 
+        xaxis=dict(title="Fecha/hora", showgrid=True, gridcolor="rgba(0,0,0,0.08)",
+                   tickfont=dict(color=COLORS["texto_oscuro"], size=10),
+                   titlefont=dict(color=COLORS["texto_oscuro"], size=12)),
+        yaxis=dict(title="IR", range=[0, 100], showgrid=True, gridcolor="rgba(0,0,0,0.08)",
+                   tickfont=dict(color=COLORS["texto_oscuro"], size=10),
+                   titlefont=dict(color=COLORS["texto_oscuro"], size=12)),
+        hovermode="x unified", height=280,
+        font=dict(color=COLORS["texto_oscuro"], family="Arial")
+    )
     return fig
 
 # ============================================================================
