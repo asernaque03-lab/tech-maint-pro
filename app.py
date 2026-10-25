@@ -146,7 +146,7 @@ st.markdown("""
 
 COLORS = {
     "azul": "#1a5fa8",
-    "verde": "#6fec8c",
+    "verde": "#48c766e5",
     "amarillo": "#eea022",
     "rojo": "#fa3a3adf",
     "blanco": "#ffffff",
