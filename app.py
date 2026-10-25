@@ -756,29 +756,22 @@ def floating_chat_dialog():
     # Nota: El diálogo se cierra de forma nativa en Streamlit haciendo clic fuera del cuadro o presionando la tecla Esc.
 
 # ============================================================================
-# BOTÓN FLOTANTE HTML (SIN st.button)
+# BOTÓN FLOTANTE DE LETZY - POSICIÓN INFERIOR DERECHA
 # ============================================================================
 
-import streamlit.components.v1 as components
-
-# HTML puro para el botón flotante que usa un enlace con parámetro de consulta
-chatbot_html = f"""
-<!DOCTYPE html>
-<html>
-<head>
+# CSS para el botón flotante
+st.markdown("""
 <style>
-body {{
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background: transparent;
-}}
-.letzy-btn {{
+.letzy-button-container {
     position: fixed;
     bottom: 30px;
     right: 30px;
-    width: 90px;
-    height: 90px;
+    z-index: 9999;
+}
+
+.letzy-button {
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
     background: linear-gradient(135deg, #1a5fa8, #7cb342);
     border: 3px solid #f5a623;
@@ -789,37 +782,53 @@ body {{
     align-items: center;
     justify-content: center;
     transition: transform 0.3s ease;
-    z-index: 9999;
-    text-decoration: none;
-}}
-.letzy-btn:hover {{
+}
+
+.letzy-button:hover {
     transform: scale(1.1);
-}}
-.letzy-btn img {{
-    width: 84px;
-    height: 84px;
+}
+
+.letzy-button img {
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     object-fit: cover;
-}}
+}
 </style>
-</head>
-<body>
-<a href="?open_chat=1" class="letzy-btn" title="Abrir Asistente Letzy">
-    <img src="{LETZY_BASE64}" alt="Letzy">
-</a>
-</body>
-</html>
-"""
+""", unsafe_allow_html=True)
 
-# Renderizar el componente HTML (botón flotante de Letzy)
-components.html(chatbot_html, height=120, width=120)
+# Crear el botón usando st.button con un contenedor personalizado
+col1, col2 = st.columns([10, 1])
+with col2:
+    if st.button("🤖", key="letzy_floating_button", help="Abrir Asistente Letzy", use_container_width=True):
+        st.session_state.floating_chat_open = True
 
-# Detectar apertura del chat a través del parámetro de consulta (SIN st.button)
-if "open_chat" in st.query_params:
-    st.session_state.floating_chat_open = True
-    st.query_params.clear()
+# Aplicar estilos CSS al botón
+st.markdown("""
+<script>
+// Mover el botón a la posición inferior derecha
+let button = document.querySelector('button[key="letzy_floating_button"]');
+if (button) {
+    let container = button.closest('.stColumn');
+    if (container) {
+        container.style.position = 'fixed';
+        container.style.bottom = '30px';
+        container.style.right = '30px';
+        container.style.zIndex = '9999';
+        container.style.width = '70px';
+    }
+    button.style.width = '70px';
+    button.style.height = '70px';
+    button.style.borderRadius = '50%';
+    button.style.fontSize = '35px';
+    button.style.background = 'linear-gradient(135deg, #1a5fa8, #7cb342)';
+    button.style.border = '3px solid #f5a623';
+    button.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+}
+</script>
+""", unsafe_allow_html=True)
 
-# Mostrar diálogo si está abierto
+# Mostrar el diálogo si está abierto
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
 
