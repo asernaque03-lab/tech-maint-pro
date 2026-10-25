@@ -126,7 +126,7 @@ LETZY_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4QBiRXhpZgAAT
 
 def render_letzy(size="60px"):
     return f'<img src="{LETZY_BASE64}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block; object-fit:cover;" />'
-
+    
 # ============================================================================
 # CONFIGURACION PAGINA
 # ============================================================================
