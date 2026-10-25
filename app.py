@@ -790,36 +790,58 @@ btn_html = f"""
 st.markdown(btn_html, unsafe_allow_html=True)
 
 # ============================================================================
-# CHATBOT FLOTANTE - BOTÓN CIRCULAR DE LETZY (ÚNICO BOTÓN VISIBLE)
+# CHATBOT FLOTANTE - SOLUCIÓN DEFINITIVA
 # ============================================================================
 
-# CSS para ocultar el botón nativo de Streamlit
+# CSS AGRESIVO para ocultar completamente el botón de Streamlit
 st.markdown("""
 <style>
-button[kind="secondary"][data-testid="baseButton-secondary"] {
-    background: none !important;
-    border: none !important;
-    color: transparent !important;
+/* Ocultar el botón fc_toggle completamente */
+div[data-testid="stHorizontalBlock"] button[kind="secondary"][data-testid="baseButton-secondary"],
+button[data-testid="baseButton-secondary"][aria-label=""] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
     width: 0 !important;
     height: 0 !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    pointer-events: none !important;
+}
+
+/* Asegurar que el botón de Letzy sea clickeable */
+.letzy-float-btn {
+    position: fixed !important;
+    bottom: 30px !important;
+    right: 30px !important;
+    z-index: 9999 !important;
+    cursor: pointer !important;
+    width: 90px !important;
+    height: 90px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #1a5fa8, #7cb342) !important;
+    border: 3px solid #f5a623 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+    overflow: hidden !important;
     padding: 0 !important;
     margin: 0 !important;
-    overflow: hidden !important;
-    position: absolute !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
+}
+
+.letzy-float-btn:hover {
+    transform: scale(1.1) !important;
+    transition: transform 0.3s ease !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Botón OCULTO de Streamlit (no visible para el usuario)
-if st.button("", key="fc_toggle", help=""):
-    st.session_state.floating_chat_open = True
+# Botón OCULTO de Streamlit (invisible para el usuario)
+st.button("", key="fc_toggle", help="", use_container_width=False)
 
 # Botón circular flotante de Letzy (ÚNICO visible)
 st.markdown(f"""
-<div style="position:fixed;bottom:30px;right:30px;z-index:9999;cursor:pointer;" onclick="document.querySelector('button[kind=secondary][data-testid=baseButton-secondary]').click()">
-    {render_letzy("90px")}
+<div class="letzy-float-btn" onclick="document.querySelector('button[data-testid="baseButton-secondary"][aria-label=""]').click()">
+    {render_letzy("84px")}
 </div>
 """, unsafe_allow_html=True)
 
@@ -830,14 +852,39 @@ if st.session_state.get("floating_chat_open", False):
 # Abrir chat automáticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
+# Botón de Streamlit (se renderiza pero lo ocultamos con CSS)
+open_chat = st.button("🤖", key="fc_toggle", help="Abrir asistente Letzy")
 
-st.markdown("</div>", unsafe_allow_html=True)
+if open_chat:
+    st.session_state.floating_chat_open = True
 
-# Mostrar el dialogo si esta abierto
+# CSS para hacer el botón muy pequeño y moverlo fuera de la vista
+st.markdown("""
+<style>
+button[kind="secondary"][data-testid="baseButton-secondary"] {
+    position: fixed !important;
+    top: -100px !important;
+    left: -100px !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Botón circular de Letzy que activa el botón oculto
+st.markdown(f"""
+<div style="position:fixed;bottom:30px;right:30px;z-index:9999;cursor:pointer;" 
+     onclick="document.querySelector('button[kind=secondary]').click()">
+    {render_letzy("90px")}
+</div>
+""", unsafe_allow_html=True)
+
+# Mostrar diálogo
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
 
-# Abrir chat automaticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
 
