@@ -16,6 +16,7 @@ import wave
 from datetime import datetime, timedelta
 from io import BytesIO
 from typing import Optional, Dict, List, Tuple
+from groq import Groq
 
 import numpy as np
 import pandas as pd
@@ -119,7 +120,6 @@ def render_logo(size="180px"):
 
 # ============================================================================
 # LETZY - ASISTENTE VIRTUAL BASE64
-# REEMPLAZA ESTE STRING CON EL BASE64 DE LA IMAGEN DE LETZY
 # ============================================================================
 
 LETZY_BASE64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzFhNWZhOCIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNDUiIHI9IjIwIiBmaWxsPSIjZmZjYmE3Ii8+PGVsbGlwc2UgY3g9IjQyIiBjeT0iNDIiIHJ4PSIzIiByeT0iNCIgZmlsbD0iIzMzMyIvPjxlbGxpcHNlIGN4PSI1OCIgY3k9IjQyIiByeD0iMyIgcnk9IjQiIGZpbGw9IiMzMzMiLz48cGF0aCBkPSJNIDQwIDU1IFEgNTAgNjUgNjAgNTUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTSAyMCA1MCBRIDEwIDcwIDIwIDkwIiBzdHJva2U9IiM3Y2IzNDIiIHN0cm9rZS13aWR0aD0iNiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0gODAgNTAgUSA5MCA3MCA4MCA5MCIgc3Ryb2tlPSIjN2NiMzQyIiBzdHJva2Utd2lkdGg9IjYiIGZpbGw9Im5vbmUiLz48L3N2Zz4="
@@ -128,7 +128,7 @@ def render_letzy(size="60px"):
     return f'<img src="{LETZY_BASE64}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block; object-fit:cover;" />'
 
 # ============================================================================
-# CONFIGURACION PAGINA - SIN SIDEBAR, FONDO CLARO
+# CONFIGURACION PAGINA
 # ============================================================================
 
 st.set_page_config(
@@ -152,7 +152,7 @@ st.markdown("""
 
 COLORS = {
     "azul": "#1a5fa8",
-    "verde": "#8bc34a",  # Verde más claro
+    "verde": "#8bc34a",
     "amarillo": "#f5a623",
     "rojo": "#d32f2f",
     "blanco": "#ffffff",
@@ -203,32 +203,28 @@ FMECA_KNOWLEDGE = [
 ]
 
 # ============================================================================
-# ESTILOS CSS PERSONALIZADOS - TEMA CLARO COMPACTO
+# ESTILOS CSS PERSONALIZADOS
 # ============================================================================
 
 def apply_custom_styles():
     css = f"""
     <style>
-    /* Fondo claro general */
     .stApp {{ 
         background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; 
         padding-top: 0 !important;
     }}
     
-    /* Reducir padding superior e inferior */
     .block-container {{
         padding-top: 0.5rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }}
     
-    /* Header compacto sin fondo */
     .main-header {{
         padding: 10px 0;
         margin-bottom: 8px;
     }}
     
-    /* Tarjetas metricas con fondo completo de color */
     .metric-card {{
         border-radius: 16px;
         padding: 20px;
@@ -242,19 +238,15 @@ def apply_custom_styles():
         box-shadow: 0 8px 25px rgba(0,0,0,0.12);
     }}
     
-    /* Semafaro verde - fondo completo */
     .status-normal {{ background: {COLORS['verde']} !important; }}
     .badge-normal-text {{ color: #ffffff; font-weight: bold; }}
     
-    /* Semafaro amarillo - fondo completo */
     .status-alerta {{ background: {COLORS['amarillo']} !important; }}
     .badge-alerta-text {{ color: #ffffff; font-weight: bold; }}
     
-    /* Semafaro rojo - fondo completo */
     .status-critico {{ background: {COLORS['rojo']} !important; }}
     .badge-critico-text {{ color: #ffffff; font-weight: bold; }}
     
-    /* Alarmas */
     .alarm-banner {{
         background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
         border-left: 5px solid {COLORS['amarillo']};
@@ -269,7 +261,6 @@ def apply_custom_styles():
         border: 1px solid rgba(211,47,47,0.3);
     }}
     
-    /* Texto oscuro para fondo claro */
     h1, h2, h3, p, label, span, div {{ 
         color: {COLORS['texto_oscuro']} !important; 
     }}
@@ -278,7 +269,6 @@ def apply_custom_styles():
         color: {COLORS['azul']} !important; 
     }}
     
-    /* Tabs compactos */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 4px;
         margin-bottom: 8px;
@@ -295,17 +285,14 @@ def apply_custom_styles():
         color: white !important;
     }}
     
-    /* Selectbox compacto */
     .stSelectbox {{
         margin-bottom: 8px;
     }}
     
-    /* Dataframe centrado para KPIs */
     .stDataFrame {{
         margin: 0 auto;
     }}
     
-    /* Chatbot tema claro */
     div[data-testid="stDialog"] {{
         background: #f5f7fa !important;
         color: #1a2b4c !important;
@@ -315,12 +302,6 @@ def apply_custom_styles():
     }}
     div[data-testid="stDialog"] h3 {{
         color: #1a5fa8 !important;
-    }}
-    div[data-testid="stDialog"] .stMarkdown p {{
-        color: #1a2b4c !important;
-    }}
-    div[data-testid="stDialog"] .stCaption {{
-        color: #5a6b7c !important;
     }}
     div[data-testid="stDialog"] .stButton > button {{
         background: #1a5fa8 !important;
@@ -579,11 +560,11 @@ def calculate_kpis(oh, failures, dh, pmd, pmp, ph, ahw, pr):
     }
 
 # ============================================================================
-# INTEGRACION CON LANGCHAIN (DESARROLLO PROPIO)
+# INTEGRACION CON GROQ (IA GRATUITA)
 # ============================================================================
 
 def build_context(latest, asset_name, kpi_values):
-    """Construye contexto enriquecido para LangChain"""
+    """Construye contexto enriquecido para Groq"""
     alarms = get_alarms(latest)
     at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
     
@@ -639,50 +620,42 @@ def build_context(latest, asset_name, kpi_values):
     
     return context
 
-def query_langchain(user_query, latest, asset_name, kpi_values):
-    """Consulta usando LangChain con RAG local"""
+def query_free_ai(user_query, latest, asset_name, kpi_values):
+    """Consulta usando Groq (IA gratuita)"""
     try:
         context = build_context(latest, asset_name, kpi_values)
         
-        # Verificar si OpenAI está disponible
-        openai_available = False
-        try:
-            import openai
-            api_key = st.session_state.get("openai_api_key", "")
-            if api_key:
-                openai.api_key = api_key
-                openai_available = True
-        except ImportError:
-            pass
+        api_key = st.session_state.get("groq_api_key", "")
+        if not api_key:
+            return "Por favor, ingresa tu API Key gratuita de Groq en la configuracion del chatbot."
         
-        if openai_available:
-            # Usar OpenAI con LangChain
-            from langchain_openai import ChatOpenAI
-            from langchain_core.messages import SystemMessage, HumanMessage
-            
-            llm = ChatOpenAI(model="gpt-4", temperature=0.3)
-            messages = [
-                SystemMessage(content=context),
-                HumanMessage(content=user_query)
-            ]
-            response = llm.invoke(messages)
-            return response.content
-        else:
-            # Fallback: respuesta inteligente basada en reglas con contexto enriquecido
-            return chatbot_response_with_context(user_query, latest, asset_name, kpi_values, context)
-            
+        client = Groq(api_key=api_key)
+        
+        messages = [
+            {"role": "system", "content": context},
+            {"role": "user", "content": user_query}
+        ]
+        
+        response = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content
+        
     except Exception as e:
-        logger.error(f"Error en LangChain: {e}")
-        return f"Error al procesar la consulta: {str(e)}\n\nPor favor, verifica la configuración o usa el modo de reglas locales."
-
+        logger.error(f"Error en Groq: {e}")
+        return chatbot_response_with_context(user_query, latest, asset_name, kpi_values, "")
+        
 def chatbot_response_with_context(user_query, latest, asset_name, kpi_values, context):
-    """Respuesta mejorada con contexto técnico (fallback cuando no hay API keys)"""
+    """Respuesta mejorada con contexto técnico (fallback)"""
     text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
     sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
     alarms = get_alarms(latest)
     at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
     
-    # Respuestas basadas en contexto enriquecido
     if any(k in text for k in ["hola", "ayuda", "quiero", "necesito"]):
         return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con diagnostico, ordenes de trabajo, AMEF, KPIs e impacto circular."
     
@@ -742,16 +715,15 @@ def chatbot_response_with_context(user_query, latest, asset_name, kpi_values, co
     
     return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
 
-# Respuesta original mantenida como fallback adicional
 def chatbot_response(user_text, latest, kpi_values, asset_name, use_generative_ai=False):
     return chatbot_response_with_context(user_text, latest, asset_name, kpi_values, "")
 
 # ============================================================================
-# CHATBOT FLOTANTE CON LETZY Y LANGCHAIN
+# CHATBOT FLOTANTE CON LETZY Y GROQ
 # ============================================================================
 
 def process_floating_query(query, ai_platform="rules"):
-    """Procesa consulta usando LangChain o reglas locales"""
+    """Procesa consulta usando Groq o reglas locales"""
     if not query or not query.strip():
         return
     
@@ -765,9 +737,9 @@ def process_floating_query(query, ai_platform="rules"):
         
         reply = ""
         
-        if ai_platform == "langchain":
-            reply = query_langchain(q, latest, asset_name, kp)
-        else:  # rules (fallback)
+        if ai_platform == "groq":
+            reply = query_free_ai(q, latest, asset_name, kp)
+        else:
             reply = chatbot_response(q, latest, kp, asset_name, use_generative_ai=False)
         
         st.session_state.floating_chat_history.append({"role": "assistant", "content": reply})
@@ -777,7 +749,7 @@ def process_floating_query(query, ai_platform="rules"):
 
 @st.dialog("Asistente Tech Maint Pro - Letzy", width="large")
 def floating_chat_dialog():
-    """Diálogo del chatbot con selección de plataforma IA"""
+    """Diálogo del chatbot"""
     st.markdown(f"""
     <style>
     div[data-testid="stDialog"] {{
@@ -803,7 +775,6 @@ def floating_chat_dialog():
     </style>
     """, unsafe_allow_html=True)
     
-    # Header con Letzy
     st.markdown(f"""
     <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
         {render_letzy("60px")}
@@ -814,41 +785,33 @@ def floating_chat_dialog():
     </div>
     """, unsafe_allow_html=True)
     
-    # Selector de plataforma IA (solo LangChain y Rules)
     ai_platform = st.selectbox(
         "Plataforma de IA:",
-        options=["rules", "langchain"],
+        options=["rules", "groq"],
         format_func=lambda x: {
-            "rules": "🔧 Respuestas basadas en reglas (local)",
-            "langchain": "⚡ LangChain (desarrollo propio)"
+            "rules": "Respuestas basadas en reglas (local)",
+            "groq": "Groq - IA Gratuita y Rapida (Llama 3)"
         }.get(x, x),
         index=0,
         key="ai_platform_selector"
     )
     
-    # Configuración de LangChain
-    if ai_platform == "langchain":
-        st.info("LangChain usa tu base de conocimiento local + datos en tiempo real")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.session_state["openai_api_key"] = st.text_input(
-                "API Key OpenAI (opcional)", 
-                type="password", 
-                key="oa_key",
-                help="Si proporcionas una API key, se usará GPT-4. Sin ella, se usa el motor de reglas mejorado."
-            )
-        with col2:
-            st.caption("Sin API key: Motor de reglas con contexto enriquecido\nCon API key: GPT-4 + RAG local")
+    if ai_platform == "groq":
+        st.info("Groq ofrece acceso gratuito a modelos potentes como Llama 3. No requiere tarjeta de credito.")
+        st.session_state["groq_api_key"] = st.text_input(
+            "API Key de Groq", 
+            type="password", 
+            key="groq_key",
+            help="Obten tu clave gratis en console.groq.com"
+        )
     
     st.caption("Respuestas instantáneas basadas en datos reales")
     st.divider()
     
-    # Mensaje de bienvenida de Letzy si no hay historial
     if not st.session_state.floating_chat_history:
         with st.chat_message("assistant", avatar=LETZY_BASE64):
             st.markdown("**HOLA, SOY LETZY TU ASISTENTE DE TECH MAINT PRO**\n\n¿En qué puedo ayudarte hoy? Puedo asistirte con diagnóstico, órdenes de trabajo, KPIs, modos de falla e impacto circular.")
     
-    # Mostrar historial de mensajes
     if st.session_state.floating_chat_history:
         for msg in st.session_state.floating_chat_history[-10:]:
             if msg["role"] == "assistant":
@@ -908,16 +871,14 @@ if st.button("Abrir asistente", key="fc_toggle", help="Abrir asistente"):
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Mostrar el dialogo si esta abierto
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
 
-# Abrir chat automaticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
 
 # ============================================================================
-# VISUALIZACION - GRAFICAS CORREGIDAS
+# VISUALIZACION - GRAFICAS
 # ============================================================================
 
 def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None, threshold_alert=None, reverse=False):
@@ -1083,8 +1044,7 @@ sd = {
     "auto_chat_triggered": False, "previous_estado": None,
     "scenario": "Operacion normal", "seed": 42, "n_hours": 168,
     "step_speed": 3, "production_rate": 85.5,
-    # Credenciales LangChain/OpenAI
-    "openai_api_key": ""
+    "groq_api_key": ""
 }
 for k, v in sd.items():
     if k not in st.session_state:
@@ -1093,7 +1053,7 @@ for k, v in sd.items():
 apply_custom_styles()
 
 # ============================================================================
-# HEADER CON LOGO GRANDE Y SUBTITULO
+# HEADER
 # ============================================================================
 
 st.markdown(f"""
@@ -1105,15 +1065,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Tabs de navegacion horizontal
 tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Impacto Circular", "KPIs"])
 
-# Selector de activo integrado compacto
 asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visibility="collapsed")
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
 
 # ============================================================================
-# SIMULACION CONTINUA AUTOMATICA
+# SIMULACION
 # ============================================================================
 
 DF_FULL = generate_synthetic_data(
@@ -1136,7 +1094,6 @@ latest = DF.iloc[-1]
 st.session_state.latest_row = latest
 st.session_state.asset_name = asset_name
 
-# Detectar cambio de estado para abrir chatbot automatico
 current_estado = latest["estado"]
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state.auto_chat_triggered = True
@@ -1150,7 +1107,6 @@ if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado 
 
 st.session_state.previous_estado = current_estado
 
-# Generar OT automatica
 if latest["estado"] in ["Alerta", "Critico"]:
     ek = f"{latest['fecha_hora']}-{latest['estado']}"
     if st.session_state.last_order_event != ek:
@@ -1166,7 +1122,7 @@ if latest["estado"] in ["Alerta", "Critico"]:
         st.session_state.last_order_event = ek
 
 # ============================================================================
-# TAB 1: MONITOREO EN VIVO - 4 INDICADORES CON FONDO DE COLOR
+# TAB 1: MONITOREO
 # ============================================================================
 
 with tabs[0]:
@@ -1237,7 +1193,6 @@ with tabs[0]:
         st.markdown(card_html, unsafe_allow_html=True)
         st.plotly_chart(create_risk_chart(DF), use_container_width=True)
     
-    # Alarmas activas
     alarms = get_alarms(latest)
     if alarms:
         st.markdown(f"<h3 style='margin-top:20px;color:{COLORS['texto_oscuro']};'>Alarmas Activas</h3>", unsafe_allow_html=True)
@@ -1394,7 +1349,7 @@ with tabs[3]:
         st.dataframe(pd.DataFrame(interventions), use_container_width=True, hide_index=True)
 
 # ============================================================================
-# TAB 5: KPIs CON TABLA CENTRADA
+# TAB 5: KPIs
 # ============================================================================
 
 with tabs[4]:
@@ -1417,7 +1372,6 @@ with tabs[4]:
     kk3.metric("Disponibilidad", f"{kpis['Disponibilidad (%)']:.2f}%")
     kk4.metric("Perdida productiva", f"{kpis['Perdida productiva (t)']:.1f} t")
     
-    # Tabla centrada usando columnas
     col_center1, col_center2, col_center3 = st.columns([1, 3, 1])
     with col_center2:
         st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
