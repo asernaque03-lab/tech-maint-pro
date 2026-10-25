@@ -555,7 +555,7 @@ def chatbot_response(user_text, latest, kpi_values, asset_name, use_generative_a
     if any(k in text for k in ["circular", "impacto", "residuo"]):
         return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
 # ============================================================================
-# CHATBOT FLOTANTE AUTOMATICO
+# CHATBOT FLOTANTE AUTOMATICO - VERSION CORREGIDA
 # ============================================================================
 
 def process_floating_query(query):
@@ -590,44 +590,33 @@ def floating_chat_dialog():
     with c1:
         if st.button("Estado actual", key="qr1", use_container_width=True):
             process_floating_query("Estado actual")
-            st.rerun()
         if st.button("Alta vibracion", key="qr2", use_container_width=True):
             process_floating_query("Que causa alta vibracion?")
-            st.rerun()
         if st.button("KPIs", key="qr3", use_container_width=True):
             process_floating_query("Cuales son los KPIs?")
-            st.rerun()
     with c2:
         if st.button("Caída de vacio", key="qr4", use_container_width=True):
             process_floating_query("Que revisar si cae el vacio?")
-            st.rerun()
         if st.button("Generar OT", key="qr5", use_container_width=True):
             process_floating_query("Generar orden de trabajo")
-            st.rerun()
         if st.button("Impacto circular", key="qr6", use_container_width=True):
             process_floating_query("Que es impacto circular?")
-            st.rerun()
     with c3:
         if st.button("Modos de falla", key="qr7", use_container_width=True):
             process_floating_query("Modos de falla AMEF")
-            st.rerun()
         if st.button("Temperatura", key="qr8", use_container_width=True):
             process_floating_query("Analiza la temperatura actual")
-            st.rerun()
         if st.button("Limpiar", key="qr9", use_container_width=True):
             st.session_state.floating_chat_history = []
-            st.rerun()
     
     st.divider()
     ui = st.chat_input("Escribe tu consulta...", key="fci")
     if ui:
         process_floating_query(ui)
-        st.rerun()
     
     if st.button("Cerrar chat", key="fcc", use_container_width=True):
         st.session_state.floating_chat_open = False
         st.session_state.auto_chat_triggered = False
-        st.rerun()
 
 # Boton flotante
 btn_html = f"""
@@ -642,13 +631,16 @@ st.markdown(btn_html, unsafe_allow_html=True)
 
 if st.button("Abrir asistente", key="fc_toggle", help="Abrir asistente"):
     st.session_state.floating_chat_open = not st.session_state.floating_chat_open
-    st.rerun()
 
 st.markdown("</div>", unsafe_allow_html=True)
 
 # Mostrar el dialogo si esta abierto
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
+
+# Abrir chat automaticamente en alertas
+if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
+    st.session_state.floating_chat_open = True
 
 # Abrir chat automaticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
