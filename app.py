@@ -303,16 +303,6 @@ def apply_custom_styles():
     div[data-testid="stDialog"] h3 {{
         color: #1a5fa8 !important;
     }}
-    div[data-testid="stDialog"] .stButton > button {{
-        background: #1a5fa8 !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-weight: 600 !important;
-    }}
-    div[data-testid="stDialog"] .stButton > button:hover {{
-        background: #2a7bc8 !important;
-    }}
     div[data-testid="stDialog"] input {{
         background: #ffffff !important;
         color: #1a2b4c !important;
@@ -677,7 +667,7 @@ def chatbot_response(user_text, latest, kpi_values, asset_name, use_generative_a
     return chatbot_response_with_context(user_text, latest, asset_name, kpi_values, "")
 
 # ============================================================================
-# CHATBOT FLOTANTE CON LETZY Y GROQ (SIN RERUN)
+# CHATBOT FLOTANTE CON LETZY Y GROQ (SIN st.button)
 # ============================================================================
 
 def process_floating_query(query, ai_platform="rules"):
@@ -707,8 +697,6 @@ def floating_chat_dialog():
     div[data-testid="stDialog"] {{ background: #f5f7fa !important; color: #1a2b4c !important; }}
     div[data-testid="stDialog"] * {{ color: #1a2b4c !important; }}
     div[data-testid="stDialog"] h3 {{ color: #1a5fa8 !important; }}
-    div[data-testid="stDialog"] .stButton > button {{ background: #1a5fa8 !important; color: #ffffff !important; border: none !important; border-radius: 8px !important; font-weight: 600 !important; }}
-    div[data-testid="stDialog"] .stButton > button:hover {{ background: #2a7bc8 !important; }}
     div[data-testid="stDialog"] input {{ background: #ffffff !important; color: #1a2b4c !important; border: 1px solid #e8ecf1 !important; }}
     div[data-testid="stChatMessage"] {{ background: #ffffff !important; border: 1px solid #e8ecf1 !important; }}
     div[data-testid="stChatMessage"] p {{ color: #1a2b4c !important; }}
@@ -753,49 +741,27 @@ def floating_chat_dialog():
                 st.markdown(msg["content"])
     
     st.divider()
-    st.markdown("#### Consultas rápidas:")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("Estado actual", key="qr1", use_container_width=True): process_floating_query("Estado actual", ai_platform)
-        if st.button("Alta vibracion", key="qr2", use_container_width=True): process_floating_query("Que causa alta vibracion?", ai_platform)
-        if st.button("KPIs", key="qr3", use_container_width=True): process_floating_query("Cuales son los KPIs?", ai_platform)
-    with c2:
-        if st.button("Caída de vacio", key="qr4", use_container_width=True): process_floating_query("Que revisar si cae el vacio?", ai_platform)
-        if st.button("Generar OT", key="qr5", use_container_width=True): process_floating_query("Generar orden de trabajo", ai_platform)
-        if st.button("Impacto circular", key="qr6", use_container_width=True): process_floating_query("Que es impacto circular?", ai_platform)
-    with c3:
-        if st.button("Modos de falla", key="qr7", use_container_width=True): process_floating_query("Modos de falla AMEF", ai_platform)
-        if st.button("Temperatura", key="qr8", use_container_width=True): process_floating_query("Analiza la temperatura actual", ai_platform)
-        if st.button("Limpiar", key="qr9", use_container_width=True): st.session_state.floating_chat_history = []
+    st.markdown("#### 💡 Consultas sugeridas (copia y pega en el chat):")
+    st.markdown("- *Estado actual*")
+    st.markdown("- *Que causa alta vibracion?*")
+    st.markdown("- *Cuales son los KPIs?*")
+    st.markdown("- *Generar orden de trabajo*")
+    st.markdown("- *Modos de falla AMEF*")
     
     st.divider()
     ui = st.chat_input("Escribe tu consulta a Letzy...", key="fci")
     if ui:
         process_floating_query(ui, ai_platform)
     
-    if st.button("Cerrar chat", key="fcc", use_container_width=True):
-        st.session_state.floating_chat_open = False
-        st.session_state.auto_chat_triggered = False
-        st.rerun()
-
-# Boton flotante con Letzy - SOLO ESTE DEBE ABRIR EL CHAT
-btn_html = f"""
-<div style="position:fixed;bottom:30px;right:30px;z-index:9999;">
-<button onclick="document.getElementById('fc_toggle').click()" style="width:90px;height:90px;background:linear-gradient(135deg,#1a5fa8,#7cb342);border-radius:50%;border:3px solid #f5a623;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);overflow:hidden;padding:0;">
-{render_letzy("84px")}
-</button>
-</div>
-<div style="display:none;">
-"""
-st.markdown(btn_html, unsafe_allow_html=True)
+    # Nota: El diálogo se cierra de forma nativa en Streamlit haciendo clic fuera del cuadro o presionando la tecla Esc.
 
 # ============================================================================
-# CHATBOT FLOTANTE - SOLUCIÓN DEFINITIVA SIN st.button()
+# BOTÓN FLOTANTE HTML (SIN st.button)
 # ============================================================================
 
 import streamlit.components.v1 as components
 
-# HTML + JavaScript puro para el botón flotante
+# HTML puro para el botón flotante que usa un enlace con parámetro de consulta
 chatbot_html = f"""
 <!DOCTYPE html>
 <html>
@@ -809,8 +775,8 @@ body {{
 }}
 .letzy-btn {{
     position: fixed;
-    bottom: 10px;
-    right: 10px;
+    bottom: 30px;
+    right: 30px;
     width: 90px;
     height: 90px;
     border-radius: 50%;
@@ -824,6 +790,7 @@ body {{
     justify-content: center;
     transition: transform 0.3s ease;
     z-index: 9999;
+    text-decoration: none;
 }}
 .letzy-btn:hover {{
     transform: scale(1.1);
@@ -837,19 +804,9 @@ body {{
 </style>
 </head>
 <body>
-<div class="letzy-btn" onclick="parent.postMessage({{type: 'open_letzy_chat'}}, '*')">
+<a href="?open_chat=1" class="letzy-btn" title="Abrir Asistente Letzy">
     <img src="{LETZY_BASE64}" alt="Letzy">
-</div>
-<script>
-// Enviar mensaje al padre (Streamlit) cuando se hace clic
-document.querySelector('.letzy-btn').addEventListener('click', function() {{
-    const streamlit = window.parent.document.querySelector('iframe');
-    if (streamlit) {{
-        streamlit.contentWindow.postMessage({{type: 'open_letzy_chat'}}, '*');
-    }}
-    window.parent.postMessage({{type: 'open_letzy_chat'}}, '*');
-}});
-</script>
+</a>
 </body>
 </html>
 """
@@ -857,8 +814,10 @@ document.querySelector('.letzy-btn').addEventListener('click', function() {{
 # Renderizar el componente HTML (botón flotante de Letzy)
 components.html(chatbot_html, height=120, width=120)
 
-# Detectar clics del botón flotante usando un checkbox oculto
-# (Streamlit no tiene forma directa de recibir postMessage, así que usamos un truco)
+# Detectar apertura del chat a través del parámetro de consulta (SIN st.button)
+if "open_chat" in st.query_params:
+    st.session_state.floating_chat_open = True
+    st.query_params.clear()
 
 # Mostrar diálogo si está abierto
 if st.session_state.get("floating_chat_open", False):
