@@ -199,10 +199,12 @@ FMECA_KNOWLEDGE = [
 def apply_custom_styles():
     css = f"""
     <style>
+    /* Fondo claro general */
     .stApp {{ 
-        background: linear-gradient(135deg, {COLORS['gris_claro']} 0%, #ffffff 100%); 
+        background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; 
     }}
     
+    /* Header con colores del logo */
     .main-header {{
         background: linear-gradient(90deg, {COLORS['azul']} 0%, #2a7bc8 100%);
         padding: 20px 30px;
@@ -211,14 +213,15 @@ def apply_custom_styles():
         box-shadow: 0 4px 20px rgba(26,95,168,0.2);
     }}
     
+    /* Tarjetas metricas con semafaro */
     .metric-card {{
-        background: {COLORS['blanco']};
+        background: #ffffff;
         border-radius: 16px;
         padding: 20px;
         border-left: 6px solid;
         box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
-        border-top: 1px solid {COLORS['gris_medio']};
+        border-top: 1px solid #e8ecf1;
         text-align: center;
     }}
     .metric-card:hover {{ 
@@ -226,15 +229,19 @@ def apply_custom_styles():
         box-shadow: 0 8px 25px rgba(0,0,0,0.12);
     }}
     
+    /* Semafaro verde */
     .status-normal {{ border-left-color: {COLORS['verde']} !important; }}
     .badge-normal {{ color: {COLORS['verde']}; font-weight: bold; }}
     
+    /* Semafaro amarillo */
     .status-alerta {{ border-left-color: {COLORS['amarillo']} !important; }}
     .badge-alerta {{ color: {COLORS['amarillo']}; font-weight: bold; }}
     
+    /* Semafaro rojo */
     .status-critico {{ border-left-color: {COLORS['rojo']} !important; }}
     .badge-critico {{ color: {COLORS['rojo']}; font-weight: bold; }}
     
+    /* Alarmas */
     .alarm-banner {{
         background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
         border-left: 5px solid {COLORS['amarillo']};
@@ -249,12 +256,51 @@ def apply_custom_styles():
         border: 1px solid rgba(211,47,47,0.3);
     }}
     
+    /* Texto oscuro para fondo claro */
     h1, h2, h3, p, label, span, div {{ 
         color: {COLORS['texto_oscuro']} !important; 
     }}
     .stMarkdown p {{ color: {COLORS['texto_oscuro']} !important; }}
     .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {{ 
         color: {COLORS['azul']} !important; 
+    }}
+    
+    /* Chatbot flotante - tema claro */
+    .stChatMessage {{
+        background: #ffffff !important;
+        border: 1px solid #e8ecf1 !important;
+    }}
+    
+    /* Botones */
+    .stButton > button {{
+        background: {COLORS['azul']} !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+    }}
+    .stButton > button:hover {{
+        background: #2a7bc8 !important;
+    }}
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 8px;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        background: rgba(26,95,168,0.1) !important;
+        color: {COLORS['texto_oscuro']} !important;
+        border-radius: 12px 12px 0 0;
+        padding: 10px 18px;
+    }}
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+        background: {COLORS['azul']} !important;
+        color: white !important;
+    }}
+    
+    /* Selectbox y inputs */
+    .stSelectbox > div > div {{
+        background: #ffffff !important;
+        color: {COLORS['texto_oscuro']} !important;
     }}
     
     @media (max-width: 768px) {{
@@ -641,17 +687,7 @@ if st.session_state.get("floating_chat_open", False):
 # Abrir chat automaticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
-
-# Abrir chat automaticamente en alertas
-if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
-    st.session_state.floating_chat_open = True
-    floating_chat_dialog()
-
-# Abrir chat automaticamente en alertas
-if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
-    st.session_state.floating_chat_open = True
-    floating_chat_dialog()
-
+    
 # ============================================================================
 # VISUALIZACION - GRAFICAS CORREGIDAS (sin titlefont)
 # ============================================================================
