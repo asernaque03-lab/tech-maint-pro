@@ -1,10 +1,5 @@
-streamlit
-streamlit-autorefresh
-numpy
-pandas
-plotly
-requests
-PyPDF2
-PyMuPDF
-python-docx
-openpyxl
+   streamlit>=1.31.0
+   pandas
+   numpy
+   plotly
+   requests
