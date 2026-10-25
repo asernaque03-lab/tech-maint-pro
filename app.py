@@ -764,8 +764,8 @@ st.markdown("""
 <style>
 .letzy-button-container {
     position: fixed;
-    bottom: 30px;
-    right: 30px;
+    bottom: 70px;
+    right: 70px;
     z-index: 9999;
 }
 
@@ -784,7 +784,7 @@ st.markdown("""
     transition: transform 0.3s ease;
 }
 
-.letzy-button:hover {
+.letzy-button:fixed {
     transform: scale(1.1);
 }
 
