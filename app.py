@@ -756,77 +756,51 @@ def floating_chat_dialog():
     # Nota: El diálogo se cierra de forma nativa en Streamlit haciendo clic fuera del cuadro o presionando la tecla Esc.
 
 # ============================================================================
-# BOTÓN FLOTANTE DE LETZY - POSICIÓN INFERIOR DERECHA
+# BOTÓN FLOTANTE DE LETZY - VERSIÓN CORREGIDA
 # ============================================================================
 
-# CSS para el botón flotante
+# CSS para posicionar el botón en la esquina inferior derecha
 st.markdown("""
 <style>
-.letzy-button-container {
-    position: fixed;
-    bottom: 70px;
-    right: 70px;
-    z-index: 9999;
+/* Ocultar el botón nativo de Streamlit pero mantenerlo funcional */
+button[kind="secondary"][data-testid="baseButton-secondary"][aria-label="Abrir Letzy"] {
+    position: fixed !important;
+    bottom: 30px !important;
+    right: 30px !important;
+    z-index: 9999 !important;
+    width: 80px !important;
+    height: 80px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    background: linear-gradient(135deg, #1a5fa8, #7cb342) !important;
+    border: 3px solid #f5a623 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+    cursor: pointer !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.3s ease !important;
 }
 
-.letzy-button {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #1a5fa8, #7cb342);
-    border: 3px solid #f5a623;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    cursor: pointer;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.3s ease;
+button[kind="secondary"][data-testid="baseButton-secondary"][aria-label="Abrir Letzy"]:hover {
+    transform: scale(1.1) !important;
 }
 
-.letzy-button:fixed {
-    transform: scale(1.1);
+button[kind="secondary"][data-testid="baseButton-secondary"][aria-label="Abrir Letzy"] p {
+    display: none !important;
 }
 
-.letzy-button img {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    object-fit: cover;
+/* Asegurar que el botón sea visible sobre todo */
+[data-testid="stAppViewContainer"] {
+    overflow: visible !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Crear el botón usando st.button con un contenedor personalizado
-col1, col2 = st.columns([10, 1])
-with col2:
-    if st.button("🤖", key="letzy_floating_button", help="Abrir Asistente Letzy", use_container_width=True):
-        st.session_state.floating_chat_open = True
-
-# Aplicar estilos CSS al botón
-st.markdown("""
-<script>
-// Mover el botón a la posición inferior derecha
-let button = document.querySelector('button[key="letzy_floating_button"]');
-if (button) {
-    let container = button.closest('.stColumn');
-    if (container) {
-        container.style.position = 'fixed';
-        container.style.bottom = '30px';
-        container.style.right = '30px';
-        container.style.zIndex = '9999';
-        container.style.width = '70px';
-    }
-    button.style.width = '70px';
-    button.style.height = '70px';
-    button.style.borderRadius = '50%';
-    button.style.fontSize = '35px';
-    button.style.background = 'linear-gradient(135deg, #1a5fa8, #7cb342)';
-    button.style.border = '3px solid #f5a623';
-    button.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
-}
-</script>
-""", unsafe_allow_html=True)
+# Botón nativo de Streamlit (será reposicionado por CSS)
+if st.button("🤖", key="open_letzy_btn", help="Abrir Asistente Letzy", aria_label="Abrir Letzy"):
+    st.session_state.floating_chat_open = True
 
 # Mostrar el diálogo si está abierto
 if st.session_state.get("floating_chat_open", False):
