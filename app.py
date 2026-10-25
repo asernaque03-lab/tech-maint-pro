@@ -112,7 +112,7 @@ STAFF = {
 # LOGO OFICIAL BASE64
 # ============================================================================
 
-LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAZABkADASIAAhEBAxEB/8QAHQABAAEEAwEAAAAAAAAAAAAAAAgBAgcJAwUGBP/EAF4QAAIBAwIDBQQFCAYGBQkDDQABAgMEEQUGByExCBJBUWETInGBCRQykaEVI0JSYoKxwRYzcpKi8CQ0Q7LC0SVTk7PSF2NzdHWDo+HxNTY3RFTDGCY4VpQnhKTT4v/EABwBAQACAwEBAQAAAAAAAAAAAAAGBwEEBQMCCP/EAEERAQABAwIDBAkCBAUCBwEBAQABAgMEBREGITESE0FRFCIyYXGBkaGxwdEVI0LhM1JicvAkNBYlNUOSovFEU4L/2gAMAwEAAhEDEQA/ANqYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA......"
+LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAZABkADASIAAhEBAxEB/8QAHQABAAEEAwEAAAAAAAAAAAAAAAgBAgcJAwUGBP/EAF4QAAIBAwIDBQQFCAYGBQkDDQABAgMEEQUGByExCBJBUWETInGBCRQykaEVI0JSYoKxwRYzcpKi8CQ0Q7LC0SVTk7PSF2NzdHWDo+HxNTY3RFTDGCY4VpQnhKTT4v/EABwBAQACAwEBAQAAAAAAAAAAAAAGBwEEBQMCCP/EAEERAQABAwIDBAkCBAUCBwEBAQABAgMEBREGITESE0FRFCIyYXGBkaGxwdEVI0LhM1JicvAkNBYlNUOSovFEU4L/2gAMAwEAAhEDEQA/ANqYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA......"
 
 def render_logo(size="180px"):
     return f'<img src="{LOGO_BASE64}" style="width:{size}; height:auto; display:inline-block;" />'
@@ -579,118 +579,110 @@ def calculate_kpis(oh, failures, dh, pmd, pmp, ph, ahw, pr):
     }
 
 # ============================================================================
-# INTEGRACION CON PLATAFORMAS DE IA
+# INTEGRACION CON LANGCHAIN (DESARROLLO PROPIO)
 # ============================================================================
 
-def query_chatbase(api_key, bot_id, user_query, context=""):
-    """Consulta a Chatbase API"""
+def build_context(latest, asset_name, kpi_values):
+    """Construye contexto enriquecido para LangChain"""
+    alarms = get_alarms(latest)
+    at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
+    
+    context = f"""
+    === CONTEXTO TECNICO EN TIEMPO REAL ===
+    
+    ACTIVO: {asset_name}
+    TAG: {ASSETS[asset_name]['tag']}
+    CRITICIDAD: {ASSETS[asset_name]['criticality']}
+    
+    ESTADO ACTUAL: {latest['estado']}
+    INDICE DE RIESGO: {latest['indice_riesgo']:.1f}/100
+    
+    LECTURAS DE SENSORES:
+    - Vibracion RMS: {latest['vibracion_rms_mm_s']:.2f} mm/s
+    - Temperatura: {latest['temperatura_c']:.1f} °C
+    - Presion de vacio: {latest['presion_vacio_kpa']:.1f} kPa
+    
+    ALARMAS ACTIVAS: {at}
+    
+    UMBRALES DE REFERENCIA:
+    - Vibracion: Normal < {THRESHOLDS['vibration_normal']} | Alerta >= {THRESHOLDS['vibration_normal']} | Critico >= {THRESHOLDS['vibration_alert']}
+    - Temperatura: Normal < {THRESHOLDS['temperature_normal']}°C | Alerta >= {THRESHOLDS['temperature_normal']}°C | Critico >= {THRESHOLDS['temperature_alert']}°C
+    - Vacio: Normal < {THRESHOLDS['vacuum_normal']} kPa | Alerta >= {THRESHOLDS['vacuum_normal']} kPa | Critico >= {THRESHOLDS['vacuum_alert']} kPa
+    
+    KPIs ACTUALES:
+    - MTBF: {kpi_values['MTBF (h)']:.1f} horas
+    - MTTR: {kpi_values['MTTR (h)']:.1f} horas
+    - Disponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%
+    - Confiabilidad 24h: {kpi_values['Confiabilidad 24h (%)']:.2f}%
+    - Cumplimiento PM: {kpi_values['Cumplimiento PM (%)']:.1f}%
+    
+    === BASE DE CONOCIMIENTO FMECA/RCM ===
+    """
+    
+    for item in FMECA_KNOWLEDGE:
+        context += f"""
+    MODO DE FALLA: {item['failure_mode']}
+    SINTOMA: {item['symptom']}
+    EFECTO: {item['effect']}
+    CRITICIDAD: {item['criticality']}
+    TAREAS DE MANTENIMIENTO: {', '.join(item['tasks'])}
+    """
+    
+    context += """
+    === INSTRUCCIONES PARA LETZY ===
+    Eres Letzy, asistente experto en mantenimiento industrial de Tech Maint Pro.
+    Responde en español de forma clara, concisa y accionable.
+    Usa el contexto técnico proporcionado para dar respuestas precisas.
+    Si hay alarmas activas, prioriza explicarlas y dar recomendaciones.
+    No inventes datos. Si no tienes información, indícalo claramente.
+    """
+    
+    return context
+
+def query_langchain(user_query, latest, asset_name, kpi_values):
+    """Consulta usando LangChain con RAG local"""
     try:
-        url = f"https://www.chatbase.co/api/v1/chat"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "messages": [{"role": "user", "content": user_query}],
-            "chatbotId": bot_id,
-            "stream": False
-        }
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("response", "No se pudo obtener respuesta de Chatbase")
+        context = build_context(latest, asset_name, kpi_values)
+        
+        # Verificar si OpenAI está disponible
+        openai_available = False
+        try:
+            import openai
+            api_key = st.session_state.get("openai_api_key", "")
+            if api_key:
+                openai.api_key = api_key
+                openai_available = True
+        except ImportError:
+            pass
+        
+        if openai_available:
+            # Usar OpenAI con LangChain
+            from langchain_openai import ChatOpenAI
+            from langchain_core.messages import SystemMessage, HumanMessage
+            
+            llm = ChatOpenAI(model="gpt-4", temperature=0.3)
+            messages = [
+                SystemMessage(content=context),
+                HumanMessage(content=user_query)
+            ]
+            response = llm.invoke(messages)
+            return response.content
         else:
-            return f"Error en Chatbase: {response.status_code}"
+            # Fallback: respuesta inteligente basada en reglas con contexto enriquecido
+            return chatbot_response_with_context(user_query, latest, asset_name, kpi_values, context)
+            
     except Exception as e:
-        return f"Error conectando con Chatbase: {str(e)}"
+        logger.error(f"Error en LangChain: {e}")
+        return f"Error al procesar la consulta: {str(e)}\n\nPor favor, verifica la configuración o usa el modo de reglas locales."
 
-def query_dante_ai(api_key, project_id, user_query):
-    """Consulta a Dante AI API"""
-    try:
-        url = f"https://api.dante-ai.com/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": project_id,
-            "messages": [{"role": "user", "content": user_query}],
-            "temperature": 0.7
-        }
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("choices", [{}])[0].get("message", {}).get("content", "No se pudo obtener respuesta")
-        else:
-            return f"Error en Dante AI: {response.status_code}"
-    except Exception as e:
-        return f"Error conectando con Dante AI: {str(e)}"
-
-def query_custom_gpt(api_key, gpt_id, user_query):
-    """Consulta a CustomGPT API"""
-    try:
-        url = f"https://customgpt.ai/api/v1/projects/{gpt_id}/sessions/chat"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "query": user_query,
-            "include_history": True
-        }
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("data", {}).get("response", "No se pudo obtener respuesta")
-        else:
-            return f"Error en CustomGPT: {response.status_code}"
-    except Exception as e:
-        return f"Error conectando con CustomGPT: {str(e)}"
-
-def query_langchain(user_query, latest, asset_name):
-    """Consulta usando LangChain con RAG local (simulado)"""
-    try:
-        # Contexto técnico basado en datos actuales
-        context = f"""
-        Activo: {asset_name}
-        Estado actual: {latest['estado']}
-        Indice de riesgo: {latest['indice_riesgo']:.1f}/100
-        Vibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s
-        Temperatura: {latest['temperatura_c']:.1f} C
-        Presion de vacio: {latest['presion_vacio_kpa']:.1f} kPa
-        
-        Umbrales:
-        - Vibracion: Normal < {THRESHOLDS['vibration_normal']}, Alerta >= {THRESHOLDS['vibration_normal']}, Critico >= {THRESHOLDS['vibration_alert']}
-        - Temperatura: Normal < {THRESHOLDS['temperature_normal']}, Alerta >= {THRESHOLDS['temperature_normal']}, Critico >= {THRESHOLDS['temperature_alert']}
-        - Vacio: Normal < {THRESHOLDS['vacuum_normal']}, Alerta >= {THRESHOLDS['vacuum_normal']}, Critico >= {THRESHOLDS['vacuum_alert']}
-        """
-        
-        # Simulación de respuesta con contexto (en producción usar OpenAI/Anthropic)
-        system_prompt = f"""Eres Letzy, asistente experto en mantenimiento industrial. 
-        Usa este contexto técnico para responder: {context}
-        Responde en español, de forma clara y accionable."""
-        
-        # Aquí iría la llamada real a LangChain
-        # from langchain_openai import ChatOpenAI
-        # from langchain_core.messages import HumanMessage, SystemMessage
-        # llm = ChatOpenAI(model="gpt-4")
-        # messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_query)]
-        # response = llm.invoke(messages)
-        # return response.content
-        
-        # Fallback: respuesta basada en reglas con contexto enriquecido
-        return chatbot_response_with_context(user_query, latest, context)
-        
-    except Exception as e:
-        return f"Error en LangChain: {str(e)}"
-
-def chatbot_response_with_context(user_query, latest, context):
-    """Respuesta mejorada con contexto técnico"""
+def chatbot_response_with_context(user_query, latest, asset_name, kpi_values, context):
+    """Respuesta mejorada con contexto técnico (fallback cuando no hay API keys)"""
     text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
     sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
     alarms = get_alarms(latest)
     at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
     
+    # Respuestas basadas en contexto enriquecido
     if any(k in text for k in ["hola", "ayuda", "quiero", "necesito"]):
         return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con diagnostico, ordenes de trabajo, AMEF, KPIs e impacto circular."
     
@@ -740,8 +732,7 @@ def chatbot_response_with_context(user_query, latest, context):
         return f"Presion de Vacio\n\nLectura: {p:.1f} kPa\nEstado: {ps}\n*Mas negativo es mejor*\n\nCausas: Fuga en linea, deterioro de sellos.\n\nAcciones: Prueba de fugas, inspeccionar sellos."
     
     if any(k in text for k in ["kpi", "indicador"]):
-        kpis = calculate_kpis(720, 3, 18, 18, 20, 40, 80, 85.5)
-        return f"KPIs\n\nMTBF: {kpis['MTBF (h)']:.1f} h\nMTTR: {kpis['MTTR (h)']:.1f} h\nDisponibilidad: {kpis['Disponibilidad (%)']:.2f}%\nConfiabilidad 24h: {kpis['Confiabilidad 24h (%)']:.2f}%"
+        return f"KPIs\n\nMTBF: {kpi_values['MTBF (h)']:.1f} h\nMTTR: {kpi_values['MTTR (h)']:.1f} h\nDisponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%\nConfiabilidad 24h: {kpi_values['Confiabilidad 24h (%)']:.2f}%"
     
     if any(k in text for k in ["amef", "rcm", "falla"]):
         return "AMEF/RCM\n\nModos de falla:\n1. Vibracion alta - Desgaste rodamientos/desalineacion\n2. Temperatura alta - Friccion/lubricacion deficiente\n3. Perdida de vacio - Fuga/deterioro sellos"
@@ -751,16 +742,16 @@ def chatbot_response_with_context(user_query, latest, context):
     
     return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
 
-# Respuesta original mantenida como fallback
+# Respuesta original mantenida como fallback adicional
 def chatbot_response(user_text, latest, kpi_values, asset_name, use_generative_ai=False):
-    return chatbot_response_with_context(user_text, latest, "")
+    return chatbot_response_with_context(user_text, latest, asset_name, kpi_values, "")
 
 # ============================================================================
-# CHATBOT FLOTANTE CON LETZY E IA AVANZADA
+# CHATBOT FLOTANTE CON LETZY Y LANGCHAIN
 # ============================================================================
 
 def process_floating_query(query, ai_platform="rules"):
-    """Procesa consulta usando la plataforma de IA seleccionada"""
+    """Procesa consulta usando LangChain o reglas locales"""
     if not query or not query.strip():
         return
     
@@ -774,33 +765,8 @@ def process_floating_query(query, ai_platform="rules"):
         
         reply = ""
         
-        if ai_platform == "chatbase":
-            api_key = st.session_state.get("chatbase_api_key", "")
-            bot_id = st.session_state.get("chatbase_bot_id", "")
-            if api_key and bot_id:
-                reply = query_chatbase(api_key, bot_id, q)
-            else:
-                reply = "Configura las credenciales de Chatbase primero"
-                
-        elif ai_platform == "dante":
-            api_key = st.session_state.get("dante_api_key", "")
-            project_id = st.session_state.get("dante_project_id", "")
-            if api_key and project_id:
-                reply = query_dante_ai(api_key, project_id, q)
-            else:
-                reply = "Configura las credenciales de Dante AI primero"
-                
-        elif ai_platform == "customgpt":
-            api_key = st.session_state.get("customgpt_api_key", "")
-            gpt_id = st.session_state.get("customgpt_id", "")
-            if api_key and gpt_id:
-                reply = query_custom_gpt(api_key, gpt_id, q)
-            else:
-                reply = "Configura las credenciales de CustomGPT primero"
-                
-        elif ai_platform == "langchain":
-            reply = query_langchain(q, latest, asset_name)
-            
+        if ai_platform == "langchain":
+            reply = query_langchain(q, latest, asset_name, kp)
         else:  # rules (fallback)
             reply = chatbot_response(q, latest, kp, asset_name, use_generative_ai=False)
         
@@ -848,42 +814,31 @@ def floating_chat_dialog():
     </div>
     """, unsafe_allow_html=True)
     
-    # Selector de plataforma IA
+    # Selector de plataforma IA (solo LangChain y Rules)
     ai_platform = st.selectbox(
         "Plataforma de IA:",
-        options=["rules", "chatbase", "dante", "customgpt", "langchain"],
+        options=["rules", "langchain"],
         format_func=lambda x: {
             "rules": "🔧 Respuestas basadas en reglas (local)",
-            "chatbase": " Chatbase",
-            "dante": " Dante AI",
-            "customgpt": "✨ CustomGPT",
             "langchain": "⚡ LangChain (desarrollo propio)"
         }.get(x, x),
         index=0,
         key="ai_platform_selector"
     )
     
-    # Configuración según plataforma
-    if ai_platform == "chatbase":
+    # Configuración de LangChain
+    if ai_platform == "langchain":
+        st.info("LangChain usa tu base de conocimiento local + datos en tiempo real")
         col1, col2 = st.columns(2)
         with col1:
-            st.session_state["chatbase_api_key"] = st.text_input("API Key Chatbase", type="password", key="cb_key")
+            st.session_state["openai_api_key"] = st.text_input(
+                "API Key OpenAI (opcional)", 
+                type="password", 
+                key="oa_key",
+                help="Si proporcionas una API key, se usará GPT-4. Sin ella, se usa el motor de reglas mejorado."
+            )
         with col2:
-            st.session_state["chatbase_bot_id"] = st.text_input("Bot ID", key="cb_bot")
-            
-    elif ai_platform == "dante":
-        col1, col2 = st.columns(2)
-        with col1:
-            st.session_state["dante_api_key"] = st.text_input("API Key Dante AI", type="password", key="da_key")
-        with col2:
-            st.session_state["dante_project_id"] = st.text_input("Project ID", key="da_proj")
-            
-    elif ai_platform == "customgpt":
-        col1, col2 = st.columns(2)
-        with col1:
-            st.session_state["customgpt_api_key"] = st.text_input("API Key CustomGPT", type="password", key="cg_key")
-        with col2:
-            st.session_state["customgpt_id"] = st.text_input("GPT ID", key="cg_id")
+            st.caption("Sin API key: Motor de reglas con contexto enriquecido\nCon API key: GPT-4 + RAG local")
     
     st.caption("Respuestas instantáneas basadas en datos reales")
     st.divider()
@@ -1128,10 +1083,8 @@ sd = {
     "auto_chat_triggered": False, "previous_estado": None,
     "scenario": "Operacion normal", "seed": 42, "n_hours": 168,
     "step_speed": 3, "production_rate": 85.5,
-    # Credenciales IA
-    "chatbase_api_key": "", "chatbase_bot_id": "",
-    "dante_api_key": "", "dante_project_id": "",
-    "customgpt_api_key": "", "customgpt_id": ""
+    # Credenciales LangChain/OpenAI
+    "openai_api_key": ""
 }
 for k, v in sd.items():
     if k not in st.session_state:
