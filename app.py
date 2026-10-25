@@ -89,21 +89,21 @@ STAFF = {
         "nombre": "DARIO MINAN ESPINOZA",
         "telefono": "958000191",
         "email": "dario.minanespinoza@gmail.com",
-        "telegram_chat_id": "",
+        "telegram_chat_id": "1330744031",
         "rol": "Tecnico de Mantenimiento"
     },
     "asesor": {
         "nombre": "JORDY ALBERTO SERNAQUE SABA",
         "telefono": "902631386",
         "email": "ajordyss0602@gmail.com",
-        "telegram_chat_id": "",
+        "telegram_chat_id": "8665066190",
         "rol": "Asesor de Mantenimiento"
     },
     "gerencia": {
         "nombre": "Irina Nicole Castillo Coronado",
         "telefono": "966153839",
         "email": "nicolecastc@gmail.com",
-        "telegram_chat_id": "",
+        "telegram_chat_id": "8533612747",
         "rol": "Gerencia"
     }
 }
