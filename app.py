@@ -778,7 +778,7 @@ def floating_chat_dialog():
         st.session_state.auto_chat_triggered = False
         st.rerun()
 
-# Boton flotante con Letzy
+# Boton flotante con Letzy - SOLO ESTE DEBE ABRIR EL CHAT
 btn_html = f"""
 <div style="position:fixed;bottom:30px;right:30px;z-index:9999;">
 <button onclick="document.getElementById('fc_toggle').click()" style="width:90px;height:90px;background:linear-gradient(135deg,#1a5fa8,#7cb342);border-radius:50%;border:3px solid #f5a623;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);overflow:hidden;padding:0;">
@@ -789,14 +789,17 @@ btn_html = f"""
 """
 st.markdown(btn_html, unsafe_allow_html=True)
 
+# Botón OCULTO que es activado por el botón flotante
 if st.button("Abrir asistente", key="fc_toggle", help="Abrir asistente"):
     st.session_state.floating_chat_open = True
 
 st.markdown("</div>", unsafe_allow_html=True)
 
+# Mostrar el dialogo si esta abierto
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
 
+# Abrir chat automaticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
 
