@@ -843,6 +843,49 @@ def create_risk_chart(df):
             tickfont=dict(color=COLORS["texto_oscuro"], size=10)
         ),
         hovermode="x unified",
+        height=280
+    )
+    return fig
+
+def create_risk_chart(df):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df["fecha_hora"],
+        y=df["indice_riesgo"],
+        mode="lines+markers",
+        name="IR",
+        line=dict(color=COLORS["amarillo"], width=3),
+        fill="tozeroy",
+        fillcolor="rgba(245,166,35,0.10)",
+        marker=dict(size=4)
+    ))
+    fig.add_hline(
+        y=40, line_dash="dash", line_color=COLORS["amarillo"], line_width=2,
+        annotation_text="Alerta", annotation_position="top right",
+        annotation_font_color=COLORS["amarillo"], annotation_font_size=11
+    )
+    fig.add_hline(
+        y=70, line_dash="dash", line_color=COLORS["rojo"], line_width=2,
+        annotation_text="Critico", annotation_position="top right",
+        annotation_font_color=COLORS["rojo"], annotation_font_size=11
+    )
+    fig.update_layout(
+        title=dict(text="Indice de riesgo", font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
+        template="plotly_white",
+        paper_bgcolor="rgba(255,255,255,0.9)",
+        plot_bgcolor="rgba(255,255,255,0.9)",
+        margin=dict(l=20, r=20, t=52, b=20),
+        xaxis=dict(
+            title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)),
+            showgrid=True, gridcolor="rgba(0,0,0,0.08)",
+            tickfont=dict(color=COLORS["texto_oscuro"], size=10)
+        ),
+        yaxis=dict(
+            title=dict(text="IR", font=dict(color=COLORS["texto_oscuro"], size=12)),
+            range=[0, 100], showgrid=True, gridcolor="rgba(0,0,0,0.08)",
+            tickfont=dict(color=COLORS["texto_oscuro"], size=10)
+        ),
+        hovermode="x unified",
         height=280,
         font=dict(color=COLORS["texto_oscuro"], family="Arial")
     )
