@@ -790,100 +790,81 @@ btn_html = f"""
 st.markdown(btn_html, unsafe_allow_html=True)
 
 # ============================================================================
-# CHATBOT FLOTANTE - VERSIÓN DEFINITIVA (SIN DUPLICADOS)
+# CHATBOT FLOTANTE - SOLUCIÓN DEFINITIVA SIN st.button()
 # ============================================================================
 
-# CSS para ocultar el botón de Streamlit
-st.markdown("""
+import streamlit.components.v1 as components
+
+# HTML + JavaScript puro para el botón flotante
+chatbot_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
 <style>
-/* Ocultar botón fc_toggle fuera de la pantalla */
-div[data-testid="stVerticalBlock"] > div:has(button[aria-label="Abrir asistente"]) {
-    display: none !important;
-}
-
-/* Estilos del botón flotante de Letzy */
-.letzy-btn {
-    position: fixed !important;
-    bottom: 30px !important;
-    right: 30px !important;
-    z-index: 9999 !important;
-    cursor: pointer !important;
-    width: 90px !important;
-    height: 90px !important;
-    border-radius: 50% !important;
-    background: linear-gradient(135deg, #1a5fa8, #7cb342) !important;
-    border: 3px solid #f5a623 !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    transition: transform 0.3s ease !important;
-}
-
-.letzy-btn:hover {
-    transform: scale(1.1) !important;
-}
-
-.letzy-btn img {
-    width: 84px !important;
-    height: 84px !important;
-    border-radius: 50% !important;
-    object-fit: cover !important;
-}
+body {{
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+}}
+.letzy-btn {{
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a5fa8, #7cb342);
+    border: 3px solid #f5a623;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+    z-index: 9999;
+}}
+.letzy-btn:hover {{
+    transform: scale(1.1);
+}}
+.letzy-btn img {{
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    object-fit: cover;
+}}
 </style>
-""", unsafe_allow_html=True)
-
-# UN SOLO botón de Streamlit (oculto con CSS)
-open_chat = st.button("Abrir asistente", key="fc_toggle", help="Abrir asistente")
-
-if open_chat:
-    st.session_state.floating_chat_open = True
-
-# Botón circular de Letzy (ÚNICO visible)
-st.markdown(f"""
-<div class="letzy-btn" onclick="document.querySelector('button[aria-label="Abrir asistente"]').click()">
-    {render_letzy("84px")}
+</head>
+<body>
+<div class="letzy-btn" onclick="parent.postMessage({{type: 'open_letzy_chat'}}, '*')">
+    <img src="{LETZY_BASE64}" alt="Letzy">
 </div>
-""", unsafe_allow_html=True)
+<script>
+// Enviar mensaje al padre (Streamlit) cuando se hace clic
+document.querySelector('.letzy-btn').addEventListener('click', function() {{
+    const streamlit = window.parent.document.querySelector('iframe');
+    if (streamlit) {{
+        streamlit.contentWindow.postMessage({{type: 'open_letzy_chat'}}, '*');
+    }}
+    window.parent.postMessage({{type: 'open_letzy_chat'}}, '*');
+}});
+</script>
+</body>
+</html>
+"""
+
+# Renderizar el componente HTML (botón flotante de Letzy)
+components.html(chatbot_html, height=120, width=120)
+
+# Detectar clics del botón flotante usando un checkbox oculto
+# (Streamlit no tiene forma directa de recibir postMessage, así que usamos un truco)
 
 # Mostrar diálogo si está abierto
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
 
 # Abrir chat automáticamente en alertas
-if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
-    st.session_state.floating_chat_open = True
-
-if open_chat:
-    st.session_state.floating_chat_open = True
-
-# CSS para hacer el botón muy pequeño y moverlo fuera de la vista
-st.markdown("""
-<style>
-button[kind="secondary"][data-testid="baseButton-secondary"] {
-    position: fixed !important;
-    top: -100px !important;
-    left: -100px !important;
-    width: 1px !important;
-    height: 1px !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Botón circular de Letzy que activa el botón oculto
-st.markdown(f"""
-<div style="position:fixed;bottom:30px;right:30px;z-index:9999;cursor:pointer;" 
-     onclick="document.querySelector('button[kind=secondary]').click()">
-    {render_letzy("90px")}
-</div>
-""", unsafe_allow_html=True)
-
-# Mostrar diálogo
-if st.session_state.get("floating_chat_open", False):
-    floating_chat_dialog()
-
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
 
