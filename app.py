@@ -759,10 +759,8 @@ def floating_chat_dialog():
 # BOTÓN FLOTANTE DE LETZY - VERSIÓN CORREGIDA
 # ============================================================================
 
-# CSS para posicionar el botón en la esquina inferior derecha
 st.markdown("""
 <style>
-/* Ocultar el botón nativo de Streamlit pero mantenerlo funcional */
 button[kind="secondary"][data-testid="baseButton-secondary"][aria-label="Abrir Letzy"] {
     position: fixed !important;
     bottom: 30px !important;
@@ -787,19 +785,19 @@ button[kind="secondary"][data-testid="baseButton-secondary"][aria-label="Abrir L
     transform: scale(1.1) !important;
 }
 
-button[kind="secondary"][data-testid="baseButton-secondary"][aria-label="Abrir Letzy"] p {
-    display: none !important;
-}
-
-/* Asegurar que el botón sea visible sobre todo */
 [data-testid="stAppViewContainer"] {
     overflow: visible !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Botón nativo de Streamlit (será reposicionado por CSS)
-if st.button("🤖", key="open_letzy_btn", help="Abrir Asistente Letzy", aria_label="Abrir Letzy"):
+# Botón con imagen de Letzy
+if st.button(
+    f'<img src="{LETZY_BASE64}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;" />',
+    key="open_letzy_btn",
+    help="Abrir Asistente Letzy",
+    aria_label="Abrir Letzy"
+):
     st.session_state.floating_chat_open = True
 
 # Mostrar el diálogo si está abierto
