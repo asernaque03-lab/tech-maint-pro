@@ -706,7 +706,7 @@ def floating_chat_dialog():
     # Header con Letzy
     st.markdown(f"""
     <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
-        {render_letzy("60px")}
+        {render_letzy("80px")}
         <div>
             <h3 style="margin:0; color:#1a5fa8; font-size:1.5rem;">Hola, soy Letzy</h3>
             <p style="margin:5px 0 0 0; color:#5a6b7c; font-size:0.95rem;">Tu asistente de Tech Maint Pro</p>
@@ -970,7 +970,7 @@ apply_custom_styles()
 
 st.markdown(f"""
 <div style="display:flex; align-items:center; gap:20px; margin-bottom:10px; padding:10px 0;">
-    {render_logo("100px")}
+    {render_logo("180px")}
     <div style="flex:1;">
         <p style="margin:0; color:{COLORS['amarillo']}; font-size:1.3rem; font-weight:700;">Mantenimiento Inteligente + Economia Circular</p>
     </div>
