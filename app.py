@@ -137,14 +137,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.markdown("""
-<style>
-[data-testid="stSidebar"] { display: none !important; }
-[data-testid="stSidebarCollapsedControl"] { display: none !important; }
-.stApp > header { background-color: transparent; }
-</style>
+# Botón con imagen de Letzy
+st.markdown(f"""
+<div style="position:fixed;bottom:30px;right:30px;z-index:9999;">
+    <button onclick="document.getElementById('open_chat_btn').click()" style="width:90px;height:90px;background:linear-gradient(135deg,#1a5fa8,#7cb342);border-radius:50%;border:3px solid #f5a623;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3);overflow:hidden;padding:0;">
+        {render_letzy("84px")}
+    </button>
+</div>
+<div style="display:none;">
 """, unsafe_allow_html=True)
 
+if st.button("Abrir asistente", key="open_chat_btn", help="Abrir asistente Letzy"):
+    st.session_state.floating_chat_open = True
+
+st.markdown("</div>", unsafe_allow_html=True)
 # ============================================================================
 # COLORES OFICIALES DEL LOGO
 # ============================================================================
@@ -755,17 +761,15 @@ def chatbot_response(user_text, latest, kpi_values, asset_name, use_generative_a
     return chatbot_response_with_context(user_text, latest, "")
 
 # ============================================================================
-# CHATBOT FLOTANTE CON LETZY E IA AVANZADA
+# CHATBOT FLOTANTE CON LETZY - VERSION CORREGIDA
 # ============================================================================
 
 def process_floating_query(query, ai_platform="rules"):
-    """Procesa consulta usando la plataforma de IA seleccionada"""
+    """Procesa una consulta y agrega respuesta al historial SIN rerun"""
     if not query or not query.strip():
         return
-    
     q = query.strip()
     st.session_state.floating_chat_history.append({"role": "user", "content": q})
-    
     try:
         kp = calculate_kpis(720, 3, 18, 18, 20, 40, 80, st.session_state.get("production_rate", 85.5))
         latest = st.session_state.get("latest_row", pd.Series())
@@ -852,11 +856,11 @@ def floating_chat_dialog():
         "Plataforma de IA:",
         options=["rules", "chatbase", "dante", "customgpt", "langchain"],
         format_func=lambda x: {
-            "rules": "🔧 Respuestas basadas en reglas (local)",
-            "chatbase": " Chatbase",
-            "dante": " Dante AI",
-            "customgpt": "✨ CustomGPT",
-            "langchain": "⚡ LangChain (desarrollo propio)"
+            "rules": "Respuestas basadas en reglas (local)",
+            "chatbase": "Chatbase",
+            "dante": "Dante AI",
+            "customgpt": "CustomGPT",
+            "langchain": "LangChain (desarrollo propio)"
         }.get(x, x),
         index=0,
         key="ai_platform_selector"
@@ -936,27 +940,46 @@ def floating_chat_dialog():
         st.session_state.floating_chat_open = False
         st.session_state.auto_chat_triggered = False
 
-# Boton flotante con Letzy
-btn_html = f"""
-<div style="position:fixed;bottom:30px;right:30px;z-index:9999;">
-<button onclick="document.getElementById('fc_toggle').click()" style="width:90px;height:90px;background:linear-gradient(135deg,#1a5fa8,#7cb342);border-radius:50%;border:3px solid #f5a623;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);overflow:hidden;padding:0;">
-{render_letzy("84px")}
-</button>
-</div>
-<div style="display:none;">
-"""
-st.markdown(btn_html, unsafe_allow_html=True)
+# ============================================================================
+# BOTON FLOTANTE - VERSION SIMPLIFICADA Y FUNCIONAL
+# ============================================================================
 
-if st.button("Abrir asistente", key="fc_toggle", help="Abrir asistente"):
+# CSS para el botón flotante
+st.markdown("""
+<style>
+button[kind="secondary"][data-testid="baseButton-secondary"][aria-label="Abrir asistente Letzy"] {
+    width: 90px !important;
+    height: 90px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #1a5fa8, #7cb342) !important;
+    border: 3px solid #f5a623 !important;
+    padding: 0 !important;
+    position: fixed !important;
+    bottom: 30px !important;
+    right: 30px !important;
+    z-index: 9999 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+    font-size: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+button[kind="secondary"][data-testid="baseButton-secondary"][aria-label="Abrir asistente Letzy"]:hover {
+    transform: scale(1.1) !important;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.4) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Botón de Streamlit nativo que se ve como burbuja circular
+if st.button("👩‍💼", key="open_chat_btn", help="Abrir asistente Letzy"):
     st.session_state.floating_chat_open = True
 
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Mostrar el dialogo si esta abierto
+# Mostrar el diálogo SI está abierto
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
 
-# Abrir chat automaticamente en alertas
+# Abrir automáticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
 
