@@ -554,9 +554,6 @@ def chatbot_response(user_text, latest, kpi_values, asset_name, use_generative_a
     
     if any(k in text for k in ["circular", "impacto", "residuo"]):
         return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
-    
-    return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
-
 # ============================================================================
 # CHATBOT FLOTANTE AUTOMATICO
 # ============================================================================
@@ -648,6 +645,15 @@ if st.button("Abrir asistente", key="fc_toggle", help="Abrir asistente"):
     st.rerun()
 
 st.markdown("</div>", unsafe_allow_html=True)
+
+# Mostrar el dialogo si esta abierto
+if st.session_state.get("floating_chat_open", False):
+    floating_chat_dialog()
+
+# Abrir chat automaticamente en alertas
+if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
+    st.session_state.floating_chat_open = True
+    floating_chat_dialog()
 
 # Abrir chat automaticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
