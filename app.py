@@ -1313,7 +1313,6 @@ with col_mode2:
     use_test_data = st.checkbox("Usar datos de prueba CSV", value=st.session_state.get("use_test_data", True), key="use_test_data_checkbox")
     st.session_state["use_test_data"] = use_test_data
 
-# Se agrega la nueva pestaña "Inventario y Stock" al final
 tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Plan de Mantenimiento", "KPIs y Reportes", "Inventario y Stock"])
 asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visibility="collapsed")
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
@@ -1684,7 +1683,10 @@ with tabs[3]:
         cols = st.columns(4)
         for i, mes in enumerate(meses):
             with cols[i % 4]:
-                tareas_mes = len(df_plan)
+                # CORRECCION: Calcular tareas por mes basado en la frecuencia
+                tareas_mes = len(df_plan[df_plan['frequency'].str.contains(mes[:3], case=False, na=False)])
+                if tareas_mes == 0:
+                    tareas_mes = len(df_plan[df_plan['frequency'].str.lower() == 'anual'])  # Tareas anuales van en todos los meses
                 st.markdown(f"""
                 <div class="calendar-month">
                     <span>{mes} 2026</span>
@@ -1854,7 +1856,7 @@ with tabs[4]:
             st.info("No hay OTs cerradas para generar reportes")
 
 # ============================================================================
-# TAB 6: INVENTARIO Y STOCK (NUEVA PESTAÑA)
+# TAB 6: INVENTARIO Y STOCK
 # ============================================================================
 
 with tabs[5]:
@@ -1862,7 +1864,8 @@ with tabs[5]:
     st.markdown("Consulta de repuestos, materiales y su historial de consumo registrado en producción.")
     
     try:
-        df_stock = pd.read_csv("registro_mantenimiento_produccion.csv")
+        # CORRECCION: Usar encoding='utf-8' y manejar comas en los campos
+        df_stock = pd.read_csv("registro_mantenimiento_produccion.csv", encoding='utf-8', on_bad_lines='skip')
         
         st.markdown("### Catálogo de Repuestos Registrados")
         # Extraer lista única de repuestos
