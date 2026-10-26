@@ -63,7 +63,7 @@ except ImportError:
     HAS_WINSOUND = False
 
 # ============================================================================
-# CONFIGURACION GENERAL Y CONSTANTES GLOBALES
+# CONFIGURACION GENERAL
 # ============================================================================
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,7 +79,52 @@ logging.basicConfig(
 )
 logger = logging.getLogger("TechMaintPro")
 
-# COLORES OFICIALES DEL LOGO
+# ============================================================================
+# CARGA DE IMAGENES DESDE ARCHIVOS PNG
+# ============================================================================
+
+def load_image(image_path):
+    """Carga una imagen desde un archivo PNG"""
+    try:
+        if os.path.exists(image_path):
+            with open(image_path, "rb") as image_file:
+                return image_file.read()
+        return None
+    except Exception as e:
+        logger.error(f"Error cargando imagen {image_path}: {e}")
+        return None
+
+# Cargar imágenes
+LOGO_IMAGE = load_image(os.path.join(APP_DIR, "logo.png"))
+LETZY_IMAGE = load_image(os.path.join(APP_DIR, "letzy.png"))
+
+def render_logo(size="180px"):
+    """Renderiza el logo desde archivo o base64"""
+    if LOGO_IMAGE:
+        return f'<img src="data:image/png;base64,{base64.b64encode(LOGO_IMAGE).decode()}" style="width:{size}; height:auto; display:inline-block;" />'
+    return '<div style="width:{size}; height:60px; background:#1a5fa8; display:inline-block; border-radius:8px;"></div>'
+
+def render_letzy(size="60px"):
+    """Renderiza Letzy desde archivo o base64"""
+    if LETZY_IMAGE:
+        return f'<img src="data:image/png;base64,{base64.b64encode(LETZY_IMAGE).decode()}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block; object-fit:cover;" />'
+    return f'<div style="width:{size}; height:{size}; background:linear-gradient(135deg, #1a5fa8, #8bc34a); border-radius:50%; display:inline-block;"></div>'
+
+# ============================================================================
+# CONFIGURACION PAGINA
+# ============================================================================
+
+st.set_page_config(
+    page_title="Tech Maint Pro",
+    page_icon="",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ============================================================================
+# COLORES Y CONSTANTES
+# ============================================================================
+
 COLORS = {
     "azul": "#1a5fa8",
     "verde": "#8bc34a",
@@ -92,7 +137,6 @@ COLORS = {
     "texto_gris": "#5a6b7c",
 }
 
-# ACTIVOS INDUSTRIALES
 ASSETS = {
     "Bomba de vacio BV-01": {"tag": "BV-ABS-001", "criticality": "Alta"},
     "Motor CAT 3408 MD-01": {"tag": "MD-3408-001", "criticality": "Alta"},
@@ -102,10 +146,9 @@ ASSETS = {
 THRESHOLDS = {
     "vibration_normal": 4.5, "vibration_alert": 7.1,
     "temperature_normal": 75.0, "temperature_alert": 85.0,
-    "vacuum_normal": -3.0, "vacuum_alert": -5.0, # Ajustados para datos CSV mbar->kPa
+    "vacuum_normal": -3.0, "vacuum_alert": -5.0,
 }
 
-# CONFIGURACION TELEGRAM
 TELEGRAM_BOT_TOKEN = "8944581569:AAFw2rfEn3zU5iOpdNrtIzYHLTs30xg_cIA"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
@@ -133,7 +176,6 @@ STAFF = {
     }
 }
 
-# METADATOS DE DOCUMENTOS PARA RAG
 DOCUMENT_METADATA = {
     "01": {"category": "Tesis / Codificacion de equipos", "tags": ["Eternit Pacifico", "codificacion", "MTBF", "MTTR", "software SM"], "desc": "Sistema de codificación de equipos industriales y uso del software SM Real World"},
     "02": {"category": "Tesis / Vacío médico", "tags": ["NFPA 99", "vacío grado médico", "bombas rotativas", "hospital"], "desc": "Programa de mantenimiento para sistemas de vacío médico según norma NFPA 99"},
@@ -155,14 +197,14 @@ REGLAS DE RESPUESTA:
 3. Si te preguntan por PROCEDIMIENTOS o INSTRUCCIONES TÉCNICAS de equipos específicos (extrusora, molino, banda transportadora), busca primero en el Archivo 10 (Arcillas de Colombia) que contiene los anexos detallados.
 4. Si te preguntan por CÓMO CALCULAR MTBF, MTTR o Disponibilidad, usa el Archivo 03 (KPIs) para las fórmulas y el Archivo 10 para ejemplos aplicados.
 5. Si te preguntan por BOMBAS DE VACÍO, diferencia según el contexto:
-   - Laboratorio/ácidos -> Archivo 09 (Thomas BV-1 con trampas)
-   - Industrial/anillo líquido -> Archivo 05 (IMBIL)
-   - Compacta/HVAC -> Archivo 08 (Gadnic)
-   - Especificaciones técnicas -> Archivo 07 (CPS)
-   - Grado médico -> Archivo 02 (NFPA 99)
-6. Si te preguntan por MOTORES Caterpillar G3408/G3412 -> Archivo 06
-7. Si te preguntan por ANÁLISIS DE CRITICIDAD o AMFE -> Archivo 04 o Archivo 10
-8. Si te preguntan por SISTEMAS DE CODIFICACIÓN de equipos -> Archivo 01 o Archivo 10
+   - Laboratorio/ácidos → Archivo 09 (Thomas BV-1 con trampas)
+   - Industrial/anillo líquido → Archivo 05 (IMBIL)
+   - Compacta/HVAC → Archivo 08 (Gadnic)
+   - Especificaciones técnicas → Archivo 07 (CPS)
+   - Grado médico → Archivo 02 (NFPA 99)
+6. Si te preguntan por MOTORES Caterpillar G3408/G3412 → Archivo 06
+7. Si te preguntan por ANÁLISIS DE CRITICIDAD o AMFE → Archivo 04 o Archivo 10
+8. Si te preguntan por SISTEMAS DE CODIFICACIÓN de equipos → Archivo 01 o Archivo 10
 9. Si la información NO está en los documentos, di: "No encuentro esa información específica en los documentos proporcionados. ¿Puedes reformular tu pregunta o indicarme qué equipo/sistema te interesa?"
 10. NUNCA inventes datos técnicos, valores de torque, frecuencias de mantenimiento o especificaciones que no estén en los documentos.
 
@@ -173,38 +215,22 @@ FORMATO DE RESPUESTA PREFERIDO:
 - Indica si la actividad es rutinaria (R) o programada (P)"""
 
 # ============================================================================
-# IMAGENES BASE64 (MANTENIDAS COMO ESTABAN)
-# ============================================================================
-
-LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAKlBB4DASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoooo......"
-
-LETZY_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4QBiRXhpZgAATU0AKgAAAAgABQESAAMAAAABAAEAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAAITAAMAAAABAAEAAAAAAAAAAABIAAAAAQAAAEgAAAAB/9sAQwAGBAUGBQQGBgUGBwcGCAoQCgoJCQoUDg8MEBcUGBgXFBYWGh0lHxobIxwWFiAsICMmJykqKRkfLTAtKDAlKCkoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo/8IAEQgEUALgAwEiAAIRAQMRAf/EABsAAAEFAQEAAAAAAAAAAAAAAAABAgMEBQYH/8QAGgEBAAMBAQEAAAAAAAAAAAAAAAECAwQFBv/aAAwDAQACEAMQAAAB0QO3xwAEUEFJICiAAigIoIAAAIoIKiAAQUkgAIoIACKCASEUEFBEUAAAQBQQUEAkAAAACAFSgACiEFEoKgAoIKhFBKKCABIAgASAIAAASApMBnICiCggqABIRRCAJAAAQgolBRCACCggqABJBUBFBBUAAEUkgAAAioAoIAAAAAAAAAAAAEgCABIAACIAJACQFggqSBUQqKJQUAAAAAJwM5AAFQAARQQVAAmAAABBQQARQEFQBUBFBAJIKgAAAIKTCAJABBUAVARQEUEFQBQQAAAAAABQQUEBRFAAAAAAAAAACQAAEAABQnFKSgoICiAAiggAAIRQkgoIACKCCoAAACCggEhFBABBQQFEAEFRABIRQQVAASAAAAAAAAAAAAAAAAAAAAAAKCAoIKIKCCgAALYpdAfFW2NDSx6sGLpUrpyreix9eeqKmmKAAAIKIQUEABFJIKgCoIKCAoiKCCggEkFBBUBFBBRCAAAIKSQVARRIiggoIKAigAIAAASAIAAAAAAAAAAAEgKISWstqdp1Pn6r1OGSYt6s9pD1DHpAEpBOTXEzupwN+OmKb8yIoIKAiggCBFBBQQVJCKCCoAAgoIKgIoIKDRSSCoAmbE6ZzteunVJyZE9YctoTXZEdfJAJIKAigAAACKAAAAgqAKCKAIoIoAiqlCxNz9VazBVy2u1BdsGuDbnLLavH39wKZbgCQBCABlauZfLGRTr85AJIKCCggAAIQUEFBEUEFBAJCKCCg0UEFBBOarfXxuo77m7/ADLo+tTLoy77+Vhs5NWxeIc2xclxUvb485ImLU35OlOf2tMJgW1EAAAAAABFJIKCCggoCK6LNW03m60fTZW80L135kFNMUUBJWs4+9FF6eXtUavD6Sq1RRAVFQTG0sDbmiHJ0caCogRQQVAAkAAiggoIKiBFBBUEFJIKgIzma36Dnd/X5+3zj2Cv0ePSoJWw13HTDLBS0h8+tr0mCcK2AjJG4deYh4z0Z9o8o2O85bTnkTkOh6OK8KaYoKiQAQUQgoILNTWCSaHDpsRVlEHHRygF6AEARIs5WTcXexj5aaV0sE16V8JaLBXImw+rImca6tmZGy2+eXLoExgVujw9uaBHJpggoIKCAAigIpJAAAEFRAigmTR6PHq5/wBO0Tm76nEQegk4FbAlUyaUC6Vi6WruVkApYChJ2IdDatS+4rYAgAEfnno5MeO9Nu+cdXD1I13RxAEgWxnrXsFbLexWRZqxwm2CiSZ6MScw6IFmZTQcR47TJSfrnZIZ89KqSs6uZsgtqdOBlogEhUB89V0TZGLW6iMRJl6ZauLX6SjphjDk35kRRCCoCKCCggqAikkFRByju8w7G9WHN3HP7/mst3rArIAk5TouUtW3DW7OTwM7KgEHPP2r1knClgAAAAAAM7RDxnqOr8q6ePrJxmcvrzJW8BahEdHFK6xsPL1SxsTq5bNedlbxPVnVyToqY7RxTwymlrTxLUQ1wYkzuPu6F2TY6+G8RpS8pE9KjVFcwJEYqbElZ1bT1FrWrTiut25aSWm2pXJGTVEUmEFBABBUDndIz6Njsw5PRERsTz8fP+kWqgJWyiIYFZtXSuj0TXZ2AIky9TnrRc1WuiQCAAAigIoAgoIJhb2dLzHf0eWU1Wq/TKxXsxUu1A6uSzXsVcdljctdJmSrSYI7qprFiPDZixxSuPz353utyS0aEEK6Z6zsuXq5NEgl343yQExM+sQuFMWnbETW0+ksTNCJNRzSYsSUyt7VUSaoKlqgAIoIx/KxeP2bI2eL1RitrYhl5Qo91n35KItZEUOQt0d3SmqBncBChJX05gVCJAABRAAAAAAAxNrCtE3E9VctHJTcx1+MxJOytkfWhi2qzHZnfYZkvvS9BG2A1X3oxZF2xidJLMV5LD9+esy4qtV85rlAYtzxPqLI51s5LNBnX5+oZ1rr86cRdMAAAAAAAAAAQgKIBJBUKtLH9c5vQtgzDqECJOK7XkLR14FZFQBUU4ns+U629RUKWAiIbaKAAAAAAAAAAAikOHo5d6oIl4xcjufM853lmfFK7rL9MqZoOvnnPvLfOo6waZRPcXzQUQgpIFQBQQURz9Tr6/D63M2befz92nPz8mHTuxU7tbE8bd+TQfkS9fnaRXn6OFQLVAAAAAAEIKDYZ+Xi9/07K1uL1hipWwAQYUm3aJQKyAAqBzXS890NoAKyIKIogoAAAAAgKIAACLmypQqmlERSYTleqgM6zzHUdXlIKWogoIKCCggACggoIKCKAgoSClLox6pzs3omZdPJt38nk9RLlCHDp31wLVbaJHOh9yhH1cGuZVnq8+4IuvMoEwgqAAhOZ6Cvj1+gqhy+gAAihz3Q4G/A......"
-
-def render_logo(size="180px"):
-    return f'<img src="{LOGO_BASE64}" style="width:{size}; height:auto; display:inline-block;" />'
-
-def render_letzy(size="60px"):
-    return f'<img src="{LETZY_BASE64}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block; object-fit:cover;" />'
-
-# ============================================================================
-# FUNCIONES DE ESTILO (DEFINIDAS ANTES DE USARSE)
+# ESTILOS CSS
 # ============================================================================
 
 def apply_custom_styles():
     css = f"""
     <style>
-    /* 1. Fondo general */
     .stApp {{ 
         background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; 
         padding-top: 0 !important;
     }}
     
-    /* 2. Mover la barra lateral a la DERECHA y estilizarla como panel de chat */
     section[data-testid="stSidebar"] {{
         left: auto !important;
         right: 0 !important;
-        width: 380px !important;
-        min-width: 380px !important;
+        width: 400px !important;
+        min-width: 400px !important;
         background-color: #ffffff !important;
         border-left: 1px solid #e8ecf1 !important;
         z-index: 9998 !important;
@@ -212,27 +238,16 @@ def apply_custom_styles():
         box-shadow: -4px 0 15px rgba(0,0,0,0.05) !important;
     }}
     
-    /* 3. Ajustar el contenedor principal para que no quede oculto tras el sidebar */
     .stApp > div[data-testid="stAppViewBlockContainer"] {{
-        margin-right: 380px !important;
+        margin-right: 400px !important;
     }}
 
-    /* 4. Ocultar visualmente el botón nativo de Streamlit (usaremos el botón flotante de Letzy) */
     div[data-testid="stSidebarCollapsedControl"] {{
         position: fixed !important;
         top: -100px !important; 
         z-index: -1 !important;
     }}
-    div[data-testid="stSidebarCollapsedControl"] button {{
-        display: block !important; /* Asegurar que el botón exista en el DOM para que el JS lo encuentre */
-    }}
 
-    /* 5. Estilos de tarjetas y demás */
-    .main-header {{
-        padding: 10px 0;
-        margin-bottom: 8px;
-    }}
-    
     .metric-card {{
         border-radius: 16px;
         padding: 20px;
@@ -247,11 +262,8 @@ def apply_custom_styles():
     }}
     
     .status-normal {{ background: {COLORS['verde']} !important; }}
-    .badge-normal-text {{ color: #ffffff; font-weight: bold; }}
     .status-alerta {{ background: {COLORS['amarillo']} !important; }}
-    .badge-alerta-text {{ color: #ffffff; font-weight: bold; }}
     .status-critico {{ background: {COLORS['rojo']} !important; }}
-    .badge-critico-text {{ color: #ffffff; font-weight: bold; }}
     
     .alarm-banner {{
         background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
@@ -269,34 +281,6 @@ def apply_custom_styles():
     
     h1, h2, h3, p, label, span, div {{ 
         color: {COLORS['texto_oscuro']} !important; 
-    }}
-    .stMarkdown p {{ color: {COLORS['texto_oscuro']} !important; }}
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {{ 
-        color: {COLORS['azul']} !important; 
-    }}
-    
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 4px;
-        margin-bottom: 8px;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        background: rgba(26,95,168,0.1) !important;
-        color: {COLORS['texto_oscuro']} !important;
-        border-radius: 8px 8px 0 0;
-        padding: 8px 16px;
-        font-size: 0.9rem;
-    }}
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
-        background: {COLORS['azul']} !important;
-        color: white !important;
-    }}
-    
-    .stSelectbox {{
-        margin-bottom: 8px;
-    }}
-    
-    .stDataFrame {{
-        margin: 0 auto;
     }}
     
     .doc-button {{
@@ -319,7 +303,6 @@ def apply_custom_styles():
         color: white;
     }}
 
-    /* 6. Estilos específicos para el chat en la barra lateral */
     section[data-testid="stSidebar"] .stChatMessage {{
         background-color: #f5f7fa !important;
         border: 1px solid #e8ecf1 !important;
@@ -334,12 +317,24 @@ def apply_custom_styles():
         z-index: 10;
     }}
     
+    .quick-question-btn {{
+        width: 100%;
+        margin: 5px 0;
+        padding: 8px 12px;
+        background: rgba(26,95,168,0.1);
+        border: 1px solid rgba(26,95,168,0.2);
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }}
+    .quick-question-btn:hover {{
+        background: rgba(26,95,168,0.2);
+        border-color: rgba(26,95,168,0.4);
+    }}
+    
     @media (max-width: 768px) {{
-        .metric-value {{ font-size: 1.5rem !important; }}
-        .main-header {{ padding: 8px 0; }}
-        h1 {{ font-size: 1.6rem !important; }}
-        h2 {{ font-size: 1.3rem !important; }}
-        /* En móviles, el sidebar ocupa toda la pantalla al abrirse */
         section[data-testid="stSidebar"] {{
             width: 100% !important;
             min-width: 100% !important;
@@ -353,96 +348,74 @@ def apply_custom_styles():
     st.markdown(css, unsafe_allow_html=True)
 
 # ============================================================================
-# FUNCIONES DE NOTIFICACIONES Y ALARMAS
+# FUNCIONES DE CHATBOT
 # ============================================================================
 
-def send_telegram(chat_id, message):
-    if not TELEGRAM_BOT_TOKEN or not chat_id:
-        logger.warning("Telegram no configurado correctamente")
-        return False
+def chatbot_response(user_query, latest, asset_name, kpi_values):
+    """Genera respuesta del chatbot"""
+    text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
+    sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
+    
+    if any(k in text for k in ["hola", "ayuda", "quiero", "necesito"]):
+        return f"¡Hola! Soy Letzy, tu asistente de mantenimiento.\n\n{sl}\n\nPuedo ayudarte con:\n- Diagnóstico de equipos\n- Órdenes de trabajo\n- AMEF y RCM\n- KPIs de mantenimiento\n- Impacto circular\n\n¿En qué puedo ayudarte?"
+    
+    if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico"]):
+        return f"**Diagnóstico Actual**\n\n{sl}\n\n**Hipótesis:** {'Condición normal' if latest['estado'] == 'Normal' else 'Se requiere atención inmediata' if latest['estado'] == 'Critico' else 'Programar inspección'}\n\n**Acción recomendada:** {'Continuar monitoreo' if latest['estado'] == 'Normal' else 'Generar OT prioritaria' if latest['estado'] == 'Critico' else 'Programar inspección'}"
+    
+    if any(k in text for k in ["orden", "trabajo", "ot", "generar"]):
+        return f"**Orden de Trabajo Sugerida**\n\nPrioridad: {'P0' if latest['estado'] == 'Critico' else 'P1' if latest['estado'] == 'Alerta' else 'P2'}\nActivo: {asset_name}\n\n**Tareas sugeridas:**\n- Medir vibración\n- Verificar alineación\n- Revisar lubricación\n- Inspeccionar sellos"
+    
+    if any(k in text for k in ["vibracion", "vibra"]):
+        v = latest["vibracion_rms_mm_s"]
+        return f"**Vibración RMS**\n\nLectura: {v:.2f} mm/s\nEstado: {'Crítico' if v >= THRESHOLDS['vibration_alert'] else 'Alerta' if v >= THRESHOLDS['vibration_normal'] else 'Normal'}\n\n**Causas posibles:** Desgaste rodamientos, desalineación, desbalance\n\n**Acciones:** Medir vibración, verificar alineación, revisar lubricante"
+    
+    if any(k in text for k in ["temperatura", "temp", "calor"]):
+        t = latest["temperatura_c"]
+        return f"**Temperatura**\n\nLectura: {t:.1f} °C\nEstado: {'Crítico' if t >= THRESHOLDS['temperature_alert'] else 'Alerta' if t >= THRESHOLDS['temperature_normal'] else 'Normal'}\n\n**Causas:** Fricción interna, lubricación deficiente, sobrecarga\n\n**Acciones:** Revisar lubricante, inspeccionar enfriamiento"
+    
+    if any(k in text for k in ["vacio", "presion"]):
+        p = latest["presion_vacio_kpa"]
+        return f"**Presión de Vacío**\n\nLectura: {p:.1f} kPa\nEstado: {'Crítico' if p >= THRESHOLDS['vacuum_alert'] else 'Alerta' if p >= THRESHOLDS['vacuum_normal'] else 'Normal'}\n*Mas negativo es mejor*\n\n**Causas:** Fuga en línea, deterioro de sellos\n\n**Acciones:** Prueba de fugas, inspeccionar sellos"
+    
+    if any(k in text for k in ["kpi", "indicador"]):
+        return f"**KPIs Actuales**\n\nMTBF: {kpi_values['MTBF (h)']:.1f} h\nMTTR: {kpi_values['MTTR (h)']:.1f} h\nDisponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%\nConfiabilidad 24h: {kpi_values['Confiabilidad 24h (%)']:.2f}%"
+    
+    if any(k in text for k in ["amef", "rcm", "falla"]):
+        return "**AMEF/RCM**\n\n**Modos de falla:**\n1. Vibración alta - Desgaste rodamientos/desalineación\n2. Temperatura alta - Fricción/lubricación deficiente\n3. Pérdida de vacío - Fuga/deterioro sellos"
+    
+    if any(k in text for k in ["circular", "impacto", "residuo"]):
+        return "**Impacto Circular**\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\n**Cómo registrar:** Cierra una OT → Selecciona decisión → Registra masa conservada/descartada"
+    
+    return f"¿En qué puedo ayudarte?\n\n{sl}\n\n**Consultas sugeridas:**\n1. Estado actual del equipo\n2. Variables: vibración, temperatura, vacío\n3. Generar orden de trabajo\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Impacto circular"
+
+def process_chat_query(query):
+    """Procesa la consulta del chat"""
+    if not query or not query.strip():
+        return
+    
+    if "chat_history" not in st.session_state:
+        st.session_state["chat_history"] = []
+    
+    st.session_state["chat_history"].append({"role": "user", "content": query})
+    
     try:
-        r = requests.post(
-            f"{TELEGRAM_API_URL}/sendMessage",
-            json={"chat_id": chat_id, "text": message, "parse_mode": "HTML"},
-            timeout=10
-        )
-        return r.status_code == 200
+        kp = calculate_kpis(720, 3, 18, 18, 20, 40, 80, st.session_state.get("production_rate", 85.5))
+        latest = st.session_state.get("latest_row", pd.Series())
+        asset_name = st.session_state.get("asset_name", "")
+        
+        reply = chatbot_response(query, latest, asset_name, kp)
+        st.session_state["chat_history"].append({"role": "assistant", "content": reply})
     except Exception as e:
-        logger.error(f"Error Telegram: {e}")
-        return False
-
-def notify_ot_creation(ot_data):
-    resp = ot_data.get("responsable", "").lower()
-    prio = ot_data.get("prioridad", "P2")
-    if any(x in resp for x in ["dario", "minan"]):
-        staff = STAFF["tecnico"]
-        next_level = STAFF["asesor"]
-    elif any(x in resp for x in ["jordy", "sernaque"]):
-        staff = STAFF["asesor"]
-        next_level = STAFF["gerencia"]
-    else:
-        staff = STAFF["tecnico"]
-        next_level = STAFF["asesor"]
-    
-    msg = f"NUEVA ORDEN DE TRABAJO\n\nID: {ot_data['ot_id']}\nActivo: {ot_data['activo']}\nPrioridad: {prio}\nResponsable: {ot_data.get('responsable', 'No asignado')}\nSintomas: {ot_data.get('sintomas', '')[:100]}...\nFecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
-    
-    if staff.get("telegram_chat_id"):
-        send_telegram(staff["telegram_chat_id"], msg)
-    if prio in ["P0", "P1"] and next_level.get("telegram_chat_id"):
-        esc_msg = f"OT ESCALADA - {prio}\n{ot_data['ot_id']}: {ot_data['activo']}"
-        send_telegram(next_level["telegram_chat_id"], esc_msg)
-
-def notify_ot_completion(ot_data):
-    if STAFF["asesor"].get("telegram_chat_id"):
-        msg = f"OT COMPLETADA\n\nID: {ot_data['ot_id']}\nTecnico: {ot_data.get('responsable', 'N/A')}\nEstado: {ot_data.get('estado', 'Cerrada')}"
-        send_telegram(STAFF["asesor"]["telegram_chat_id"], msg)
-
-def notify_economic_impact(intervention):
-    md = intervention.get("mass_discarded_kg", 0) or 0
-    mc = intervention.get("mass_conserved_kg", 0) or 0
-    if md > 5 or mc > 10:
-        body = f"<h2>Impacto Circular</h2><ul><li>OT: {intervention['ot_id']}</li><li>Componente: {intervention['component']}</li><li>Masa conservada: {mc:.2f} kg</li><li>Masa descartada: {md:.2f} kg</li></ul>"
-        for key in ["asesor", "gerencia"]:
-            try:
-                msg = MIMEText(body, 'html')
-                msg['Subject'] = f"Impacto Economico - OT {intervention['ot_id']}"
-                msg['From'] = STAFF[key]["email"]
-                msg['To'] = STAFF[key]["email"]
-                server = smtplib.SMTP("smtp.gmail.com", 587)
-                server.starttls()
-                server.login(STAFF[key]["email"], "")
-                server.send_message(msg)
-                server.quit()
-            except Exception:
-                pass
-
-def play_critical_alarm(event_id):
-    if st.session_state.get("last_beep_event") == event_id:
-        return
-    st.session_state.last_beep_event = event_id
-    if HAS_WINSOUND:
-        for _ in range(3):
-            winsound.Beep(1000, 300)
-            time.sleep(0.1)
-
-def play_observation_alarm(event_id):
-    if st.session_state.get("last_observation_event") == event_id:
-        return
-    st.session_state.last_observation_event = event_id
-    if HAS_WINSOUND:
-        for _ in range(2):
-            winsound.Beep(600, 200)
-            time.sleep(0.1)
+        st.session_state["chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
 # ============================================================================
-# FUNCIONES DE DATOS Y RIESGO
+# FUNCIONES DE DATOS
 # ============================================================================
 
 def load_test_data_from_csv():
     try:
         if os.path.exists(CSV_TEST_PATH):
             df = pd.read_csv(CSV_TEST_PATH)
-            
             column_mapping = {
                 'Timestamp': 'fecha_hora',
                 'Time_Seconds': 'time_seconds',
@@ -453,23 +426,14 @@ def load_test_data_from_csv():
                 'Status': 'status',
                 'Fault_Description': 'fault_description'
             }
-            
             df = df.rename(columns=column_mapping)
-            
             if 'vacuum_mbar' in df.columns:
                 df['presion_vacio_kpa'] = -(df['vacuum_mbar'] * 0.1)
-            
             if 'fecha_hora' in df.columns:
                 df['fecha_hora'] = pd.to_datetime(df['fecha_hora'], errors='coerce')
-                if df['fecha_hora'].isna().any():
-                    start_date = datetime.now() - timedelta(minutes=len(df))
-                    df['fecha_hora'] = [start_date + timedelta(minutes=i) for i in range(len(df))]
-            
             df = enrich_data(df)
-            
             if 'fault_description' in df.columns:
                 df['fault_description'] = df['fault_description'].fillna('Normal')
-            
             logger.info(f"CSV de prueba cargado: {len(df)} registros")
             return df
         else:
@@ -496,16 +460,6 @@ def generate_synthetic_data(scenario, n=240, seed=42):
         vibration += np.linspace(1.5, 6, n) + 0.45 * np.sin(t / 3.5)
         temperature += np.linspace(8, 24, n) + 0.9 * np.sin(t / 5)
         vacuum += np.linspace(10, 28, n)
-    elif scenario == "Fuga subito":
-        step = int(n * 0.55)
-        vibration += np.linspace(0, 1.2, n)
-        temperature += np.linspace(0, 5.5, n)
-        vacuum[step:] += 18.5
-        vacuum[step + 12:] += 6
-    elif scenario == "Rodamiento degradado":
-        vibration += np.linspace(0.4, 5.2, n) + 0.8 * np.maximum(0, np.sin(t / 4))
-        temperature += np.linspace(1, 13, n)
-        vacuum += np.linspace(0, 7, n)
     
     df = pd.DataFrame({
         "fecha_hora": dates,
@@ -564,18 +518,7 @@ def get_alarms(row):
         desc = str(row.get('fault_description', 'Falla detectada')).strip()
         if not desc or desc.lower() == 'nan':
             desc = 'Falla detectada'
-
-        desc_lower = desc.lower()
-        if 'vibracion' in desc_lower or 'vibration' in desc_lower:
-            alarms.append((level, "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s - {desc}"))
-        elif 'vacio' in desc_lower or 'vacuum' in desc_lower:
-            alarms.append((level, "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa - {desc}"))
-        elif 'temperatura' in desc_lower or 'sobrecalentamiento' in desc_lower or 'aceite' in desc_lower:
-            alarms.append((level, "Temperatura", f"{row['temperatura_c']:.1f} C - {desc}"))
-        elif 'sobrecarga' in desc_lower or 'corriente' in desc_lower or 'electrica' in desc_lower:
-            alarms.append((level, "Corriente del motor", f"{row['motor_current_a']:.2f} A - {desc}"))
-        else:
-            alarms.append((level, "General", desc))
+        alarms.append((level, "General", desc))
     else:
         s = variable_status(row)
         if s["Vibracion"] != "Normal":
@@ -585,32 +528,6 @@ def get_alarms(row):
         if s["Presion de vacio"] != "Normal":
             alarms.append((s["Presion de vacio"], "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa"))
     return alarms
-
-def create_work_order_obj(row, asset_name, source="Automatica"):
-    alarms = get_alarms(row)
-    priority = "P0" if row["estado"] == "Critico" else "P1" if row["estado"] == "Alerta" else "P2"
-    symptoms = "; ".join([f"{name}: {value} ({level})" for level, name, value in alarms]) or "Sin alarma critica"
-    tasks = []
-    if any(a[1] == "Vibracion" for a in alarms):
-        tasks += ["Medir vibracion", "Verificar alineacion"]
-    if any(a[1] == "Temperatura" for a in alarms):
-        tasks += ["Revisar lubricacion", "Verificar friccion"]
-    if any(a[1] == "Presion de vacio" for a in alarms):
-        tasks += ["Prueba de fugas", "Inspeccionar sellos"]
-    if not tasks:
-        tasks = ["Inspeccion rutinaria"]
-    ts = pd.to_datetime(row["fecha_hora"]).strftime("%Y%m%d%H%M")
-    return {
-        "ot_id": f"OT-{ts}-{priority}",
-        "asset_name": asset_name,
-        "alert_id": f"ALM-{ts}",
-        "description": f"Anomalia: {symptoms}",
-        "priority": priority,
-        "responsible": "",
-        "creation_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "status": "Pendiente",
-        "created_by": "sistema"
-    }
 
 def calculate_kpis(oh, failures, dh, pmd, pmp, ph, ahw, pr):
     mtbf = oh / failures if failures else float("inf")
@@ -631,288 +548,47 @@ def calculate_kpis(oh, failures, dh, pmd, pmp, ph, ahw, pr):
     }
 
 # ============================================================================
-# SISTEMA RAG - BASE DE CONOCIMIENTO PDF
-# ============================================================================
-
-def extract_text_from_pdf(pdf_path):
-    text = ""
-    try:
-        if HAS_FITZ:
-            doc = fitz.open(pdf_path)
-            for page in doc:
-                text += page.get_text() + "\n"
-            doc.close()
-        elif HAS_PDF:
-            reader = PdfReader(pdf_path)
-            for page in reader.pages:
-                text += page.extract_text() + "\n"
-    except Exception as e:
-        logger.error(f"Error extrayendo texto de {pdf_path}: {e}")
-    return text
-
-def chunk_text(text, chunk_size=500, overlap=100):
-    chunks = []
-    words = text.split()
-    i = 0
-    while i < len(words):
-        chunk = " ".join(words[i:i+chunk_size])
-        chunks.append(chunk)
-        i += chunk_size - overlap
-    return chunks
-
-def load_knowledge_base():
-    kb = []
-    pdf_files = [f for f in os.listdir(PDF_DIR) if f.endswith('.pdf')]
-    
-    for pdf_file in pdf_files:
-        meta_key = None
-        for key in DOCUMENT_METADATA.keys():
-            if key in pdf_file:
-                meta_key = key
-                break
-        
-        meta = DOCUMENT_METADATA.get(meta_key, {"category": "General", "tags": [], "desc": ""})
-        
-        pdf_path = os.path.join(PDF_DIR, pdf_file)
-        text = extract_text_from_pdf(pdf_path)
-        
-        if text.strip():
-            chunks = chunk_text(text, chunk_size=400, overlap=80)
-            for idx, chunk in enumerate(chunks):
-                kb.append({
-                    "doc_id": meta_key or "00",
-                    "filename": pdf_file,
-                    "category": meta["category"],
-                    "tags": meta["tags"],
-                    "chunk_idx": idx,
-                    "content": chunk,
-                    "total_chunks": len(chunks)
-                })
-    
-    st.session_state.knowledge_base = kb
-    st.session_state.kb_loaded = True
-    logger.info(f"Base de conocimiento cargada: {len(kb)} chunks de {len(pdf_files)} documentos")
-
-def search_knowledge_base(query, top_k=5):
-    if not st.session_state.get("kb_loaded", False):
-        return []
-    
-    kb = st.session_state.knowledge_base
-    query_words = set(re.findall(r'\w+', query.lower()))
-    
-    scores = []
-    for item in kb:
-        content_words = set(re.findall(r'\w+', item["content"].lower()))
-        tag_words = set(item["tags"])
-        
-        word_overlap = len(query_words & content_words)
-        tag_match = len(query_words & tag_words) * 3
-        
-        score = word_overlap + tag_match
-        
-        if score > 0:
-            scores.append((score, item))
-    
-    scores.sort(key=lambda x: x[0], reverse=True)
-    
-    return [item for _, item in scores[:top_k]]
-
-def format_context_for_llm(search_results):
-    context_parts = []
-    seen_docs = set()
-    
-    for result in search_results:
-        doc_id = result["doc_id"]
-        if doc_id not in seen_docs:
-            seen_docs.add(doc_id)
-            context_parts.append(f"""
-=== ARCHIVO {doc_id}: {result['filename']} ===
-Categoria: {result['category']}
-Tags: {', '.join(result['tags'])}
-Contenido:
-{result['content']}
-""")
-    
-    return "\n".join(context_parts)
-
-# ============================================================================
-# INTEGRACION CON GROQ + RAG
-# ============================================================================
-
-def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
-    try:
-        api_key = st.session_state.get("groq_api_key", "")
-        if not api_key:
-            return "Por favor, ingresa tu API Key gratuita de Groq en la configuracion del chatbot."
-        
-        alarms = get_alarms(latest)
-        at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
-        
-        current_context = f"""
-=== ESTADO ACTUAL DEL EQUIPO ===
-Activo: {asset_name}
-Estado: {latest['estado']}
-IR: {latest['indice_riesgo']:.1f}/100
-Vibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s
-Temperatura: {latest['temperatura_c']:.1f} C
-Vacio: {latest['presion_vacio_kpa']:.1f} kPa
-Alarmas: {at}
-
-KPIs Actuales:
-- MTBF: {kpi_values['MTBF (h)']:.1f} h
-- MTTR: {kpi_values['MTTR (h)']:.1f} h
-- Disponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%
-"""
-        
-        search_results = search_knowledge_base(user_query, top_k=8)
-        kb_context = format_context_for_llm(search_results)
-        
-        full_system_prompt = f"""{SYSTEM_PROMPT}
-
-{current_context}
-
-{kb_context}
-
-INSTRUCCION FINAL: Responde la pregunta del usuario basandote EXCLUSIVAMENTE en la informacion proporcionada arriba. Cita siempre la fuente. Si no encuentras la respuesta en los documentos, indicalo claramente."""
-        
-        client = Groq(api_key=api_key)
-        messages = [
-            {"role": "system", "content": full_system_prompt},
-            {"role": "user", "content": user_query}
-        ]
-        
-        response = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=800
-        )
-        
-        return response.choices[0].message.content
-        
-    except Exception as e:
-        logger.error(f"Error en Groq RAG: {e}")
-        return f"Error al consultar la IA: {str(e)}. Verifica tu API Key de Groq."
-
-def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
-    text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
-    sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
-    alarms = get_alarms(latest)
-    at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
-    
-    if any(k in text for k in ["hola", "ayuda", "quiero", "necesito"]):
-        return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con diagnostico, ordenes de trabajo, AMEF, KPIs e impacto circular."
-    
-    if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico"]):
-        na = [a[1] for a in alarms]
-        if "Vibracion" in na and "Temperatura" in na: hip = "Posible desgaste de rodamientos o desalineacion."
-        elif "Presion de vacio" in na: hip = "Posible fuga en linea o deterioro de sellos."
-        elif "Vibracion" in na: hip = "Posible desalineacion o desgaste de rodamiento."
-        elif "Temperatura" in na: hip = "Posible friccion interna o lubricacion deficiente."
-        else: hip = "Condicion normal."
-        acc = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT prioritaria"
-        return f"Diagnostico\n\n{sl}\n\nAlarmas: {at}\n\nHipotesis: {hip}\n\nAccion: {acc}"
-    
-    if any(k in text for k in ["orden", "trabajo", "ot", "generar"]):
-        pri = "P0" if latest["estado"] == "Critico" else "P1" if latest["estado"] == "Alerta" else "P2"
-        sint = "; ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) or "Sin alarma critica"
-        tareas = []
-        if any(a[1] == "Vibracion" for a in alarms): tareas += ["Medir vibracion", "Verificar alineacion"]
-        if any(a[1] == "Temperatura" for a in alarms): tareas += ["Revisar lubricacion", "Verificar friccion"]
-        if any(a[1] == "Presion de vacio" for a in alarms): tareas += ["Prueba de fugas", "Inspeccionar sellos"]
-        if not tareas: tareas = ["Inspeccion rutinaria"]
-        return f"OT Sugerida\n\nPrioridad: {pri}\nActivo: {asset_name}\nSintomas: {sint}\n\nTareas:\n" + "\n".join(["- " + t for t in tareas])
-    
-    if any(k in text for k in ["vibracion", "vibra"]):
-        v = latest["vibracion_rms_mm_s"]
-        vs = "Critico" if v >= THRESHOLDS["vibration_alert"] else "Alerta" if v >= THRESHOLDS["vibration_normal"] else "Normal"
-        return f"Vibracion\n\nLectura: {v:.2f} mm/s\nEstado: {vs}\n\nCausas: Desgaste rodamientos, desalineacion, desbalance.\n\nAcciones: Medir vibracion, verificar alineacion, revisar lubricante."
-    
-    if any(k in text for k in ["temperatura", "temp", "calor"]):
-        t = latest["temperatura_c"]
-        ts = "Critico" if t >= THRESHOLDS["temperature_alert"] else "Alerta" if t >= THRESHOLDS["temperature_normal"] else "Normal"
-        return f"Temperatura\n\nLectura: {t:.1f} C\nEstado: {ts}\n\nCausas: Friccion interna, lubricacion deficiente, sobrecarga.\n\nAcciones: Revisar lubricante, inspeccionar enfriamiento."
-    
-    if any(k in text for k in ["vacio", "presion"]):
-        p = latest["presion_vacio_kpa"]
-        ps = "Critico" if p >= THRESHOLDS["vacuum_alert"] else "Alerta" if p >= THRESHOLDS["vacuum_normal"] else "Normal"
-        return f"Presion de Vacio\n\nLectura: {p:.1f} kPa\nEstado: {ps}\n*Mas negativo es mejor*\n\nCausas: Fuga en linea, deterioro de sellos.\n\nAcciones: Prueba de fugas, inspeccionar sellos."
-    
-    if any(k in text for k in ["kpi", "indicador"]):
-        return f"KPIs\n\nMTBF: {kpi_values['MTBF (h)']:.1f} h\nMTTR: {kpi_values['MTTR (h)']:.1f} h\nDisponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%\nConfiabilidad 24h: {kpi_values['Confiabilidad 24h (%)']:.2f}%"
-    
-    if any(k in text for k in ["amef", "rcm", "falla"]):
-        return "AMEF/RCM\n\nModos de falla:\n1. Vibracion alta - Desgaste rodamientos/desalineacion\n2. Temperatura alta - Friccion/lubricacion deficiente\n3. Perdida de vacio - Fuga/deterioro sellos"
-    
-    if any(k in text for k in ["circular", "impacto", "residuo"]):
-        return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
-    
-    return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
-
-# ============================================================================
-# CHATBOT FLOTANTE CON LETZY Y RAG (PANEL LATERAL)
-# ============================================================================
-
-def process_floating_query(query, ai_platform="rag"):
-    if not query or not query.strip():
-        return
-    q = query.strip()
-    
-    if "floating_chat_history" not in st.session_state:
-        st.session_state["floating_chat_history"] = []
-        
-    st.session_state["floating_chat_history"].append({"role": "user", "content": q})
-    
-    try:
-        kp = calculate_kpis(720, 3, 18, 18, 20, 40, 80, st.session_state.get("production_rate", 85.5))
-        latest = st.session_state.get("latest_row", pd.Series())
-        asset_name = st.session_state.get("asset_name", "")
-        
-        if ai_platform == "rag" and st.session_state.get("groq_api_key", ""):
-            reply = query_groq_with_rag(q, latest, asset_name, kp)
-        else:
-            reply = chatbot_response_fallback(q, latest, asset_name, kp)
-        
-        st.session_state["floating_chat_history"].append({"role": "assistant", "content": reply})
-    except Exception as e:
-        st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
-
-# ============================================================================
-# VISUALIZACION - GRAFICAS
+# GRAFICAS
 # ============================================================================
 
 def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None, threshold_alert=None, reverse=False):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df[column], mode="lines+markers", name=title, line=dict(color=color, width=3), marker=dict(size=4), fill="tozeroy" if not reverse else None, fillcolor="rgba(26,95,168,0.08)" if not reverse else None))
+    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df[column], mode="lines+markers", name=title, line=dict(color=color, width=3), marker=dict(size=4)))
     if threshold_normal is not None:
-        fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
+        fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta")
     if threshold_alert is not None:
-        fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
-    
+        fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico")
     fig.update_layout(
-        title=dict(text=title, font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
-        template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=78, b=30),
-        xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45),
-        yaxis=dict(title=dict(text=y_title, font=dict(color=COLORS["texto_oscuro"], size=12)), autorange="reversed" if reverse else True, showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)),
-        hovermode="x unified", showlegend=False, height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12)
+        title=dict(text=title, font=dict(color=COLORS["texto_oscuro"], size=14)),
+        template="plotly_white", 
+        margin=dict(l=20, r=20, t=50, b=30),
+        xaxis=dict(title="Fecha/hora", showgrid=True, tickangle=-45),
+        yaxis=dict(title=y_title, autorange="reversed" if reverse else True, showgrid=True),
+        height=280, showlegend=False
     )
     return fig
 
-def create_vibration_chart(df): return create_sensor_chart(df, "vibracion_rms_mm_s", "Vibracion RMS", "mm/s", COLORS["azul"], THRESHOLDS["vibration_normal"], THRESHOLDS["vibration_alert"])
-def create_temperature_chart(df): return create_sensor_chart(df, "temperatura_c", "Temperatura", "C", COLORS["amarillo"], THRESHOLDS["temperature_normal"], THRESHOLDS["temperature_alert"])
-def create_vacuum_chart(df): return create_sensor_chart(df, "presion_vacio_kpa", "Presion de vacio", "kPa", COLORS["verde"], THRESHOLDS["vacuum_normal"], THRESHOLDS["vacuum_alert"], reverse=True)
+def create_vibration_chart(df): 
+    return create_sensor_chart(df, "vibracion_rms_mm_s", "Vibracion RMS", "mm/s", COLORS["azul"], THRESHOLDS["vibration_normal"], THRESHOLDS["vibration_alert"])
+
+def create_temperature_chart(df): 
+    return create_sensor_chart(df, "temperatura_c", "Temperatura", "C", COLORS["amarillo"], THRESHOLDS["temperature_normal"], THRESHOLDS["temperature_alert"])
+
+def create_vacuum_chart(df): 
+    return create_sensor_chart(df, "presion_vacio_kpa", "Presion de vacio", "kPa", COLORS["verde"], THRESHOLDS["vacuum_normal"], THRESHOLDS["vacuum_alert"], reverse=True)
 
 def create_risk_chart(df):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df["indice_riesgo"], mode="lines+markers", name="IR", line=dict(color=COLORS["amarillo"], width=3), fill="tozeroy", fillcolor="rgba(245,166,35,0.10)", marker=dict(size=4)))
-    fig.add_hline(y=40, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
-    fig.add_hline(y=70, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
+    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df["indice_riesgo"], mode="lines+markers", name="IR", line=dict(color=COLORS["amarillo"], width=3)))
+    fig.add_hline(y=40, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta")
+    fig.add_hline(y=70, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico")
     fig.update_layout(
-        title=dict(text="Indice de riesgo", font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
-        template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=52, b=20),
-        xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45),
-        yaxis=dict(title=dict(text="IR", font=dict(color=COLORS["texto_oscuro"], size=12)), range=[0, 100], showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)),
-        hovermode="x unified", height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12)
+        title=dict(text="Indice de riesgo", font=dict(color=COLORS["texto_oscuro"], size=14)),
+        template="plotly_white", 
+        margin=dict(l=20, r=20, t=50, b=20),
+        xaxis=dict(title="Fecha/hora", showgrid=True, tickangle=-45),
+        yaxis=dict(title="IR", range=[0, 100], showgrid=True),
+        height=280, showlegend=False
     )
     return fig
 
@@ -929,7 +605,7 @@ def init_database():
     conn.close()
 
 # ============================================================================
-# INICIALIZACION DE SESSION STATE
+# INICIALIZACION
 # ============================================================================
 
 init_database()
@@ -938,8 +614,7 @@ sd = {
     "running": True, "sim_idx": 1, "orders": [], "last_order_event": None,
     "chat_history": [], "theme_mode": "default", "kb_docs": [],
     "kb_chunks": [], "kb_ready": False, "last_beep_event": None,
-    "floating_chat_open": False, "floating_chat_history": [],
-    "auto_chat_triggered": False, "previous_estado": None,
+    "floating_chat_open": False, "auto_chat_triggered": False, "previous_estado": None,
     "scenario": "Operacion normal", "seed": 42, "n_hours": 168,
     "step_speed": 1, "production_rate": 85.5, "groq_api_key": "",
     "knowledge_base": [], "kb_loaded": False, "use_test_data": True
@@ -948,142 +623,94 @@ for k, v in sd.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ============================================================================
-# CONFIGURACION DE LA PAGINA Y ESTILOS
-# ============================================================================
-
-st.set_page_config(
-    page_title="Tech Maint Pro",
-    page_icon="",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
-
 apply_custom_styles()
 
-if not st.session_state.get("kb_loaded", False):
-    with st.spinner("Cargando base de conocimiento PDF..."):
-        load_knowledge_base()
-
 # ============================================================================
-# PANEL LATERAL DE CHAT (BARRA LATERAL DERECHA)
+# SIDEBAR - CHATBOT LETZY
 # ============================================================================
 
 with st.sidebar:
+    # Header del chatbot
     st.markdown(f"""
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid #e8ecf1;">
-        {render_letzy("40px")}
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; padding-bottom:15px; border-bottom:2px solid #e8ecf1;">
+        {render_letzy("50px")}
         <div>
-            <h4 style="margin:0; color:#1a5fa8; font-size:1.1rem;">Letzy</h4>
-            <p style="margin:0; color:#5a6b7c; font-size:0.8rem;">Asistente de Mantenimiento</p>
+            <h3 style="margin:0; color:#1a5fa8; font-size:1.3rem;">Letzy</h3>
+            <p style="margin:0; color:#5a6b7c; font-size:0.9rem;">Asistente de Mantenimiento</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
-
+    
+    # Modo de IA
     ai_mode = st.selectbox(
-        "Modo:",
-        options=["rag", "fallback"],
-        format_func=lambda x: "IA (PDF)" if x == "rag" else "Rapido",
-        index=0 if st.session_state.get("groq_api_key", "") else 1,
-        key="ai_mode_selector_sidebar",
-        disabled=not st.session_state.get("kb_loaded", False),
+        "Modo de respuesta:",
+        options=["rapido", "IA (PDF)"],
+        index=0,
         label_visibility="collapsed"
     )
     
-    if ai_mode == "rag" and not st.session_state.get("groq_api_key", ""):
-        st.session_state["groq_api_key"] = st.text_input("API Key Groq", type="password", key="groq_key_side", placeholder="Pega tu API Key aqui")
-
-    st.divider()
-
-    chat_history = st.session_state.get("floating_chat_history", [])
-    
-    # Contenedor de mensajes con altura fija y scroll
-    st.markdown('<div style="height: 400px; overflow-y: auto; padding-right: 5px;">', unsafe_allow_html=True)
-    if not chat_history:
-        with st.chat_message("assistant", avatar=LETZY_BASE64):
-            st.markdown("**Hola! Soy Letzy.**\n\nEn que puedo ayudarte? Puedo consultar los manuales tecnicos o responder rapidamente.")
-    
-    for msg in chat_history[-15:]: # Mostrar ultimos 15 mensajes
-        if msg["role"] == "assistant":
-            with st.chat_message("assistant", avatar=LETZY_BASE64):
-                st.markdown(msg["content"])
-        else:
-            with st.chat_message("user"):
-                st.markdown(msg["content"])
-    st.markdown('</div>', unsafe_allow_html=True)
-
     st.divider()
     
-    # Botones rapidos en formato compacto
-    st.markdown("**Consultas rapidas:**")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("Estado actual", key="sq1", use_container_width=True):
-            process_floating_query("Estado actual", ai_mode)
-        if st.button("Generar OT", key="sq2", use_container_width=True):
-            process_floating_query("Generar orden de trabajo", ai_mode)
-    with c2:
-        if st.button("Alta vibracion", key="sq3", use_container_width=True):
-            process_floating_query("Que causa alta vibracion?", ai_mode)
-        if st.button("KPIs", key="sq4", use_container_width=True):
-            process_floating_query("Cuales son los KPIs?", ai_mode)
-            
+    # Preguntas rápidas
+    st.markdown("** Preguntas rápidas:**")
+    
+    quick_questions = [
+        "¿Cuál es el estado actual?",
+        "¿Generar orden de trabajo?",
+        "¿Niveles de vibración?",
+        "¿KPIs de mantenimiento?",
+        "¿AMEF del equipo?",
+        "¿Impacto circular?"
+    ]
+    
+    for question in quick_questions:
+        if st.button(question, key=f"qq_{question}", use_container_width=True, type="secondary"):
+            process_chat_query(question)
+    
     st.divider()
-    ui = st.chat_input("Escribe a Letzy...", key="chat_input_sidebar")
-    if ui:
-        process_floating_query(ui, ai_mode)
-        
-    if st.button("Limpiar chat", key="clear_chat_side", use_container_width=True):
-        st.session_state["floating_chat_history"] = []
+    
+    # Historial de chat
+    chat_history = st.session_state.get("chat_history", [])
+    
+    if chat_history:
+        st.markdown("** Conversación:**")
+        chat_container = st.container(height=300)
+        with chat_container:
+            for msg in chat_history[-10:]:
+                if msg["role"] == "assistant":
+                    st.markdown(f" **Letzy:** {msg['content']}")
+                else:
+                    st.markdown(f" **Tú:** {msg['content']}")
+                st.markdown("---")
+    
+    st.divider()
+    
+    # Input de texto
+    user_input = st.chat_input("Escribe tu pregunta a Letzy...", key="chat_input")
+    if user_input:
+        process_chat_query(user_input)
+        st.rerun()
+    
+    # Botón limpiar chat
+    if st.button("🗑️ Limpiar conversación", use_container_width=True):
+        st.session_state["chat_history"] = []
+        st.rerun()
 
 # ============================================================================
-# BOTON FLOTANTE DE LETZY (Para abrir/cerrar sidebar)
+# HEADER
 # ============================================================================
 
 st.markdown(f"""
-<a href="#" class="letzy-btn" id="letzyToggleBtn" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #1a5fa8, #8bc34a); border: 3px solid #f5a623; box-shadow: 0 4px 20px rgba(0,0,0,0.3); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease; text-decoration: none;">
-    <img src="{LETZY_BASE64}" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;" alt="Letzy">
-</a>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {{
-    let btn = document.getElementById('letzyToggleBtn');
-    if (btn) {{
-        btn.addEventListener('click', function(e) {{
-            e.preventDefault();
-            // Busca el boton nativo de colapsar/expandir sidebar de Streamlit y haz clic
-            let toggleBtn = document.querySelector('div[data-testid="stSidebarCollapsedControl"] button');
-            if (toggleBtn) {{
-                toggleBtn.click();
-            }}
-        }});
-    }}
-}});
-</script>
-""", unsafe_allow_html=True)
-
-# ============================================================================
-# HEADER CON BOTON DE DOCUMENTOS
-# ============================================================================
-
-st.markdown(f"""
-<div style="display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:10px; padding:10px 0;">
+<div style="display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:20px; padding:15px 0;">
     <div style="display:flex; align-items:center; gap:20px;">
-        {render_logo("180px")}
+        {render_logo("200px")}
         <div>
-            <p style="margin:0; color:{COLORS['amarillo']}; font-size:1.5rem; font-weight:700;">Mantenimiento Inteligente + Economia Circular</p>
+            <h1 style="margin:0; color:{COLORS['amarillo']}; font-size:1.8rem; font-weight:700;">Mantenimiento Inteligente + Economia Circular</h1>
         </div>
     </div>
     <div>
         <a href="https://drive.google.com/drive/folders/1alITCWZz7CxRgumUUw_kwtmaW5oNPGNI?usp=drive_link" target="_blank" class="doc-button">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-            </svg>
-            Documentos
+            📄 Documentos
         </a>
     </div>
 </div>
@@ -1102,7 +729,7 @@ asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visib
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
 
 # ============================================================================
-# SIMULACION Y LOGICA PRINCIPAL
+# SIMULACION
 # ============================================================================
 
 if st.session_state.get("use_test_data", True):
@@ -1111,14 +738,11 @@ if st.session_state.get("use_test_data", True):
         st.warning("No se encontro el archivo CSV de prueba. Usando datos sinteticos.")
         DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
         st.session_state["step_speed"] = 3
-        st.info("Modo: Datos Sinteticos | Velocidad: 3 registros por segundo")
     else:
         st.session_state["step_speed"] = 1
-        st.info(f"Modo: Datos CSV | Velocidad: 1 registro cada 10 segundos | Total: {len(DF_FULL)} registros")
 else:
     DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
     st.session_state["step_speed"] = 3
-    st.info("Modo: Datos Sinteticos | Velocidad: 3 registros por segundo")
 
 max_idx = len(DF_FULL)
 st.session_state["sim_idx"] = min(max(1, st.session_state.sim_idx), max_idx)
@@ -1128,8 +752,6 @@ if st.session_state.running and st.session_state.sim_idx < max_idx:
         refresh_interval = 10000 if st.session_state.get("use_test_data", True) else 1000
         st_autorefresh(interval=refresh_interval, key="tm_live")
     st.session_state["sim_idx"] = min(max_idx, st.session_state.sim_idx + st.session_state.step_speed)
-elif st.session_state.sim_idx >= max_idx:
-    st.session_state["sim_idx"] = 1
 
 DF = DF_FULL.iloc[:st.session_state.sim_idx].copy()
 latest = DF.iloc[-1]
@@ -1139,30 +761,10 @@ st.session_state["asset_name"] = asset_name
 current_estado = latest["estado"]
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state["auto_chat_triggered"] = True
-    if current_estado == "Critico": play_critical_alarm(f"{latest['fecha_hora']}-critical")
-    else: play_observation_alarm(f"{latest['fecha_hora']}-alert")
-    
-    fault_desc = latest.get('fault_description', '')
-    if pd.isna(fault_desc):
-        fault_desc = ''
-    alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
-    st.session_state["floating_chat_history"].append({"role": "assistant", "content": alert_msg})
+    alert_msg = f"¡Alerta! Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. Se requiere atención inmediata."
+    st.session_state["chat_history"].append({"role": "assistant", "content": alert_msg})
 
 st.session_state["previous_estado"] = current_estado
-
-if latest["estado"] in ["Alerta", "Critico"]:
-    ek = f"{latest['fecha_hora']}-{latest['estado']}"
-    if st.session_state.last_order_event != ek:
-        new_ot = create_work_order_obj(latest, asset_name, source="Automatica por alarma")
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot["ot_id"],))
-        if not c.fetchone():
-            c.execute("""INSERT INTO work_orders (ot_id, asset_name, alert_id, description, priority, responsible, creation_date, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (new_ot["ot_id"], new_ot["asset_name"], new_ot["alert_id"], new_ot["description"], new_ot["priority"], new_ot["responsible"], new_ot["creation_date"], new_ot["status"], new_ot["created_by"], datetime.now().isoformat()))
-            conn.commit()
-        conn.close()
-        st.session_state["last_order_event"] = ek
 
 # ============================================================================
 # TAB 1: MONITOREO
@@ -1170,56 +772,55 @@ if latest["estado"] in ["Alerta", "Critico"]:
 
 with tabs[0]:
     statuses = variable_status(latest)
-    def get_status_color(status): return COLORS["verde"] if status == "Normal" else COLORS["amarillo"] if status == "Alerta" else COLORS["rojo"]
-    def get_text_color(status): return "#ffffff"
     
     col1, col2, col3, col4 = st.columns(4)
+    
     with col1:
-        sc = get_status_color(statuses["Vibracion"])
-        st.markdown(f"""<div class="metric-card status-{statuses['Vibracion'].lower()}">
-            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Vibracion'])};margin-bottom:8px;">VIBRACION RMS</div>
-            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Vibracion'])};">{latest['vibracion_rms_mm_s']:.2f} <span style="font-size:1rem;">mm/s</span></div>
-            <div style="font-size:1.1rem;color:{get_text_color(statuses['Vibracion'])};font-weight:bold;">{statuses['Vibracion'].upper()}</div>
-            <div style="font-size:0.8rem;color:{get_text_color(statuses['Vibracion'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['vibration_normal']} / {THRESHOLDS['vibration_alert']}</div>
+        status_class = "status-normal" if statuses["Vibracion"] == "Normal" else "status-alerta" if statuses["Vibracion"] == "Alerta" else "status-critico"
+        st.markdown(f"""<div class="metric-card {status_class}">
+            <div style="font-size:1.1rem;font-weight:800;color:white;margin-bottom:8px;">VIBRACION RMS</div>
+            <div style="font-size:2.5rem;font-weight:800;margin:10px 0;color:white;">{latest['vibracion_rms_mm_s']:.2f} <span style="font-size:1rem;">mm/s</span></div>
+            <div style="font-size:1.2rem;color:white;font-weight:bold;">{statuses['Vibracion'].upper()}</div>
+            <div style="font-size:0.8rem;color:white;margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['vibration_normal']} / {THRESHOLDS['vibration_alert']}</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_vibration_chart(DF), use_container_width=True)
     
     with col2:
-        sc = get_status_color(statuses["Temperatura"])
-        st.markdown(f"""<div class="metric-card status-{statuses['Temperatura'].lower()}">
-            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Temperatura'])};margin-bottom:8px;">TEMPERATURA</div>
-            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Temperatura'])};">{latest['temperatura_c']:.1f} <span style="font-size:1rem;">C</span></div>
-            <div style="font-size:1.1rem;color:{get_text_color(statuses['Temperatura'])};font-weight:bold;">{statuses['Temperatura'].upper()}</div>
-            <div style="font-size:0.8rem;color:{get_text_color(statuses['Temperatura'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['temperature_normal']} / {THRESHOLDS['temperature_alert']}</div>
+        status_class = "status-normal" if statuses["Temperatura"] == "Normal" else "status-alerta" if statuses["Temperatura"] == "Alerta" else "status-critico"
+        st.markdown(f"""<div class="metric-card {status_class}">
+            <div style="font-size:1.1rem;font-weight:800;color:white;margin-bottom:8px;">TEMPERATURA</div>
+            <div style="font-size:2.5rem;font-weight:800;margin:10px 0;color:white;">{latest['temperatura_c']:.1f} <span style="font-size:1rem;">°C</span></div>
+            <div style="font-size:1.2rem;color:white;font-weight:bold;">{statuses['Temperatura'].upper()}</div>
+            <div style="font-size:0.8rem;color:white;margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['temperature_normal']} / {THRESHOLDS['temperature_alert']}</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_temperature_chart(DF), use_container_width=True)
     
     with col3:
-        sc = get_status_color(statuses["Presion de vacio"])
-        st.markdown(f"""<div class="metric-card status-{statuses['Presion de vacio'].lower()}">
-            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Presion de vacio'])};margin-bottom:8px;">PRESION DE VACIO</div>
-            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Presion de vacio'])};">{latest['presion_vacio_kpa']:.1f} <span style="font-size:1rem;">kPa</span></div>
-            <div style="font-size:1.1rem;color:{get_text_color(statuses['Presion de vacio'])};font-weight:bold;">{statuses['Presion de vacio'].upper()}</div>
-            <div style="font-size:0.8rem;color:{get_text_color(statuses['Presion de vacio'])};margin-top:8px;opacity:0.9;">Mas negativo = mejor</div>
+        status_class = "status-normal" if statuses["Presion de vacio"] == "Normal" else "status-alerta" if statuses["Presion de vacio"] == "Alerta" else "status-critico"
+        st.markdown(f"""<div class="metric-card {status_class}">
+            <div style="font-size:1.1rem;font-weight:800;color:white;margin-bottom:8px;">PRESION DE VACIO</div>
+            <div style="font-size:2.5rem;font-weight:800;margin:10px 0;color:white;">{latest['presion_vacio_kpa']:.1f} <span style="font-size:1rem;">kPa</span></div>
+            <div style="font-size:1.2rem;color:white;font-weight:bold;">{statuses['Presion de vacio'].upper()}</div>
+            <div style="font-size:0.8rem;color:white;margin-top:8px;opacity:0.9;">Mas negativo = mejor</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_vacuum_chart(DF), use_container_width=True)
     
     with col4:
-        ec = get_status_color(latest["estado"])
-        st.markdown(f"""<div class="metric-card status-{latest['estado'].lower()}">
-            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(latest['estado'])};margin-bottom:8px;">ESTADO GLOBAL</div>
-            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(latest['estado'])};">{latest['estado'].upper()}</div>
-            <div style="font-size:1.1rem;color:{get_text_color(latest['estado'])};">IR: {latest['indice_riesgo']:.1f}/100</div>
-            <div style="font-size:0.8rem;color:{get_text_color(latest['estado'])};margin-top:8px;opacity:0.9;">Avance: {st.session_state.sim_idx}/{max_idx}</div>
+        status_class = "status-normal" if latest["estado"] == "Normal" else "status-alerta" if latest["estado"] == "Alerta" else "status-critico"
+        st.markdown(f"""<div class="metric-card {status_class}">
+            <div style="font-size:1.1rem;font-weight:800;color:white;margin-bottom:8px;">ESTADO GLOBAL</div>
+            <div style="font-size:2.5rem;font-weight:800;margin:10px 0;color:white;">{latest['estado'].upper()}</div>
+            <div style="font-size:1.2rem;color:white;">IR: {latest['indice_riesgo']:.1f}/100</div>
+            <div style="font-size:0.8rem;color:white;margin-top:8px;opacity:0.9;">Avance: {st.session_state.sim_idx}/{max_idx}</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_risk_chart(DF), use_container_width=True)
     
     alarms = get_alarms(latest)
     if alarms:
-        st.markdown(f"<h3 style='margin-top:20px;color:{COLORS['texto_oscuro']};'>Alarmas Activas</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='margin-top:30px;color:{COLORS['texto_oscuro']};'>🚨 Alarmas Activas</h3>", unsafe_allow_html=True)
         for level, name, value in alarms:
             ac = "alarm-critical" if level == "Critico" else ""
-            icon = "[!]" if level == "Critico" else "[*]"
+            icon = "🔴" if level == "Critico" else "🟡"
             color = COLORS["rojo"] if level == "Critico" else COLORS["amarillo"]
             st.markdown(f"""<div class="alarm-banner {ac}">
                 <div style="font-weight:bold;font-size:1.1rem;color:{color};">{icon} {level}: {name}</div>
@@ -1231,7 +832,7 @@ with tabs[0]:
 # ============================================================================
 
 with tabs[1]:
-    st.markdown("<h2>Diagnostico en Tiempo Real</h2>", unsafe_allow_html=True)
+    st.markdown("<h2> Diagnostico en Tiempo Real</h2>", unsafe_allow_html=True)
     alarms = get_alarms(latest)
     ec = COLORS["verde"] if latest["estado"] == "Normal" else COLORS["amarillo"] if latest["estado"] == "Alerta" else COLORS["rojo"]
     st.markdown(f"""<div style="background:{COLORS['blanco']};padding:20px;border-radius:16px;border-left:6px solid {ec};margin-bottom:20px;box-shadow:0 4px 15px rgba(0,0,0,0.08);">
@@ -1240,112 +841,43 @@ with tabs[1]:
     </div>""", unsafe_allow_html=True)
     
     if alarms:
-        st.markdown("<h3>Hipotesis Tecnicas</h3>", unsafe_allow_html=True)
+        st.markdown("<h3>🔧 Hipotesis Tecnicas</h3>", unsafe_allow_html=True)
         for level, name, value in alarms:
             if name == "Vibracion": st.markdown("- **Posible desgaste de rodamientos**, desalineacion o lubricacion deficiente.")
             elif name == "Temperatura": st.markdown("- **Posible friccion interna**, lubricacion deficiente o sobrecarga.")
             elif name == "Presion de vacio": st.markdown("- **Posible fuga en linea**, deterioro de sellos o restriccion en succion.")
-            elif name == "Corriente del motor": st.markdown("- **Sobrecarga electrica**, posible falla en devanado o bloqueo mecanico.")
             else: st.markdown(f"- **Falla detectada**: {value}")
-        st.markdown("<h3>Pasos Sugeridos</h3>", unsafe_allow_html=True)
+        
+        st.markdown("<h3>📋 Pasos Sugeridos</h3>", unsafe_allow_html=True)
         st.markdown("1. Verificar lectura con instrumento calibrado\n2. Inspeccionar visualmente el componente\n3. Revisar manual del fabricante\n4. Comprobar operacion segura\n5. Evaluar necesidad de repuesto")
+        
         accion = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT Prioridad 0"
-        st.markdown(f"<div style='background:{COLORS['blanco']};padding:15px;border-radius:12px;margin-top:20px;box-shadow:0 4px 15px rgba(0,0,0,0.08);'><strong>Accion Inmediata:</strong> {accion}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:{COLORS['blanco']};padding:15px;border-radius:12px;margin-top:20px;box-shadow:0 4px 15px rgba(0,0,0,0.08);'><strong>✅ Accion Inmediata:</strong> {accion}</div>", unsafe_allow_html=True)
     else:
-        st.success("Sin alarmas activas. Condicion normal.")
-    
-    if st.button("Generar Orden de Trabajo", use_container_width=True, type="primary"):
-        ot = create_work_order_obj(latest, asset_name, source="Manual desde diagnostico")
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (ot["ot_id"],))
-        if not c.fetchone():
-            c.execute("""INSERT INTO work_orders (ot_id, asset_name, alert_id, description, priority, responsible, creation_date, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (ot["ot_id"], ot["asset_name"], ot["alert_id"], ot["description"], ot["priority"], ot["responsible"], ot["creation_date"], ot["status"], ot["created_by"], datetime.now().isoformat()))
-            conn.commit()
-            st.success(f"OT creada: {ot['ot_id']}")
-        else:
-            st.info(f"OT ya existe: {ot['ot_id']}")
-        conn.close()
+        st.success("✅ Sin alarmas activas. Condicion normal.")
 
 # ============================================================================
 # TAB 3: ORDENES DE TRABAJO
 # ============================================================================
 
 with tabs[2]:
-    st.markdown("<h2>Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM work_orders ORDER BY creation_date DESC")
-    orders = [dict(row) for row in c.fetchall()]
-    conn.close()
-    
-    if orders:
-        filter_status = st.multiselect("Filtrar por estado", ["Pendiente", "En Ejecucion", "Cerrada"], default=["Pendiente", "En Ejecucion", "Cerrada"])
-        filtered = [o for o in orders if o["status"] in filter_status]
-        for ot in filtered[:10]:
-            with st.expander(f"{ot['ot_id']} - {ot['asset_name'][:40]}... ({ot['status']})"):
-                st.markdown(f"**ID:** {ot['ot_id']} | **Activo:** {ot['asset_name']} | **Prioridad:** {ot['priority']}")
-                st.markdown(f"**Descripcion:** {ot['description']} | **Responsable:** {ot['responsible'] or 'No asignado'}")
-                st.markdown("---")
-                new_status = st.selectbox("Nuevo estado", ["Pendiente", "En Ejecucion", "Cerrada"], key=f"ns_{ot['ot_id']}")
-                if st.button("Actualizar", key=f"up_{ot['ot_id']}"):
-                    conn = sqlite3.connect(DB_PATH)
-                    conn.execute("UPDATE work_orders SET status=?, updated_at=? WHERE ot_id=?", (new_status, datetime.now().isoformat(), ot['ot_id']))
-                    conn.commit()
-                    if new_status == "Cerrada": notify_ot_completion(ot)
-                    conn.close()
-                    st.success("Estado actualizado")
-                    st.rerun()
-                
-                if ot["status"] == "Cerrada":
-                    st.markdown("**Registrar intervencion circular:**")
-                    comp = st.text_input("Componente", key=f"comp_{ot['ot_id']}")
-                    dec = st.selectbox("Decision", ["Inspeccion", "Reparacion", "Reemplazo Parcial", "Reemplazo Total"], key=f"dec_{ot['ot_id']}")
-                    res = st.selectbox("Resultado", ["Reparado", "Reutilizado", "Reemplazado", "Descartado"], key=f"res_{ot['ot_id']}")
-                    mc = st.number_input("Masa conservada (kg)", min_value=0.0, value=0.0, key=f"mc_{ot['ot_id']}")
-                    md = st.number_input("Masa descartada (kg)", min_value=0.0, value=0.0, key=f"md_{ot['ot_id']}")
-                    if st.button("Registrar", key=f"sub_{ot['ot_id']}"):
-                        notify_economic_impact({"ot_id": ot.get("ot_id", ""), "component": comp, "decision": dec, "result": res, "mass_conserved_kg": mc, "mass_discarded_kg": md})
-                        st.success("Intervencion registrada")
-    else:
-        st.info("No hay ordenes registradas.")
+    st.markdown("<h2> Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
+    st.info("Módulo de gestión de órdenes de trabajo - Próximamente")
 
 # ============================================================================
 # TAB 4: IMPACTO CIRCULAR
 # ============================================================================
 
 with tabs[3]:
-    st.markdown("<h2>Panel de Impacto Circular</h2>", unsafe_allow_html=True)
-    st.write("Registro de decisiones de mantenimiento y su impacto en la conservacion de recursos.")
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM circular_interventions ORDER BY recorded_date DESC")
-    interventions = [dict(row) for row in c.fetchall()]
-    conn.close()
-    
-    total = len(interventions)
-    repaired = sum(1 for i in interventions if i["decision"] in ["Reparado", "Reutilizado"])
-    conserved = sum(i["mass_conserved_kg"] or 0 for i in interventions)
-    discarded = sum(i["mass_discarded_kg"] or 0 for i in interventions)
-    
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: st.metric("Intervenciones", total)
-    with c2: st.metric("Reparados/Reutilizados", repaired)
-    with c3: st.metric("Masa Conservada (kg)", f"{conserved:.2f}")
-    with c4: st.metric("Masa Descartada (kg)", f"{discarded:.2f}")
-    
-    if interventions:
-        st.dataframe(pd.DataFrame(interventions), use_container_width=True, hide_index=True)
+    st.markdown("<h2>♻️ Panel de Impacto Circular</h2>", unsafe_allow_html=True)
+    st.info("Módulo de impacto circular - Próximamente")
 
 # ============================================================================
 # TAB 5: KPIs
 # ============================================================================
 
 with tabs[4]:
-    st.markdown("<h2 style='text-align:center;'>KPIs e Indicadores</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center;'> KPIs e Indicadores</h2>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     oh = c1.number_input("Horas operativas", value=720.0, min_value=0.0)
     fl = c1.number_input("Numero de fallas", value=3, min_value=0)
