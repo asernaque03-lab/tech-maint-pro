@@ -282,7 +282,6 @@ def send_email(to_email, subject, body_html):
         msg['To'] = to_email
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
-        # NOTA: Se recomienda usar una "Contraseña de Aplicación" de Gmail, no la contraseña normal.
         server.login(STAFF["asesor"]["email"], "910314782")
         server.send_message(msg)
         server.quit()
@@ -293,7 +292,6 @@ def send_email(to_email, subject, body_html):
         return False
 
 def test_telegram_connection():
-    """Función para probar la conexión con Telegram - ENVÍA A LOS 3 USUARIOS"""
     logger.info("=== PRUEBA DE CONEXIÓN TELEGRAM ===")
     try:
         r = requests.get(f"{TELEGRAM_API_URL}/getMe", timeout=5)
@@ -307,7 +305,6 @@ def test_telegram_connection():
         logger.error(f"ERROR: No se puede conectar al bot: {e}")
         return False
     
-    # Enviar a TODOS los usuarios
     for key, staff in STAFF.items():
         chat_id = staff.get("telegram_chat_id")
         if chat_id:
@@ -320,7 +317,6 @@ def test_telegram_connection():
     return True
 
 def notify_critical_alarm(asset_name, parameter, value, threshold, ir, ot_id, responsable):
-    """Alarma crítica - Notifica a TODOS"""
     logger.info(f"=== NOTIFICANDO ALARMA CRITICA: {ot_id} ===")
     mensaje = (
         f"<b>[ALERTA CRITICA DETECTADA]</b>\n\n"
@@ -330,17 +326,14 @@ def notify_critical_alarm(asset_name, parameter, value, threshold, ir, ot_id, re
         f"<b>Accion:</b> Se ha generado la {ot_id} automaticamente.\n\n"
         f"@{responsable}, por favor verificar de inmediato."
     )
-    # Enviar a los 3: Tecnico, Asesor y Gerencia
     for key in ["tecnico", "asesor", "gerencia"]:
         send_telegram(STAFF[key]["telegram_chat_id"], mensaje)
     
-    # Email a Asesor y Gerencia
     cuerpo_email = f"<h2>[ALERTA CRITICA] {asset_name}</h2><p><b>Parametro:</b> {parameter}: {value} (Umbral: {threshold})</p><p><b>Riesgo:</b> Alto (IR: {ir}/100)</p><p><b>OT Generada:</b> {ot_id}</p><p><b>Responsable:</b> {responsable}</p>"
     for key in ["asesor", "gerencia"]:
         send_email(STAFF[key]["email"], f"[CRITICO] {ot_id} - {asset_name}", cuerpo_email)
 
 def notify_new_ot(ot_data):
-    """Nueva OT - Notifica al TECNICO asignado y Asesor si es prioritaria"""
     logger.info(f"=== NOTIFICANDO NUEVA OT: {ot_data.get('ot_id')} ===")
     responsable = ot_data.get("responsable", "Sin asignar")
     ot_id = ot_data["ot_id"]
@@ -356,23 +349,18 @@ def notify_new_ot(ot_data):
         f"<b>Responsable:</b> {responsable}\n\n"
         f"Responde a este chat con 'OK' para confirmar."
     )
-    # Enviar al TECNICO asignado (siempre)
     send_telegram(STAFF["tecnico"]["telegram_chat_id"], mensaje)
-    # Si es P0 o P1, también al ASESOR
     if prio in ["P0", "P1"]:
         send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
-    # Email de respaldo
     send_email(STAFF["tecnico"]["email"], f"Nueva OT {ot_id} ({prio})", f"<h2>Nueva OT {ot_id}</h2><p>Activo: {asset}</p><p>Responsable: {responsable}</p>")
 
 def notify_ot_started(ot_id, asset_name, responsable):
-    """OT Iniciada - Notifica al JEFE DE MANTENIMIENTO (ASESOR)"""
     logger.info(f"=== NOTIFICANDO OT INICIADA: {ot_id} ===")
     mensaje = f"<b>[OT INICIADA]</b>\n\n<b>ID:</b> {ot_id}\n<b>Tecnico:</b> {responsable} comenzó en {asset_name}\n<b>Hora:</b> {datetime.now().strftime('%H:%M')}"
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
     play_notification_sound()
 
 def notify_ot_paused(ot_id, asset_name, responsable, motivo):
-    """OT Pausada - Notifica al JEFE DE MANTENIMIENTO y a GERENCIA si es P0"""
     logger.info(f"=== NOTIFICANDO OT PAUSADA: {ot_id} ===")
     mensaje = f"<b>[OT PAUSADA - BLOQUEADA]</b>\n\n<b>ID:</b> {ot_id}\n<b>Activo:</b> {asset_name}\n<b>Tecnico:</b> {responsable}\n<b>Motivo:</b> {motivo}"
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
@@ -391,14 +379,12 @@ def notify_ot_paused(ot_id, asset_name, responsable, motivo):
         logger.error(f"Error verificando prioridad: {e}")
 
 def notify_ot_completed(ot_data):
-    """OT Completada - Notifica al JEFE DE MANTENIMIENTO (ASESOR)"""
     logger.info(f"=== NOTIFICANDO OT COMPLETADA: {ot_data.get('ot_id')} ===")
     mensaje = f"<b>[OT COMPLETADA]</b>\n\n<b>ID:</b> {ot_data['ot_id']}\n<b>Tecnico:</b> {ot_data.get('responsable', 'N/A')}\n<b>Tiempo:</b> {ot_data.get('tiempo_real_horas', 0)}h\n<b>Resultado:</b> {ot_data.get('hallazgos', 'Sin detalles')[:100]}"
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
     play_notification_sound()
 
 def notify_maintenance_issue(asset_name, issue_description, reporter):
-    """Problema/Impedimento - Notifica a GERENCIA (IRINA)"""
     logger.info(f"=== NOTIFICANDO PROBLEMA: {asset_name} ===")
     mensaje = f"<b>[PROBLEMA/IMPEDIMENTO DE MANTENIMIENTO]</b>\n\n<b>Activo:</b> {asset_name}\n<b>Reportado por:</b> {reporter}\n<b>Descripcion:</b> {issue_description}\n\nSe requiere atencion inmediata."
     send_telegram(STAFF["gerencia"]["telegram_chat_id"], mensaje)
@@ -406,7 +392,6 @@ def notify_maintenance_issue(asset_name, issue_description, reporter):
     send_email(STAFF["gerencia"]["email"], f"[PROBLEMA] {asset_name}", f"<h2>Problema en {asset_name}</h2><p>Reportado por: {reporter}</p><p>{issue_description}</p>")
 
 def notify_high_circular_impact(intervention):
-    """Impacto Circular - Notifica a GERENCIA (IRINA) por tema económico"""
     logger.info(f"=== NOTIFICANDO IMPACTO CIRCULAR ===")
     md = intervention.get("mass_discarded_kg", 0) or 0
     mc = intervention.get("mass_conserved_kg", 0) or 0
@@ -1348,60 +1333,45 @@ st.session_state["latest_row"] = latest
 st.session_state["asset_name"] = asset_name
 
 current_estado = latest["estado"]
-
-# Detectar CAMBIO de estado (solo notificar cuando cambia)
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state["auto_chat_triggered"] = True
-    
-    # Reproducir sonido de alarma
     if current_estado == "Critico":
         play_critical_alarm(f"{latest['fecha_hora']}-critical")
     else:
         play_observation_alarm(f"{latest['fecha_hora']}-alert")
     
-    # Obtener descripción de falla
     fault_desc = latest.get('fault_description', '')
-    if pd.isna(fault_desc): 
-        fault_desc = ''
-    
-    # Mensaje de Letzy
+    if pd.isna(fault_desc): fault_desc = ''
     alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
-    if "floating_chat_history" not in st.session_state: 
-        st.session_state["floating_chat_history"] = []
+    if "floating_chat_history" not in st.session_state: st.session_state["floating_chat_history"] = []
     st.session_state["floating_chat_history"].append({"role": "assistant", "content": alert_msg})
-    
-    # === NOTIFICACION TELEGRAM ===
-    # Determinar prioridad según estado
-    priority = "P0" if current_estado == "Critico" else "P1"
-    ot_id = f"OT-{datetime.now().strftime('%Y%m%d%H%M')}-{priority}"
-    
-    # Notificar según gravedad
-    if current_estado == "Critico":
-        # Alerta crítica - notificar a TODOS
-        alarms_list = get_alarms(latest)
-        if alarms_list:
-            level, param, valor = alarms_list[0]
-            threshold = THRESHOLDS.get("vibration_alert", 7.1)
-            notify_critical_alarm(
-                asset_name=asset_name,
-                parameter=param,
-                value=valor,
-                threshold=threshold,
-                ir=latest['indice_riesgo'],
-                ot_id=ot_id,
-                responsable=STAFF["tecnico"]["nombre"]
-            )
-    else:
-        # Alerta normal - notificar al técnico
-        notify_new_ot({
-            "ot_id": ot_id,
-            "asset_name": asset_name,
-            "priority": priority,
-            "description": fault_desc,
-            "responsable": STAFF["tecnico"]["nombre"]
-        })
 
 st.session_state["previous_estado"] = current_estado
+
+if latest["estado"] in ["Alerta", "Critico"]:
+    ek = f"{latest['fecha_hora']}-{latest['estado']}"
+    if st.session_state.last_order_event != ek:
+        new_ot = create_work_order_obj(latest, asset_name, source="Automatica por alarma")
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot["ot_id"],))
+            if not c.fetchone():
+                c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (new_ot["ot_id"], new_ot["asset_name"], ASSETS.get(new_ot["asset_name"], {}).get("tag", "N/A"), "Planta Principal", new_ot["alert_id"], new_ot["description"], new_ot["priority"], "Correctivo", new_ot["responsible"], new_ot["creation_date"], 2.0, new_ot["status"], new_ot["created_by"], datetime.now().isoformat()))
+                conn.commit()
+                if new_ot["priority"] == "P0":
+                    alarms_list = get_alarms(latest)
+                    if alarms_list:
+                        level, param, valor = alarms_list[0]
+                        threshold = THRESHOLDS.get("vibration_alert", 7.1)
+                        notify_critical_alarm(asset_name=asset_name, parameter=param, value=valor, threshold=threshold, ir=latest['indice_riesgo'], ot_id=new_ot["ot_id"], responsable=new_ot["responsible"])
+                notify_new_ot(new_ot)
+                logger.info(f"OT creada y notificada: {new_ot['ot_id']}")
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error creando OT automatica: {e}")
+        st.session_state["last_order_event"] = ek
 
 # ============================================================================
 # TAB 1: MONITOREO
@@ -1547,7 +1517,6 @@ with tabs[2]:
                     conn.commit()
                     st.success(f"OT creada exitosamente: {new_ot_id}")
                     
-                    # --- NOTIFICACION DE NUEVA OT MANUAL ---
                     notify_new_ot({
                         "ot_id": new_ot_id,
                         "asset_name": nuevo_activo,
@@ -1850,11 +1819,8 @@ with tabs[4]:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
-       rows = c.fetchall()
-if rows and hasattr(rows[0], 'keys'):
-    closed_orders = [dict(row) for row in rows]
-else:
-    closed_orders = []
+        rows = c.fetchall()
+        closed_orders = [dict(row) for row in (rows if rows else [])]
         conn.close()
         
         if closed_orders:
