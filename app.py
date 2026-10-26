@@ -1124,10 +1124,10 @@ sd = {
     "running": True, "sim_idx": 1, "orders": [], "last_order_event": None,
     "chat_history": [], "theme_mode": "default", "kb_docs": [],
     "kb_chunks": [], "kb_ready": False, "last_beep_event": None,
-    "floating_chat_open": False, "floating_chat_history": [],
+    "floating_chat_open": False, "floating_chat_history": [],  
     "auto_chat_triggered": False, "previous_estado": None,
     "scenario": "Operacion normal", "seed": 42, "n_hours": 168,
-    "step_speed": 3, "production_rate": 85.5, "groq_api_key": "",
+    "step_speed": 1, "production_rate": 85.5, "groq_api_key": "",
     "knowledge_base": [], "kb_loaded": False, "use_test_data": True
 }
 for k, v in sd.items():
@@ -1162,7 +1162,7 @@ st.markdown(f"""
                 <line x1="16" y1="17" x2="8" y2="17"></line>
                 <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            📄 Documentos
+              Documentos
         </a>
     </div>
 </div>
@@ -1181,6 +1181,12 @@ tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Impacto Circu
 asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visibility="collapsed")
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
 
+# Mostrar modo y velocidad
+if st.session_state.use_test_data:
+    st.info(f" Modo: Datos CSV | Velocidad: 1 registro cada 10 segundos | Total: {len(DF_FULL) if 'DF_FULL' in locals() else 0} registros")
+else:
+    st.info(f" Modo: Datos Sintéticos | Velocidad: 3 registros por segundo")
+
 # ============================================================================
 # SIMULACION
 # ============================================================================
@@ -1191,14 +1197,25 @@ if st.session_state.use_test_data:
     if DF_FULL is None:
         st.warning("No se encontro el archivo CSV de prueba. Usando datos sinteticos.")
         DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
+        st.session_state.step_speed = 3  # Datos sintéticos: más rápido
 else:
     DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
+    st.session_state.step_speed = 3  # Datos sintéticos: más rápido
 
+# AJUSTAR VELOCIDAD SEGÚN MODO
+if st.session_state.use_test_data and DF_FULL is not None:
+    st.session_state.step_speed = 1  # CSV: 1 registro cada actualización (10 segundos reales)
+    
 max_idx = len(DF_FULL)
 st.session_state.sim_idx = min(max(1, st.session_state.sim_idx), max_idx)
 
 if st.session_state.running and st.session_state.sim_idx < max_idx:
-    if HAS_AUTOREFRESH: st_autorefresh(interval=1000, key="tm_live")
+    # Ajustar intervalo según modo: 10000ms para CSV, 1000ms para sintético
+    refresh_interval = 10000 if st.session_state.use_test_data else 1000
+    
+    if HAS_AUTOREFRESH: 
+        st_autorefresh(interval=refresh_interval, key="tm_live")
+    
     st.session_state.sim_idx = min(max_idx, st.session_state.sim_idx + st.session_state.step_speed)
 elif st.session_state.sim_idx >= max_idx:
     st.session_state.sim_idx = 1
