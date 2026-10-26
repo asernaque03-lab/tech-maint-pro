@@ -18,6 +18,8 @@ from io import BytesIO
 from typing import Optional, Dict, List, Tuple
 from collections import Counter
 import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
 
 try:
     import streamlit as st
@@ -61,13 +63,14 @@ except ImportError:
     HAS_WINSOUND = False
 
 # ============================================================================
-# CONFIGURACION
+# CONFIGURACION GENERAL
 # ============================================================================
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(APP_DIR, "techmaintpro.db")
 LOG_PATH = os.path.join(APP_DIR, "techmaintpro.log")
 PDF_DIR = APP_DIR
+CSV_TEST_PATH = os.path.join(APP_DIR, "bomba_vacrio_prueba.csv")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -77,50 +80,34 @@ logging.basicConfig(
 logger = logging.getLogger("TechMaintPro")
 
 # ============================================================================
-# CONFIGURACION TELEGRAM
+# CARGA DE IMAGENES PNG LOCALES
 # ============================================================================
 
-TELEGRAM_BOT_TOKEN = "8944581569:AAFw2rfEn3zU5iOpdNrtIzYHLTs30xg_cIA"
-TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+def load_image_as_base64(image_path, fallback_svg=""):
+    """Carga una imagen PNG local y la convierte a base64 para uso inline."""
+    try:
+        if os.path.exists(image_path):
+            with open(image_path, "rb") as img_file:
+                encoded = base64.b64encode(img_file.read()).decode('utf-8')
+            mime = "image/png" if image_path.lower().endswith(".png") else "image/jpeg"
+            return f"data:{mime};base64,{encoded}"
+    except Exception as e:
+        logger.warning(f"No se pudo cargar {image_path}: {e}")
+    return fallback_svg
 
-STAFF = {
-    "tecnico": {
-        "nombre": "DARIO MINAN ESPINOZA",
-        "telefono": "958000191",
-        "email": "dario.minanespinoza@gmail.com",
-        "telegram_chat_id": "1330744031",
-        "rol": "Tecnico de Mantenimiento"
-    },
-    "asesor": {
-        "nombre": "JORDY ALBERTO SERNAQUE SABA",
-        "telefono": "902631386",
-        "email": "ajordyss0602@gmail.com",
-        "telegram_chat_id": "8665066190",
-        "rol": "Asesor de Mantenimiento"
-    },
-    "gerencia": {
-        "nombre": "Irina Nicole Castillo Coronado",
-        "telefono": "966153839",
-        "email": "nicolecastc@gmail.com",
-        "telegram_chat_id": "8533612747",
-        "rol": "Gerencia"
-    }
-}
+LOGO_PATH = os.path.join(APP_DIR, "logo.png")
+LETZY_PATH = os.path.join(APP_DIR, "letzy.png")
 
-# ============================================================================
-# LOGO OFICIAL BASE64
-# ============================================================================
+# SVG fallback minimalista para el logo
+LOGO_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iIzFhNWZhOCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiPlRFQ0ggTUFJTlQ8L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI3MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmNWE2MjMiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5QUk88L3RleHQ+PC9zdmc+"
 
-LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAKlBB4DASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKK......"
+LETZY_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MCIgaGVpZ2h0PSI5MCI+PGNpcmNsZSBjeD0iNDUiIGN5PSI0NSIgcj0iNDIiIGZpbGw9IiMxYTVmYTgiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5MPC90ZXh0Pjwvc3ZnPg=="
+
+LOGO_BASE64 = load_image_as_base64(LOGO_PATH, LOGO_FALLBACK)
+LETZY_BASE64 = load_image_as_base64(LETZY_PATH, LETZY_FALLBACK)
 
 def render_logo(size="180px"):
     return f'<img src="{LOGO_BASE64}" style="width:{size}; height:auto; display:inline-block;" />'
-
-# ============================================================================
-# LETZY - ASISTENTE VIRTUAL BASE64
-# ============================================================================
-
-LETZY_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAEYAQADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKK......"
 
 def render_letzy(size="60px"):
     return f'<img src="{LETZY_BASE64}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block; object-fit:cover;" />'
@@ -173,7 +160,7 @@ ASSETS = {
 THRESHOLDS = {
     "vibration_normal": 4.5, "vibration_alert": 7.1,
     "temperature_normal": 75.0, "temperature_alert": 85.0,
-    "vacuum_normal": -65.0, "vacuum_alert": -55.0,
+    "vacuum_normal": -3.0, "vacuum_alert": -5.0,
 }
 
 FMECA_KNOWLEDGE = [
@@ -205,46 +192,77 @@ FMECA_KNOWLEDGE = [
 # ============================================================================
 
 DOCUMENT_METADATA = {
-    "01_Mantenimiento_Prev": {"id": 1, "category": "Tesis / Codificación", "tags": ["Eternit Pacifico", "codificación", "MTBF", "MTTR", "software SM"], "desc": "Sistema de codificación de equipos industriales y uso del software SM Real World"},
-    "02_Mantenimiento_Vacio": {"id": 2, "category": "Tesis / Vacío médico", "tags": ["NFPA 99", "vacío grado médico", "bombas rotativas", "hospital"], "desc": "Programa de mantenimiento para sistemas de vacío médico según norma NFPA 99"},
-    "03_Gestion_KPIs": {"id": 3, "category": "Gestión / KPIs", "tags": ["KPI", "MTBF", "MTTR", "disponibilidad", "indicadores"], "desc": "Guía de indicadores clave de rendimiento con fórmulas y ejemplos"},
-    "04_Mantenimiento_Casa": {"id": 4, "category": "Tesis / AMFE", "tags": ["AMFE", "FMEA", "criticidad", "casa de máquinas", "hospital"], "desc": "Análisis de Modos de Falla y Efectos aplicado a casa de máquinas hospitalaria"},
-    "05_Manual_IMBIL": {"id": 5, "category": "Manual técnico / IMBIL", "tags": ["anillo líquido", "instalación", "desmontaje", "lubricación"], "desc": "Manual completo de bombas de vacío IMBIL serie BVI"},
-    "06_Manual_Caterpillar": {"id": 6, "category": "Manual OEM / Caterpillar", "tags": ["G3408", "G3412", "motores a gas", "intervalos de mantenimiento"], "desc": "Manual oficial de operación y mantenimiento de motores Caterpillar"},
-    "07_Ficha_CPS": {"id": 7, "category": "Ficha técnica / CPS", "tags": ["VP6D", "VP12D", "doble etapa", "10 micrones", "ensayo Rice"], "desc": "Especificaciones técnicas de bombas de vacío CPS para laboratorio"},
-    "08_Manual_Gadnic": {"id": 8, "category": "Manual de usuario / Gadnic", "tags": ["Serie TW", "paletas rotativas", "cambio de aceite", "solución de problemas"], "desc": "Manual de usuario y troubleshooting de bombas Gadnic compactas"},
-    "09_Procedimiento_Lab": {"id": 9, "category": "POE / Laboratorio", "tags": ["Thomas BV-1", "diafragma", "trampas", "sílica gel", "seguridad"], "desc": "Procedimiento operativo para uso seguro de bomba de vacío en laboratorio"},
-    "10_Tesis_Plan": {"id": 10, "category": "Tesis / Ladrillera", "tags": ["Arcillas de Colombia", "COVENIN 2500-93", "criticidad", "programación anual"], "desc": "Plan completo de mantenimiento preventivo para empresa ladrillera con 37 equipos"}
+    "01_Mantenimiento_Prev": {"id": 1, "category": "Tesis / Codificacion", "tags": ["Eternit Pacifico", "codificacion", "MTBF", "MTTR", "software SM"], "desc": "Sistema de codificacion de equipos industriales"},
+    "02_Mantenimiento_Vacio": {"id": 2, "category": "Tesis / Vacio medico", "tags": ["NFPA 99", "vacio grado medico", "bombas rotativas", "hospital"], "desc": "Programa de mantenimiento para sistemas de vacio medico"},
+    "03_Gestion_KPIs": {"id": 3, "category": "Gestion / KPIs", "tags": ["KPI", "MTBF", "MTTR", "disponibilidad", "indicadores"], "desc": "Guia de indicadores clave de rendimiento"},
+    "04_Mantenimiento_Casa": {"id": 4, "category": "Tesis / AMFE", "tags": ["AMFE", "FMEA", "criticidad", "casa de maquinas", "hospital"], "desc": "Analisis de Modos de Falla y Efectos"},
+    "05_Manual_IMBIL": {"id": 5, "category": "Manual tecnico / IMBIL", "tags": ["anillo liquido", "instalacion", "desmontaje", "lubricacion"], "desc": "Manual completo de bombas de vacio IMBIL serie BVI"},
+    "06_Manual_Caterpillar": {"id": 6, "category": "Manual OEM / Caterpillar", "tags": ["G3408", "G3412", "motores a gas", "intervalos de mantenimiento"], "desc": "Manual oficial de operacion y mantenimiento de motores Caterpillar"},
+    "07_Ficha_CPS": {"id": 7, "category": "Ficha tecnica / CPS", "tags": ["VP6D", "VP12D", "doble etapa", "10 micrones", "ensayo Rice"], "desc": "Especificaciones tecnicas de bombas de vacio CPS"},
+    "08_Manual_Gadnic": {"id": 8, "category": "Manual de usuario / Gadnic", "tags": ["Serie TW", "paletas rotativas", "cambio de aceite", "solucion de problemas"], "desc": "Manual de usuario de bombas Gadnic compactas"},
+    "09_Procedimiento_Lab": {"id": 9, "category": "POE / Laboratorio", "tags": ["Thomas BV-1", "diafragma", "trampas", "silica gel", "seguridad"], "desc": "Procedimiento operativo para uso seguro de bomba de vacio"},
+    "10_Tesis_Plan": {"id": 10, "category": "Tesis / Ladrillera", "tags": ["Arcillas de Colombia", "COVENIN 2500-93", "criticidad", "programacion anual"], "desc": "Plan completo de mantenimiento preventivo para empresa ladrillera"}
 }
 
 # ============================================================================
 # SYSTEM PROMPT PARA LETZY
 # ============================================================================
 
-SYSTEM_PROMPT = """Eres Letzy, Asistente Experto en Ingeniería de Mantenimiento Industrial, Operación de Equipos y Gestión de Calidad. Tu base de conocimiento contiene 10 documentos técnicos especializados.
+SYSTEM_PROMPT = """Eres Letzy, Asistente Experto en Ingenieria de Mantenimiento Industrial, Operacion de Equipos y Gestion de Calidad. Tu base de conocimiento contiene 10 documentos tecnicos especializados.
 
 REGLAS DE RESPUESTA OBLIGATORIAS:
-1. Sé preciso, técnico y conciso. Ve directo al dato solicitado.
-2. CITA SIEMPRE la fuente entre paréntesis al final, usando el número del archivo. Ejemplo: [Fuente: Archivo 10 - Tesis Arcillas de Colombia]
-3. Si te preguntan por PROCEDIMIENTOS o INSTRUCCIONES TÉCNICAS de equipos específicos (extrusora, molino, banda transportadora), busca primero en el Archivo 10 (Arcillas de Colombia) que contiene los anexos detallados.
-4. Si te preguntan por CÓMO CALCULAR MTBF, MTTR o Disponibilidad, usa el Archivo 03 (KPIs) para las fórmulas y el Archivo 10 para ejemplos aplicados.
-5. Si te preguntan por BOMBAS DE VACÍO, diferencia según el contexto:
-   - Laboratorio/ácidos → Archivo 09 (Thomas BV-1 con trampas)
-   - Industrial/anillo líquido → Archivo 05 (IMBIL)
-   - Compacta/HVAC → Archivo 08 (Gadnic)
-   - Especificaciones técnicas → Archivo 07 (CPS)
-   - Grado médico → Archivo 02 (NFPA 99)
-6. Si te preguntan por MOTORES Caterpillar G3408/G3412 → Archivo 06
-7. Si te preguntan por ANÁLISIS DE CRITICIDAD o AMFE → Archivo 04 o Archivo 10
-8. Si te preguntan por SISTEMAS DE CODIFICACIÓN de equipos → Archivo 01 o Archivo 10
-9. Si la información NO está en los documentos, di: "No encuentro esa información específica en los documentos proporcionados. ¿Puedes reformular tu pregunta o indicarme qué equipo/sistema te interesa?"
-10. NUNCA inventes datos técnicos, valores de torque, frecuencias de mantenimiento o especificaciones que no estén en los documentos.
+1. Se preciso, tecnico y conciso. Ve directo al dato solicitado.
+2. CITA SIEMPRE la fuente entre parentesis al final, usando el numero del archivo. Ejemplo: [Fuente: Archivo 10 - Tesis Arcillas de Colombia]
+3. Si te preguntan por PROCEDIMIENTOS o INSTRUCCIONES TECNICAS de equipos especificos, busca primero en el Archivo 10.
+4. Si te preguntan por COMO CALCULAR MTBF, MTTR o Disponibilidad, usa el Archivo 03.
+5. Si te preguntan por BOMBAS DE VACIO, diferencia segun el contexto:
+   - Laboratorio/acidos -> Archivo 09 (Thomas BV-1 con trampas)
+   - Industrial/anillo liquido -> Archivo 05 (IMBIL)
+   - Compacta/HVAC -> Archivo 08 (Gadnic)
+   - Especificaciones tecnicas -> Archivo 07 (CPS)
+   - Grado medico -> Archivo 02 (NFPA 99)
+6. Si te preguntan por MOTORES Caterpillar G3408/G3412 -> Archivo 06
+7. Si te preguntan por ANALISIS DE CRITICIDAD o AMFE -> Archivo 04 o Archivo 10
+8. Si te preguntan por SISTEMAS DE CODIFICACION de equipos -> Archivo 01 o Archivo 10
+9. Si la informacion NO esta en los documentos, indica claramente que no la encuentras.
+10. NUNCA inventes datos tecnicos, valores de torque, frecuencias de mantenimiento o especificaciones que no esten en los documentos.
 
 FORMATO DE RESPUESTA PREFERIDO:
-- Usa viñetas y tablas cuando sea posible
-- Incluye valores numéricos exactos (torques, frecuencias, tiempos)
-- Menciona el responsable (mecánico, electricista, operario) cuando aplique
+- Usa vinetas y tablas cuando sea posible
+- Incluye valores numericos exactos
+- Menciona el responsable (mecanico, electricista, operario) cuando aplique
 - Indica si la actividad es rutinaria (R) o programada (P)"""
+
+# ============================================================================
+# CONFIGURACION TELEGRAM
+# ============================================================================
+
+TELEGRAM_BOT_TOKEN = "8944581569:AAFw2rfEn3zU5iOpdNrtIzYHLTs30xg_cIA"
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+
+STAFF = {
+    "tecnico": {
+        "nombre": "DARIO MINAN ESPINOZA",
+        "telefono": "958000191",
+        "email": "dario.minanespinoza@gmail.com",
+        "telegram_chat_id": "1330744031",
+        "rol": "Tecnico de Mantenimiento"
+    },
+    "asesor": {
+        "nombre": "JORDY ALBERTO SERNAQUE SABA",
+        "telefono": "902631386",
+        "email": "ajordyss0602@gmail.com",
+        "telegram_chat_id": "8665066190",
+        "rol": "Asesor de Mantenimiento"
+    },
+    "gerencia": {
+        "nombre": "Irina Nicole Castillo Coronado",
+        "telefono": "966153839",
+        "email": "nicolecastc@gmail.com",
+        "telegram_chat_id": "8533612747",
+        "rol": "Gerencia"
+    }
+}
 
 # ============================================================================
 # ESTILOS CSS PERSONALIZADOS
@@ -460,6 +478,53 @@ def play_observation_alarm(event_id):
 # FUNCIONES DE DATOS Y RIESGO
 # ============================================================================
 
+def load_test_data_from_csv():
+    """Carga datos de prueba desde el archivo CSV con conversion de unidades"""
+    try:
+        if os.path.exists(CSV_TEST_PATH):
+            df = pd.read_csv(CSV_TEST_PATH)
+            
+            # Mapeo de columnas del CSV
+            column_mapping = {
+                'Timestamp': 'fecha_hora',
+                'Time_Seconds': 'time_seconds',
+                'Vacuum_Pressure_mbar': 'vacuum_mbar',
+                'Oil_Temperature_C': 'temperatura_c',
+                'Vibration_mm_s': 'vibracion_rms_mm_s',
+                'Motor_Current_A': 'motor_current_a',
+                'Status': 'status',
+                'Fault_Description': 'fault_description'
+            }
+            
+            df = df.rename(columns=column_mapping)
+            
+            # Convertir presion de vacio de mbar a kPa e invertir signo
+            if 'vacuum_mbar' in df.columns:
+                df['presion_vacio_kpa'] = -(df['vacuum_mbar'] * 0.1)
+            
+            # Convertir Timestamp a datetime
+            if 'fecha_hora' in df.columns:
+                df['fecha_hora'] = pd.to_datetime(df['fecha_hora'], errors='coerce')
+                if df['fecha_hora'].isna().any():
+                    start_date = datetime.now() - timedelta(minutes=len(df))
+                    df['fecha_hora'] = [start_date + timedelta(minutes=i) for i in range(len(df))]
+            
+            # Enriquecer datos con estado y riesgo
+            df = enrich_data(df)
+            
+            # Agregar columna de descripcion de falla si existe
+            if 'fault_description' in df.columns:
+                df['fault_description'] = df['fault_description'].fillna('Normal')
+            
+            logger.info(f"CSV de prueba cargado: {len(df)} registros")
+            return df
+        else:
+            logger.warning(f"Archivo CSV de prueba no encontrado: {CSV_TEST_PATH}")
+            return None
+    except Exception as e:
+        logger.error(f"Error cargando CSV de prueba: {e}")
+        return None
+
 def generate_synthetic_data(scenario, n=240, seed=42):
     rng = np.random.default_rng(seed)
     t = np.arange(n)
@@ -539,14 +604,46 @@ def enrich_data(df):
     return df
 
 def get_alarms(row):
+    """Obtiene alarmas basadas en umbrales o en el status del CSV"""
     alarms = []
-    s = variable_status(row)
-    if s["Vibracion"] != "Normal":
-        alarms.append((s["Vibracion"], "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s"))
-    if s["Temperatura"] != "Normal":
-        alarms.append((s["Temperatura"], "Temperatura", f"{row['temperatura_c']:.1f} C"))
-    if s["Presion de vacio"] != "Normal":
-        alarms.append((s["Presion de vacio"], "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa"))
+    
+    # Si el CSV tiene columna Status, usarla directamente
+    if 'status' in row and row['status'] in ['ALARM', 'CRITICAL', 'TRIP', 'WARNING']:
+        fault_desc = row.get('fault_description', 'Falla detectada')
+        if pd.isna(fault_desc):
+            fault_desc = 'Falla detectada'
+        level = 'Critico' if row['status'] in ['CRITICAL', 'TRIP'] else 'Alerta'
+        
+        # Clasificar por tipo de falla
+        fault_lower = fault_desc.lower()
+        if 'vibracion' in fault_lower or 'vibration' in fault_lower:
+            alarms.append((level, "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s - {fault_desc}"))
+        elif 'vacio' in fault_lower or 'vacuum' in fault_lower:
+            alarms.append((level, "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa - {fault_desc}"))
+        elif 'temperatura' in fault_lower or 'sobrecalentamiento' in fault_lower or 'aceite' in fault_lower:
+            alarms.append((level, "Temperatura", f"{row['temperatura_c']:.1f} C - {fault_desc}"))
+        elif 'sobrecarga' in fault_lower or 'corriente' in fault_lower or 'electrica' in fault_lower:
+            if 'motor_current_a' in row:
+                alarms.append((level, "Corriente del motor", f"{row['motor_current_a']:.2f} A - {fault_desc}"))
+            else:
+                alarms.append((level, "Sobrecarga", fault_desc))
+        elif 'lubricacion' in fault_lower or 'termica' in fault_lower:
+            alarms.append((level, "Temperatura", f"{row['temperatura_c']:.1f} C - {fault_desc}"))
+        elif 'mecanica' in fault_lower or 'multiple' in fault_lower:
+            alarms.append((level, "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s - {fault_desc}"))
+            alarms.append((level, "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa - {fault_desc}"))
+        else:
+            alarms.append((level, "General", fault_desc))
+    else:
+        # Fallback: usar umbrales tradicionales
+        s = variable_status(row)
+        if s["Vibracion"] != "Normal":
+            alarms.append((s["Vibracion"], "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s"))
+        if s["Temperatura"] != "Normal":
+            alarms.append((s["Temperatura"], "Temperatura", f"{row['temperatura_c']:.1f} C"))
+        if s["Presion de vacio"] != "Normal":
+            alarms.append((s["Presion de vacio"], "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa"))
+    
     return alarms
 
 def create_work_order_obj(row, asset_name, source="Automatica"):
@@ -598,7 +695,6 @@ def calculate_kpis(oh, failures, dh, pmd, pmp, ph, ahw, pr):
 # ============================================================================
 
 def extract_text_from_pdf(pdf_path):
-    """Extrae texto de un archivo PDF"""
     text = ""
     try:
         if HAS_FITZ:
@@ -615,7 +711,6 @@ def extract_text_from_pdf(pdf_path):
     return text
 
 def chunk_text(text, chunk_size=500, overlap=100):
-    """Divide texto en chunks solapados"""
     chunks = []
     words = text.split()
     i = 0
@@ -626,12 +721,10 @@ def chunk_text(text, chunk_size=500, overlap=100):
     return chunks
 
 def load_knowledge_base():
-    """Carga todos los PDFs y crea la base de conocimiento"""
     kb = []
     pdf_files = [f for f in os.listdir(PDF_DIR) if f.endswith('.pdf')]
     
     for pdf_file in pdf_files:
-        # Buscar metadatos correspondientes
         meta_key = None
         for key in DOCUMENT_METADATA.keys():
             if key.lower() in pdf_file.lower():
@@ -661,13 +754,10 @@ def load_knowledge_base():
     logger.info(f"Base de conocimiento cargada: {len(kb)} chunks de {len(pdf_files)} documentos")
 
 def search_knowledge_base(query, top_k=5):
-    """Busca chunks relevantes usando TF-IDF simple"""
     if not st.session_state.get("kb_loaded", False):
         return []
     
     kb = st.session_state.knowledge_base
-    
-    # Tokenizar query
     query_words = set(re.findall(r'\w+', query.lower()))
     
     scores = []
@@ -675,23 +765,19 @@ def search_knowledge_base(query, top_k=5):
         content_words = set(re.findall(r'\w+', item["content"].lower()))
         tag_words = set(item["tags"])
         
-        # Score por coincidencia de palabras
         word_overlap = len(query_words & content_words)
-        tag_match = len(query_words & tag_words) * 3  # Tags tienen peso triple
+        tag_match = len(query_words & tag_words) * 3
         
-        # Score por longitud del chunk relevante
         score = word_overlap + tag_match
         
         if score > 0:
             scores.append((score, item))
     
-    # Ordenar por score descendente
     scores.sort(key=lambda x: x[0], reverse=True)
     
     return [item for _, item in scores[:top_k]]
 
 def format_context_for_llm(search_results):
-    """Formatea resultados de búsqueda para enviar al LLM"""
     context_parts = []
     seen_docs = set()
     
@@ -701,7 +787,7 @@ def format_context_for_llm(search_results):
             seen_docs.add(doc_id)
             context_parts.append(f"""
 === ARCHIVO {doc_id}: {result['filename']} ===
-Categoría: {result['category']}
+Categoria: {result['category']}
 Tags: {', '.join(result['tags'])}
 Contenido:
 {result['content']}
@@ -714,13 +800,11 @@ Contenido:
 # ============================================================================
 
 def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
-    """Consulta a Groq usando RAG con base de conocimiento PDF"""
     try:
         api_key = st.session_state.get("groq_api_key", "")
         if not api_key:
-            return "Por favor, ingresa tu API Key gratuita de Groq en la configuración del chatbot."
+            return "Por favor, ingresa tu API Key gratuita de Groq en la configuracion del chatbot."
         
-        # Construir contexto técnico actual
         alarms = get_alarms(latest)
         at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
         
@@ -731,9 +815,9 @@ Tag: {ASSETS[asset_name]['tag']}
 Criticidad: {ASSETS[asset_name]['criticality']}
 Estado: {latest['estado']}
 IR: {latest['indice_riesgo']:.1f}/100
-Vibración: {latest['vibracion_rms_mm_s']:.2f} mm/s
-Temperatura: {latest['temperatura_c']:.1f} °C
-Vacío: {latest['presion_vacio_kpa']:.1f} kPa
+Vibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s
+Temperatura: {latest['temperatura_c']:.1f} C
+Vacio: {latest['presion_vacio_kpa']:.1f} kPa
 Alarmas: {at}
 
 KPIs Actuales:
@@ -742,18 +826,16 @@ KPIs Actuales:
 - Disponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%
 """
         
-        # Buscar en base de conocimiento
         search_results = search_knowledge_base(user_query, top_k=8)
         kb_context = format_context_for_llm(search_results)
         
-        # Combinar system prompt + contexto KB + contexto actual + pregunta
         full_system_prompt = f"""{SYSTEM_PROMPT}
 
 {current_context}
 
 {kb_context}
 
-INSTRUCCIÓN FINAL: Responde la pregunta del usuario basándote EXCLUSIVAMENTE en la información proporcionada arriba. Cita siempre la fuente. Si no encuentras la respuesta en los documentos, indícalo claramente."""
+INSTRUCCION FINAL: Responde la pregunta del usuario basandote EXCLUSIVAMENTE en la informacion proporcionada arriba. Cita siempre la fuente. Si no encuentras la respuesta en los documentos, indicalo claramente."""
         
         client = Groq(api_key=api_key)
         messages = [
@@ -775,7 +857,6 @@ INSTRUCCIÓN FINAL: Responde la pregunta del usuario basándote EXCLUSIVAMENTE e
         return f"Error al consultar la IA: {str(e)}. Verifica tu API Key de Groq."
 
 def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
-    """Respuesta fallback basada en reglas cuando no hay Groq"""
     text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
     sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
     alarms = get_alarms(latest)
@@ -833,13 +914,16 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
 # ============================================================================
 # CHATBOT FLOTANTE CON LETZY Y RAG
 # ============================================================================
-
 def process_floating_query(query, ai_platform="rag"):
-    """Procesa consulta usando RAG o fallback"""
     if not query or not query.strip():
         return
     q = query.strip()
-    st.session_state.floating_chat_history.append({"role": "user", "content": q})
+    
+    # Asegurar que la lista existe
+    if "floating_chat_history" not in st.session_state:
+        st.session_state["floating_chat_history"] = []
+    
+    st.session_state["floating_chat_history"].append({"role": "user", "content": q})
     
     try:
         kp = calculate_kpis(720, 3, 18, 18, 20, 40, 80, st.session_state.get("production_rate", 85.5))
@@ -851,9 +935,9 @@ def process_floating_query(query, ai_platform="rag"):
         else:
             reply = chatbot_response_fallback(q, latest, asset_name, kp)
         
-        st.session_state.floating_chat_history.append({"role": "assistant", "content": reply})
+        st.session_state["floating_chat_history"].append({"role": "assistant", "content": reply})
     except Exception as e:
-        st.session_state.floating_chat_history.append({"role": "assistant", "content": f"Error: {e}"})
+        st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
 @st.dialog("Asistente Tech Maint Pro - Letzy", width="large")
 def floating_chat_dialog():
@@ -878,11 +962,10 @@ def floating_chat_dialog():
     </div>
     """, unsafe_allow_html=True)
     
-    # Selector de modo IA
     ai_mode = st.selectbox(
         "Modo de respuesta:",
         options=["rag", "fallback"],
-        format_func=lambda x: " IA con Base de Conocimiento PDF (Groq)" if x == "rag" else " Respuestas rápidas (local)",
+        format_func=lambda x: "IA con Base de Conocimiento PDF (Groq)" if x == "rag" else "Respuestas rapidas (local)",
         index=0 if st.session_state.get("groq_api_key", "") else 1,
         key="ai_mode_selector",
         disabled=not st.session_state.get("kb_loaded", False)
@@ -890,29 +973,31 @@ def floating_chat_dialog():
     
     if ai_mode == "rag":
         if not st.session_state.get("groq_api_key", ""):
-            st.warning("⚠️ Ingresa tu API Key de Groq para usar la IA con documentos PDF")
+            st.warning("Ingresa tu API Key de Groq para usar la IA con documentos PDF")
             st.session_state["groq_api_key"] = st.text_input("API Key de Groq", type="password", key="groq_key_rag", help="Obten tu clave gratis en console.groq.com")
         else:
-            st.success(f"✅ Base de conocimiento activa: {len(st.session_state.get('knowledge_base', []))} chunks cargados")
+            st.success(f"Base de conocimiento activa: {len(st.session_state.get('knowledge_base', []))} chunks cargados")
     
-    st.caption("Respuestas basadas en 10 documentos técnicos especializados")
+    st.caption("Respuestas basadas en 10 documentos tecnicos especializados")
     st.divider()
     
-    if not st.session_state.floating_chat_history:
+    # USAR .get() EN LUGAR DE ACCESO DIRECTO
+    chat_history = st.session_state.get("floating_chat_history", [])
+    
+    if not chat_history:
         with st.chat_message("assistant", avatar=LETZY_BASE64):
-            st.markdown("**HOLA, SOY LETZY TU ASISTENTE DE TECH MAINT PRO**\n\n¿En qué puedo ayudarte hoy? Tengo acceso a manuales técnicos, procedimientos de mantenimiento, fichas de equipos y guías de KPIs.")
+            st.markdown("**HOLA, SOY LETZY TU ASISTENTE DE TECH MAINT PRO**\n\nEn que puedo ayudarte hoy? Tengo acceso a manuales tecnicos, procedimientos de mantenimiento, fichas de equipos y guias de KPIs.")
     
-    if st.session_state.floating_chat_history:
-        for msg in st.session_state.floating_chat_history[-10:]:
-            if msg["role"] == "assistant":
-                with st.chat_message("assistant", avatar=LETZY_BASE64):
-                    st.markdown(msg["content"])
-            else:
-                with st.chat_message("user"):
-                    st.markdown(msg["content"])
+    for msg in chat_history[-10:]:
+        if msg["role"] == "assistant":
+            with st.chat_message("assistant", avatar=LETZY_BASE64):
+                st.markdown(msg["content"])
+        else:
+            with st.chat_message("user"):
+                st.markdown(msg["content"])
     
     st.divider()
-    st.markdown("#### 💡 Consultas sugeridas:")
+    st.markdown("#### Consultas sugeridas:")
     c1, c2, c3 = st.columns(3)
     with c1:
         if st.button("Estado actual", key="qr1", use_container_width=True):
@@ -934,7 +1019,7 @@ def floating_chat_dialog():
         if st.button("Temperatura", key="qr8", use_container_width=True):
             process_floating_query("Analiza la temperatura actual", ai_mode)
         if st.button("Limpiar", key="qr9", use_container_width=True):
-            st.session_state.floating_chat_history = []
+            st.session_state["floating_chat_history"] = []
     
     st.divider()
     ui = st.chat_input("Escribe tu consulta a Letzy...", key="fci")
@@ -942,10 +1027,13 @@ def floating_chat_dialog():
         process_floating_query(ui, ai_mode)
     
     if st.button("Cerrar chat", key="fcc", use_container_width=True):
-        st.session_state.floating_chat_open = False
-        st.session_state.auto_chat_triggered = False
+        st.session_state["floating_chat_open"] = False
+        st.session_state["auto_chat_triggered"] = False
 
-# Botón flotante de Letzy
+# ============================================================================
+# BOTON FLOTANTE DE LETZY - HTML FIJO EN EL DOM
+# ============================================================================
+
 st.markdown(f"""
 <a href="?open_letzy=1" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999; width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #1a5fa8, #8bc34a); border: 3px solid #f5a623; box-shadow: 0 4px 20px rgba(0,0,0,0.3); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease; text-decoration: none;">
     <img src="{LETZY_BASE64}" style="width: 84px; height: 84px; border-radius: 50%; object-fit: cover;" alt="Letzy">
@@ -1027,7 +1115,7 @@ sd = {
     "auto_chat_triggered": False, "previous_estado": None,
     "scenario": "Operacion normal", "seed": 42, "n_hours": 168,
     "step_speed": 3, "production_rate": 85.5, "groq_api_key": "",
-    "knowledge_base": [], "kb_loaded": False
+    "knowledge_base": [], "kb_loaded": False, "use_test_data": True
 }
 for k, v in sd.items():
     if k not in st.session_state:
@@ -1053,6 +1141,14 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# Selector de modo de datos
+col_mode1, col_mode2 = st.columns([3, 1])
+with col_mode1:
+    st.caption("Seleccione el modo de datos para la demostracion")
+with col_mode2:
+    use_test_data = st.checkbox("Usar datos de prueba CSV", value=st.session_state.get("use_test_data", True), key="use_test_data_checkbox")
+    st.session_state.use_test_data = use_test_data
+
 tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Impacto Circular", "KPIs"])
 
 asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visibility="collapsed")
@@ -1062,7 +1158,15 @@ st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name][
 # SIMULACION
 # ============================================================================
 
-DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
+# Cargar datos de prueba o generar datos sinteticos
+if st.session_state.use_test_data:
+    DF_FULL = load_test_data_from_csv()
+    if DF_FULL is None:
+        st.warning("No se encontro el archivo CSV de prueba. Usando datos sinteticos.")
+        DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
+else:
+    DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
+
 max_idx = len(DF_FULL)
 st.session_state.sim_idx = min(max(1, st.session_state.sim_idx), max_idx)
 
@@ -1083,8 +1187,13 @@ if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado 
     if current_estado == "Critico": play_critical_alarm(f"{latest['fecha_hora']}-critical")
     else: play_observation_alarm(f"{latest['fecha_hora']}-alert")
     
-    alert_msg = f"¡Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. Se requiere atencion inmediata. ¿En qué puedo ayudarte?"
-    st.session_state.floating_chat_history.append({"role": "assistant", "content": alert_msg})
+    fault_desc = latest.get('fault_description', '')
+    if pd.isna(fault_desc):
+        fault_desc = ''
+    alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
+    if "floating_chat_history" not in st.session_state:
+    st.session_state["floating_chat_history"] = []
+st.session_state["floating_chat_history"].append({"role": "assistant", "content": alert_msg})
 
 st.session_state.previous_estado = current_estado
 
@@ -1183,6 +1292,8 @@ with tabs[1]:
             if name == "Vibracion": st.markdown("- **Posible desgaste de rodamientos**, desalineacion o lubricacion deficiente.")
             elif name == "Temperatura": st.markdown("- **Posible friccion interna**, lubricacion deficiente o sobrecarga.")
             elif name == "Presion de vacio": st.markdown("- **Posible fuga en linea**, deterioro de sellos o restriccion en succion.")
+            elif name == "Corriente del motor": st.markdown("- **Sobrecarga electrica**, posible falla en devanado o bloqueo mecanico.")
+            else: st.markdown(f"- **Falla detectada**: {value}")
         st.markdown("<h3>Pasos Sugeridos</h3>", unsafe_allow_html=True)
         st.markdown("1. Verificar lectura con instrumento calibrado\n2. Inspeccionar visualmente el componente\n3. Revisar manual del fabricante\n4. Comprobar operacion segura\n5. Evaluar necesidad de repuesto")
         accion = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT Prioridad 0"
