@@ -244,7 +244,7 @@ STAFF = {
 }
 
 # ============================================================================
-# NOTIFICACIONES INTELIGENTES POR CANAL (CORREGIDO Y SIN EMOJIS)
+# NOTIFICACIONES INTELIGENTES POR CANAL
 # ============================================================================
 
 def send_telegram(chat_id, message):
@@ -709,6 +709,7 @@ def classify_risk(ir, row=None):
     if ir < 70: return "Alerta"
     return "Critico"
 
+# CORRECCIÓN CLAVE: Ahora respeta la columna 'status' del CSV para disparar alarmas
 def enrich_data(df):
     df = df.copy()
     df["riesgo_vibracion"] = df["vibracion_rms_mm_s"].apply(risk_vibration)
@@ -716,7 +717,23 @@ def enrich_data(df):
     df["riesgo_vacio"] = df["presion_vacio_kpa"].apply(risk_vacuum)
     weights = 0.45 * df["riesgo_vibracion"] + 0.30 * df["riesgo_temperatura"] + 0.25 * df["riesgo_vacio"]
     df["indice_riesgo"] = weights.round(1)
+    
+    # Estado base calculado por umbrales
     df["estado"] = [classify_risk(ir, df.iloc[i]) for i, ir in enumerate(df["indice_riesgo"])]
+    
+    # Si el CSV tiene columna 'status', priorizarla para detectar alarmas reales del sistema
+    if 'status' in df.columns:
+        def override_estado(row):
+            if pd.isna(row['status']) or str(row['status']).strip().upper() == 'OK':
+                return row['estado']
+            status_str = str(row['status']).strip().upper()
+            if status_str in ['CRITICAL', 'TRIP']:
+                return "Critico"
+            elif status_str in ['ALARM', 'WARNING']:
+                return "Alerta"
+            return row['estado']
+        df["estado"] = df.apply(override_estado, axis=1)
+        
     return df
 
 def get_alarms(row):
@@ -1332,6 +1349,7 @@ latest = DF.iloc[-1]
 st.session_state["latest_row"] = latest
 st.session_state["asset_name"] = asset_name
 
+# CORRECCIÓN CLAVE: Detectar cambio de estado y notificar inmediatamente
 current_estado = latest["estado"]
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state["auto_chat_triggered"] = True
@@ -1345,6 +1363,28 @@ if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado 
     alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
     if "floating_chat_history" not in st.session_state: st.session_state["floating_chat_history"] = []
     st.session_state["floating_chat_history"].append({"role": "assistant", "content": alert_msg})
+    
+    # FORZAR ENVIO DE NOTIFICACION TELEGRAM AL CAMBIAR DE ESTADO
+    priority = "P0" if current_estado == "Critico" else "P1"
+    ot_id_temp = f"OT-ALERTA-{datetime.now().strftime('%Y%m%d%H%M')}"
+    
+    logger.info(f"=== CAMBIO DE ESTADO DETECTADO: {st.session_state.previous_estado} -> {current_estado} ===")
+    
+    if current_estado == "Critico":
+        alarms_list = get_alarms(latest)
+        if alarms_list:
+            level, param, valor = alarms_list[0]
+            threshold = THRESHOLDS.get("vibration_alert", 7.1)
+            notify_critical_alarm(
+                asset_name=asset_name, parameter=param, value=valor, threshold=threshold,
+                ir=latest['indice_riesgo'], ot_id=ot_id_temp, responsable=STAFF["tecnico"]["nombre"]
+            )
+    else:
+        notify_new_ot({
+            "ot_id": ot_id_temp, "asset_name": asset_name, "priority": priority,
+            "description": fault_desc or f"Estado {current_estado} detectado",
+            "responsable": STAFF["tecnico"]["nombre"]
+        })
 
 st.session_state["previous_estado"] = current_estado
 
@@ -1811,46 +1851,46 @@ with tabs[4]:
             st.download_button(label="Exportar a CSV", data=csv, file_name=f"impacto_circular_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
         else:
             st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular.")
+    
     with sub_tabs[2]:
         st.markdown("<h2>Reportes y Descargas</h2>")
         st.markdown("### Generar Reporte de Mantenimiento")
-    
+        
         conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row  # <-- IMPORTANTE: agregar esta línea
+        conn.row_factory = sqlite3.Row
         c = conn.cursor()
         c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
         rows = c.fetchall()
         closed_orders = [dict(row) for row in (rows if rows else [])]
         conn.close()
-    
-    if closed_orders:
-        selected_ot = st.selectbox("Seleccionar OT para generar reporte:", [f"{ot['ot_id']} - {ot['asset_name']}" for ot in closed_orders])
-        if selected_ot:
-            ot_id = selected_ot.split(" - ")[0]
-            conn = sqlite3.connect(DB_PATH)
-            conn.row_factory = sqlite3.Row  # <-- IMPORTANTE: agregar esta línea
-            c = conn.cursor()
-            c.execute("SELECT * FROM work_orders WHERE ot_id=?", (ot_id,))
-            row = c.fetchone()
-            
-            if row:  # <-- Verificar que existe antes de convertir
-                ot_data = dict(row)
+        
+        if closed_orders:
+            selected_ot = st.selectbox("Seleccionar OT para generar reporte:", [f"{ot['ot_id']} - {ot['asset_name']}" for ot in closed_orders])
+            if selected_ot:
+                ot_id = selected_ot.split(" - ")[0]
+                conn = sqlite3.connect(DB_PATH)
+                conn.row_factory = sqlite3.Row
+                c = conn.cursor()
+                c.execute("SELECT * FROM work_orders WHERE ot_id=?", (ot_id,))
+                row = c.fetchone()
                 
-                c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='before'", (ot_id,))
-                photos_before = [r[0] for r in c.fetchall()]
-                c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='after'", (ot_id,))
-                photos_after = [r[0] for r in c.fetchall()]
-                conn.close()
-                
-                if st.button("Generar PDF Reporte", use_container_width=True):
-                    pdf_buffer = generate_maintenance_pdf(ot_data, photos_before, photos_after)
-                    st.download_button(label="Descargar PDF", data=pdf_buffer, file_name=f"Reporte_{ot_id}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
-            else:
-                st.error(f"No se encontró la OT {ot_id}")
-                conn.close()
-    else:
-        st.info("No hay OTs cerradas para generar reportes")
-    
+                if row:
+                    ot_data = dict(row)
+                    
+                    c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='before'", (ot_id,))
+                    photos_before = [r[0] for r in c.fetchall()]
+                    c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='after'", (ot_id,))
+                    photos_after = [r[0] for r in c.fetchall()]
+                    conn.close()
+                    
+                    if st.button("Generar PDF Reporte", use_container_width=True):
+                        pdf_buffer = generate_maintenance_pdf(ot_data, photos_before, photos_after)
+                        st.download_button(label="Descargar PDF", data=pdf_buffer, file_name=f"Reporte_{ot_id}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
+                else:
+                    st.error(f"No se encontró la OT {ot_id}")
+                    conn.close()
+        else:
+            st.info("No hay OTs cerradas para generar reportes")
 
 # ============================================================================
 # TAB 6: INVENTARIO Y STOCK
