@@ -429,6 +429,7 @@ def notify_high_circular_impact(intervention):
 # ============================================================================
 
 def play_critical_alarm(event_id):
+    """Alarma critica con sonido via JavaScript"""
     if st.session_state.get("last_beep_event") == event_id:
         return
     st.session_state["last_beep_event"] = event_id
@@ -458,6 +459,7 @@ def play_critical_alarm(event_id):
     logger.info(f"[ALARMA CRITICA] {event_id}")
 
 def play_observation_alarm(event_id):
+    """Alarma de advertencia con sonido via JavaScript"""
     if st.session_state.get("last_observation_event") == event_id:
         return
     st.session_state["last_observation_event"] = event_id
@@ -846,11 +848,11 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         
         client = Groq(api_key=api_key)
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "system", "content": full_system_prompt}, {"role": "user", "content": user_query}],
-            temperature=0.3,
-            max_tokens=800
-        )
+    model="llama-3.1-8b-instant",  # MODELO CORRECTO
+    messages=messages,
+    temperature=0.3,
+    max_tokens=800
+)
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error en Groq RAG: {e}")
@@ -1089,8 +1091,10 @@ st.session_state["asset_name"] = asset_name
 current_estado = latest["estado"]
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state["auto_chat_triggered"] = True
-    if current_estado == "Critico": play_critical_alarm(f"{latest['fecha_hora']}-critical")
-    else: play_observation_alarm(f"{latest['fecha_hora']}-alert")
+    if current_estado == "Critico":
+        play_critical_alarm(f"{latest['fecha_hora']}-critical")
+    else:
+        play_observation_alarm(f"{latest['fecha_hora']}-alert")
     
     fault_desc = latest.get('fault_description', '')
     if pd.isna(fault_desc): fault_desc = ''
