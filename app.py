@@ -841,31 +841,449 @@ with tabs[1]:
     </div>""", unsafe_allow_html=True)
     
     if alarms:
-        st.markdown("<h3>🔧 Hipotesis Tecnicas</h3>", unsafe_allow_html=True)
+        st.markdown("<h3>Hipotesis Tecnicas</h3>", unsafe_allow_html=True)
         for level, name, value in alarms:
             if name == "Vibracion": st.markdown("- **Posible desgaste de rodamientos**, desalineacion o lubricacion deficiente.")
             elif name == "Temperatura": st.markdown("- **Posible friccion interna**, lubricacion deficiente o sobrecarga.")
             elif name == "Presion de vacio": st.markdown("- **Posible fuga en linea**, deterioro de sellos o restriccion en succion.")
             else: st.markdown(f"- **Falla detectada**: {value}")
         
-        st.markdown("<h3>📋 Pasos Sugeridos</h3>", unsafe_allow_html=True)
+        st.markdown("<h3>Pasos Sugeridos</h3>", unsafe_allow_html=True)
         st.markdown("1. Verificar lectura con instrumento calibrado\n2. Inspeccionar visualmente el componente\n3. Revisar manual del fabricante\n4. Comprobar operacion segura\n5. Evaluar necesidad de repuesto")
         
         accion = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT Prioridad 0"
         st.markdown(f"<div style='background:{COLORS['blanco']};padding:15px;border-radius:12px;margin-top:20px;box-shadow:0 4px 15px rgba(0,0,0,0.08);'><strong>✅ Accion Inmediata:</strong> {accion}</div>", unsafe_allow_html=True)
     else:
-        st.success("✅ Sin alarmas activas. Condicion normal.")
+        st.success("Sin alarmas activas. Condicion normal.")
 
 # ============================================================================
-# TAB 3: ORDENES DE TRABAJO
+# TAB 3: ORDENES DE TRABAJO - VERSION COMPLETA PARA OPERARIO
 # ============================================================================
 
 with tabs[2]:
-    st.markdown("<h2> Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
-    st.info("Módulo de gestión de órdenes de trabajo - Próximamente")
+    st.markdown("<h2>Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
+    
+    # Conexión a base de datos
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Crear tabla mejorada si no existe
+    c.execute("""CREATE TABLE IF NOT EXISTS work_orders (
+        ot_id TEXT PRIMARY KEY,
+        asset_name TEXT NOT NULL,
+        tag TEXT,
+        ubicacion TEXT,
+        alert_id TEXT,
+        description TEXT,
+        prioridad TEXT NOT NULL DEFAULT 'P2',
+        tipo TEXT DEFAULT 'Correctivo',
+        responsable TEXT,
+        creation_date TEXT NOT NULL,
+        due_date TEXT,
+        estimated_hours REAL DEFAULT 2.0,
+        status TEXT NOT NULL DEFAULT 'Pendiente',
+        start_time TEXT,
+        end_time TEXT,
+        hallazgos TEXT,
+        acciones TEXT,
+        repuestos TEXT,
+        evidencia TEXT,
+        firma_operario TEXT,
+        firma_supervisor TEXT,
+        tiempo_real_horas REAL,
+        created_by TEXT,
+        updated_at TEXT
+    )""")
+    conn.commit()
+    
+    # Cargar todas las OTs
+    c.execute("SELECT * FROM work_orders ORDER BY creation_date DESC")
+    all_orders = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    # ========================================================================
+    # FILTROS RAPIDOS
+    # ========================================================================
+    
+    st.markdown("<h3>Filtros Rapidos</h3>", unsafe_allow_html=True)
+    
+    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    
+    with col_f1:
+        filtro_estado = st.multiselect(
+            "Por estado:",
+            options=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"],
+            default=["Pendiente", "En Ejecucion"],
+            key="filtro_estado_ot"
+        )
+    
+    with col_f2:
+        filtro_prioridad = st.multiselect(
+            "Por prioridad:",
+            options=["P0", "P1", "P2"],
+            default=["P0", "P1", "P2"],
+            key="filtro_prioridad_ot"
+        )
+    
+    with col_f3:
+        filtro_tipo = st.multiselect(
+            "Por tipo:",
+            options=["Correctivo", "Preventivo", "Predictivo"],
+            default=["Correctivo", "Preventivo", "Predictivo"],
+            key="filtro_tipo_ot"
+        )
+    
+    with col_f4:
+        filtro_tiempo = st.selectbox(
+            "Por tiempo:",
+            options=["Todas", "Hoy", "Esta semana", "Vencidas"],
+            key="filtro_tiempo_ot"
+        )
+    
+    # Aplicar filtros
+    filtered_orders = all_orders
+    
+    if filtro_estado:
+        filtered_orders = [o for o in filtered_orders if o["status"] in filtro_estado]
+    if filtro_prioridad:
+        filtered_orders = [o for o in filtered_orders if o["prioridad"] in filtro_prioridad]
+    if filtro_tipo:
+        filtered_orders = [o for o in filtered_orders if o["tipo"] in filtro_tipo]
+    
+    if filtro_tiempo == "Hoy":
+        today = datetime.now().strftime("%Y-%m-%d")
+        filtered_orders = [o for o in filtered_orders if today in o.get("creation_date", "")]
+    elif filtro_tiempo == "Esta semana":
+        week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        filtered_orders = [o for o in filtered_orders if o.get("creation_date", "") >= week_ago]
+    
+    # ========================================================================
+    # RESUMEN RAPIDO
+    # ========================================================================
+    
+    col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+    
+    with col_r1:
+        p0_count = len([o for o in filtered_orders if o["prioridad"] == "P0"])
+        st.metric("Prioridad 0 (Urgente)", p0_count)
+    
+    with col_r2:
+        pendiente_count = len([o for o in filtered_orders if o["status"] == "Pendiente"])
+        st.metric("Pendientes", pendiente_count)
+    
+    with col_r3:
+        ejecucion_count = len([o for o in filtered_orders if o["status"] == "En Ejecucion"])
+        st.metric("En Ejecucion", ejecucion_count)
+    
+    with col_r4:
+        completado_count = len([o for o in filtered_orders if o["status"] == "Completado"])
+        st.metric("Completadas", completado_count)
+    
+    st.divider()
+    
+    # ========================================================================
+    # VISTA KANBAN POR PRIORIDAD
+    # ========================================================================
+    
+    st.markdown("<h3>Ordenes de Trabajo por Prioridad</h3>", unsafe_allow_html=True)
+    
+    # Separar OTs por prioridad
+    p0_orders = [o for o in filtered_orders if o["prioridad"] == "P0"]
+    p1_orders = [o for o in filtered_orders if o["prioridad"] == "P1"]
+    p2_orders = [o for o in filtered_orders if o["prioridad"] == "P2"]
+    
+    # PRIORIDAD 0 - URGENTE
+    if p0_orders:
+        st.markdown(f"""
+        <div style="background:#d32f2f; color:white; padding:12px 20px; border-radius:12px; margin-bottom:15px;">
+            <h3 style="margin:0; color:white;">PRIORIDAD 0 - URGENTE ({len(p0_orders)} OTs)</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for ot in p0_orders:
+            with st.expander(f"{ot['ot_id']} | {ot['asset_name']} | {ot.get('description', 'Sin descripcion')[:50]}...", expanded=True):
+                mostrar_detalle_ot(ot, conn)
+    
+    # PRIORIDAD 1 - ALTA
+    if p1_orders:
+        st.markdown(f"""
+        <div style="background:#f5a623; color:white; padding:12px 20px; border-radius:12px; margin-bottom:15px;">
+            <h3 style="margin:0; color:white;">PRIORIDAD 1 - ALTA ({len(p1_orders)} OTs)</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for ot in p1_orders:
+            with st.expander(f"{ot['ot_id']} | {ot['asset_name']} | {ot.get('description', 'Sin descripcion')[:50]}..."):
+                mostrar_detalle_ot(ot, conn)
+    
+    # PRIORIDAD 2 - NORMAL
+    if p2_orders:
+        st.markdown(f"""
+        <div style="background:#8bc34a; color:white; padding:12px 20px; border-radius:12px; margin-bottom:15px;">
+            <h3 style="margin:0; color:white;">PRIORIDAD 2 - NORMAL ({len(p2_orders)} OTs)</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for ot in p2_orders:
+            with st.expander(f"{ot['ot_id']} | {ot['asset_name']} | {ot.get('description', 'Sin descripcion')[:50]}..."):
+                mostrar_detalle_ot(ot, conn)
+    
+    # Si no hay OTs
+    if not filtered_orders:
+        st.info("No hay ordenes de trabajo que coincidan con los filtros seleccionados.")
+    
+    # ========================================================================
+    # BOTON PARA CREAR NUEVA OT MANUAL
+    # ========================================================================
+    
+    st.divider()
+    st.markdown("<h3>Crear Nueva Orden de Trabajo</h3>", unsafe_allow_html=True)
+    
+    with st.form("nueva_ot_form"):
+        col_n1, col_n2 = st.columns(2)
+        
+        with col_n1:
+            nuevo_activo = st.selectbox("Activo:", list(ASSETS.keys()), key="nuevo_activo_ot")
+            nueva_prioridad = st.selectbox("Prioridad:", ["P0", "P1", "P2"], key="nueva_prioridad_ot")
+            nuevo_tipo = st.selectbox("Tipo:", ["Correctivo", "Preventivo", "Predictivo"], key="nuevo_tipo_ot")
+        
+        with col_n2:
+            nuevo_responsable = st.selectbox("Responsable:", ["Dario Minan", "Jordy Sernaque", "Sin asignar"], key="nuevo_resp_ot")
+            nueva_ubicacion = st.text_input("Ubicacion:", "Planta Principal", key="nueva_ubicacion_ot")
+            horas_estimadas = st.number_input("Horas estimadas:", min_value=0.5, max_value=24.0, value=2.0, step=0.5, key="nueva_horas_ot")
+        
+        nueva_descripcion = st.text_area("Descripcion del problema:", key="nueva_desc_ot")
+        nuevas_tareas = st.text_area("Tareas a realizar (una por linea):", key="nueva_tareas_ot")
+        
+        submitted = st.form_submit_button("Crear OT", use_container_width=True, type="primary")
+        
+        if submitted:
+            ts = datetime.now().strftime("%Y%m%d%H%M")
+            new_ot_id = f"OT-{ts}-{nueva_prioridad}"
+            
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("""INSERT INTO work_orders 
+                (ot_id, asset_name, tag, ubicacion, description, prioridad, tipo, responsable, 
+                 creation_date, estimated_hours, status, created_by, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion,
+                 nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable,
+                 datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual",
+                 datetime.now().isoformat()))
+            conn.commit()
+            conn.close()
+            
+            st.success(f"OT creada exitosamente: {new_ot_id}")
+            st.rerun()
+
+# Función auxiliar para mostrar detalle de OT
+def mostrar_detalle_ot(ot, conn):
+    """Muestra el detalle completo de una OT con todas las funcionalidades"""
+    
+    # Encabezado de la OT
+    prioridad_color = "#d32f2f" if ot["prioridad"] == "P0" else "#f5a623" if ot["prioridad"] == "P1" else "#8bc34a"
+    prioridad_text = "URGENTE" if ot["prioridad"] == "P0" else "ALTA" if ot["prioridad"] == "P1" else "NORMAL"
+    
+    st.markdown(f"""
+    <div style="background:{prioridad_color}; color:white; padding:15px; border-radius:12px; margin-bottom:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; color:white;">{ot['ot_id']} - {prioridad_text}</h3>
+            <span style="background:white; color:{prioridad_color}; padding:5px 15px; border-radius:20px; font-weight:bold;">{ot['status']}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Información esencial
+    col_info1, col_info2 = st.columns(2)
+    
+    with col_info1:
+        st.markdown(f"**Activo:** {ot['asset_name']}")
+        st.markdown(f"**Tag:** {ot.get('tag', 'N/A')}")
+        st.markdown(f"**Ubicacion:** {ot.get('ubicacion', 'N/A')}")
+        st.markdown(f"**Tipo:** {ot.get('tipo', 'N/A')}")
+    
+    with col_info2:
+        st.markdown(f"**Responsable:** {ot.get('responsable', 'Sin asignar')}")
+        st.markdown(f"**Creada:** {ot['creation_date'][:16] if ot.get('creation_date') else 'N/A'}")
+        st.markdown(f"**Horas estimadas:** {ot.get('estimated_hours', 2.0)}h")
+        if ot.get('start_time'):
+            st.markdown(f"**Inicio:** {ot['start_time'][:16]}")
+        if ot.get('end_time'):
+            st.markdown(f"**Fin:** {ot['end_time'][:16]}")
+    
+    st.divider()
+    
+    # Diagnóstico/Problema
+    if ot.get('description'):
+        st.markdown("<h4>Problema Reportado</h4>", unsafe_allow_html=True)
+        st.info(ot['description'])
+    
+    # Tareas a realizar (Checklist)
+    st.markdown("<h4>Tareas a Realizar</h4>", unsafe_allow_html=True)
+    
+    tareas_text = ot.get('acciones', '')
+    if tareas_text:
+        tareas_lista = tareas_text.split('\n')
+        for i, tarea in enumerate(tareas_lista):
+            if tarea.strip():
+                st.checkbox(tarea.strip(), key=f"tarea_{ot['ot_id']}_{i}")
+    else:
+        st.markdown("- Medir vibración en 3 puntos (horizontal/vertical/axial)")
+        st.markdown("- Verificar alineación")
+        st.markdown("- Revisar nivel de aceite")
+        st.markdown("- Inspeccionar componente")
+        st.markdown("- Tomar fotos del estado actual")
+    
+    st.divider()
+    
+    # Recursos necesarios
+    st.markdown("<h4>Recursos Necesarios</h4>", unsafe_allow_html=True)
+    
+    col_rec1, col_rec2 = st.columns(2)
+    
+    with col_rec1:
+        st.markdown("**Herramientas:**")
+        st.markdown("- Analizador de vibraciones")
+        st.markdown("- Llave dinamométrica")
+        st.markdown("- Multímetro")
+    
+    with col_rec2:
+        st.markdown("**Seguridad:**")
+        st.markdown("- Bloqueo/etiquetado LOTO")
+        st.markdown("- EPP completo")
+        st.markdown("- Permiso de trabajo")
+    
+    st.divider()
+    
+    # Formulario de registro rápido
+    st.markdown("<h4>Registro de Trabajo</h4>", unsafe_allow_html=True)
+    
+    with st.form(f"registro_{ot['ot_id']}"):
+        col_reg1, col_reg2 = st.columns(2)
+        
+        with col_reg1:
+            nuevo_estado = st.selectbox(
+                "Estado:",
+                options=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"],
+                index=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"].index(ot["status"]) if ot["status"] in ["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"] else 0,
+                key=f"estado_{ot['ot_id']}"
+            )
+        
+        with col_reg2:
+            tiempo_real = st.number_input(
+                "Tiempo real (horas):",
+                min_value=0.0,
+                max_value=24.0,
+                value=ot.get('tiempo_real_horas', 0.0),
+                step=0.5,
+                key=f"tiempo_{ot['ot_id']}"
+            )
+        
+        hallazgos = st.text_area(
+            "Hallazgos (que encontro?):",
+            value=ot.get('hallazgos', ''),
+            height=100,
+            key=f"hallazgos_{ot['ot_id']}"
+        )
+        
+        acciones_realizadas = st.text_area(
+            "Acciones realizadas:",
+            value=ot.get('acciones', ''),
+            height=100,
+            key=f"acciones_{ot['ot_id']}"
+        )
+        
+        repuestos = st.text_input(
+            "Repuestos utilizados:",
+            value=ot.get('repuestos', ''),
+            key=f"repuestos_{ot['ot_id']}"
+        )
+        
+        submitted_registro = st.form_submit_button("Guardar Cambios", use_container_width=True, type="primary")
+        
+        if submitted_registro:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            
+            update_fields = [
+                "status = ?",
+                "tiempo_real_horas = ?",
+                "hallazgos = ?",
+                "acciones = ?",
+                "repuestos = ?",
+                "updated_at = ?"
+            ]
+            update_values = [
+                nuevo_estado,
+                tiempo_real,
+                hallazgos,
+                acciones_realizadas,
+                repuestos,
+                datetime.now().isoformat()
+            ]
+            
+            # Si cambia a "En Ejecucion", registrar hora de inicio
+            if nuevo_estado == "En Ejecucion" and not ot.get('start_time'):
+                update_fields.append("start_time = ?")
+                update_values.append(datetime.now().isoformat())
+            
+            # Si cambia a "Completado", registrar hora de fin
+            if nuevo_estado == "Completado" and not ot.get('end_time'):
+                update_fields.append("end_time = ?")
+                update_values.append(datetime.now().isoformat())
+            
+            update_values.append(ot['ot_id'])
+            
+            c.execute(f"""UPDATE work_orders SET {', '.join(update_fields)} WHERE ot_id = ?""", update_values)
+            conn.commit()
+            conn.close()
+            
+            st.success(f"OT {ot['ot_id']} actualizada exitosamente")
+            st.rerun()
+    
+    # Botones de acción rápida
+    st.divider()
+    st.markdown("<h4>Acciones Rapidas</h4>", unsafe_allow_html=True)
+    
+    col_acc1, col_acc2, col_acc3 = st.columns(3)
+    
+    with col_acc1:
+        if st.button("Iniciar Trabajo", key=f"iniciar_{ot['ot_id']}", use_container_width=True):
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'En Ejecucion', start_time = ?, updated_at = ? WHERE ot_id = ?""",
+                     (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            conn.close()
+            st.success(f"OT {ot['ot_id']} iniciada")
+            st.rerun()
+    
+    with col_acc2:
+        if st.button("Completar", key=f"completar_{ot['ot_id']}", use_container_width=True):
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'Completado', end_time = ?, updated_at = ? WHERE ot_id = ?""",
+                     (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            conn.close()
+            st.success(f"OT {ot['ot_id']} completada")
+            st.rerun()
+    
+    with col_acc3:
+        if st.button("Pausar", key=f"pausar_{ot['ot_id']}", use_container_width=True):
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'Pausado', updated_at = ? WHERE ot_id = ?""",
+                     (datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            conn.close()
+            st.success(f"OT {ot['ot_id']} pausada")
+            st.rerun()
 
 # ============================================================================
-# TAB 4: IMPACTO CIRCULAR - VERSIÓN COMPLETA
+# TAB 4: IMPACTO CIRCULAR 
 # ============================================================================
 
 with tabs[3]:
