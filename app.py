@@ -63,7 +63,7 @@ except ImportError:
     HAS_WINSOUND = False
 
 # ============================================================================
-# CONFIGURACION GENERAL
+# CONFIGURACION GENERAL Y CONSTANTES GLOBALES
 # ============================================================================
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,13 +79,106 @@ logging.basicConfig(
 )
 logger = logging.getLogger("TechMaintPro")
 
+# COLORES OFICIALES DEL LOGO
+COLORS = {
+    "azul": "#1a5fa8",
+    "verde": "#8bc34a",
+    "amarillo": "#f5a623",
+    "rojo": "#d32f2f",
+    "blanco": "#ffffff",
+    "gris_claro": "#f5f7fa",
+    "gris_medio": "#e8ecf1",
+    "texto_oscuro": "#1a2b4c",
+    "texto_gris": "#5a6b7c",
+}
+
+# ACTIVOS INDUSTRIALES
+ASSETS = {
+    "Bomba de vacio BV-01": {"tag": "BV-ABS-001", "criticality": "Alta"},
+    "Motor CAT 3408 MD-01": {"tag": "MD-3408-001", "criticality": "Alta"},
+    "Compresor Leroi CA-01": {"tag": "CA-LER-001", "criticality": "Media-Alta"},
+}
+
+THRESHOLDS = {
+    "vibration_normal": 4.5, "vibration_alert": 7.1,
+    "temperature_normal": 75.0, "temperature_alert": 85.0,
+    "vacuum_normal": -3.0, "vacuum_alert": -5.0, # Ajustados para datos CSV mbar->kPa
+}
+
+# CONFIGURACION TELEGRAM
+TELEGRAM_BOT_TOKEN = "8944581569:AAFw2rfEn3zU5iOpdNrtIzYHLTs30xg_cIA"
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+
+STAFF = {
+    "tecnico": {
+        "nombre": "DARIO MINAN ESPINOZA",
+        "telefono": "958000191",
+        "email": "dario.minanespinoza@gmail.com",
+        "telegram_chat_id": "1330744031",
+        "rol": "Tecnico de Mantenimiento"
+    },
+    "asesor": {
+        "nombre": "JORDY ALBERTO SERNAQUE SABA",
+        "telefono": "902631386",
+        "email": "ajordyss0602@gmail.com",
+        "telegram_chat_id": "8665066190",
+        "rol": "Asesor de Mantenimiento"
+    },
+    "gerencia": {
+        "nombre": "Irina Nicole Castillo Coronado",
+        "telefono": "966153839",
+        "email": "nicolecastc@gmail.com",
+        "telegram_chat_id": "8533612747",
+        "rol": "Gerencia"
+    }
+}
+
+# METADATOS DE DOCUMENTOS PARA RAG
+DOCUMENT_METADATA = {
+    "01": {"category": "Tesis / Codificacion de equipos", "tags": ["Eternit Pacifico", "codificacion", "MTBF", "MTTR", "software SM"], "desc": "Sistema de codificación de equipos industriales y uso del software SM Real World"},
+    "02": {"category": "Tesis / Vacío médico", "tags": ["NFPA 99", "vacío grado médico", "bombas rotativas", "hospital"], "desc": "Programa de mantenimiento para sistemas de vacío médico según norma NFPA 99"},
+    "03": {"category": "Gestión / KPIs", "tags": ["KPI", "MTBF", "MTTR", "disponibilidad", "indicadores"], "desc": "Guía de indicadores clave de rendimiento con fórmulas y ejemplos"},
+    "04": {"category": "Tesis / AMFE", "tags": ["AMFE", "FMEA", "criticidad", "casa de máquinas", "hospital"], "desc": "Análisis de Modos de Falla y Efectos aplicado a casa de máquinas hospitalaria"},
+    "05": {"category": "Manual técnico / IMBIL", "tags": ["anillo líquido", "instalación", "desmontaje", "lubricación"], "desc": "Manual completo de bombas de vacío IMBIL serie BVI"},
+    "06": {"category": "Manual OEM / Caterpillar", "tags": ["G3408", "G3412", "motores a gas", "intervalos de mantenimiento"], "desc": "Manual oficial de operación y mantenimiento de motores Caterpillar"},
+    "07": {"category": "Ficha técnica / CPS", "tags": ["VP6D", "VP12D", "doble etapa", "10 micrones", "ensayo Rice"], "desc": "Especificaciones técnicas de bombas de vacío CPS para laboratorio"},
+    "08": {"category": "Manual de usuario / Gadnic", "tags": ["Serie TW", "paletas rotativas", "cambio de aceite", "solución de problemas"], "desc": "Manual de usuario y troubleshooting de bombas Gadnic compactas"},
+    "09": {"category": "POE / Laboratorio", "tags": ["Thomas BV-1", "diafragma", "trampas", "sílica gel", "seguridad"], "desc": "Procedimiento operativo para uso seguro de bomba de vacío en laboratorio"},
+    "10": {"category": "Tesis / Ladrillera", "tags": ["Arcillas de Colombia", "COVENIN 2500-93", "criticidad", "programación anual"], "desc": "Plan completo de mantenimiento preventivo para empresa ladrillera con 37 equipos"}
+}
+
+SYSTEM_PROMPT = """Eres Letzy, Asistente Experto en Ingeniería de Mantenimiento Industrial, Operación de Equipos y Gestión de Calidad. Tu base de conocimiento contiene 10 documentos técnicos especializados.
+
+REGLAS DE RESPUESTA:
+1. Sé preciso, técnico y conciso. Ve directo al dato solicitado.
+2. CITA SIEMPRE la fuente entre paréntesis al final, usando el número del archivo. Ejemplo: [Fuente: Archivo 10 - Tesis Arcillas de Colombia]
+3. Si te preguntan por PROCEDIMIENTOS o INSTRUCCIONES TÉCNICAS de equipos específicos (extrusora, molino, banda transportadora), busca primero en el Archivo 10 (Arcillas de Colombia) que contiene los anexos detallados.
+4. Si te preguntan por CÓMO CALCULAR MTBF, MTTR o Disponibilidad, usa el Archivo 03 (KPIs) para las fórmulas y el Archivo 10 para ejemplos aplicados.
+5. Si te preguntan por BOMBAS DE VACÍO, diferencia según el contexto:
+   - Laboratorio/ácidos -> Archivo 09 (Thomas BV-1 con trampas)
+   - Industrial/anillo líquido -> Archivo 05 (IMBIL)
+   - Compacta/HVAC -> Archivo 08 (Gadnic)
+   - Especificaciones técnicas -> Archivo 07 (CPS)
+   - Grado médico -> Archivo 02 (NFPA 99)
+6. Si te preguntan por MOTORES Caterpillar G3408/G3412 -> Archivo 06
+7. Si te preguntan por ANÁLISIS DE CRITICIDAD o AMFE -> Archivo 04 o Archivo 10
+8. Si te preguntan por SISTEMAS DE CODIFICACIÓN de equipos -> Archivo 01 o Archivo 10
+9. Si la información NO está en los documentos, di: "No encuentro esa información específica en los documentos proporcionados. ¿Puedes reformular tu pregunta o indicarme qué equipo/sistema te interesa?"
+10. NUNCA inventes datos técnicos, valores de torque, frecuencias de mantenimiento o especificaciones que no estén en los documentos.
+
+FORMATO DE RESPUESTA PREFERIDO:
+- Usa viñetas y tablas cuando sea posible
+- Incluye valores numéricos exactos (torques, frecuencias, tiempos)
+- Menciona el responsable (mecánico, electricista, operario) cuando aplique
+- Indica si la actividad es rutinaria (R) o programada (P)"""
+
 # ============================================================================
-# CARGA DE IMAGENES BASE64
+# IMAGENES BASE64 (MANTENIDAS COMO ESTABAN)
 # ============================================================================
 
-LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAKlBB4DASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK......"
+LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAKlBB4DASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAoooo......"
 
-LETZY_BASE64 = "data:image/jpeg;base64,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KtLH9c5vQtgzDqECJOK7XkLR14FZFQBUU4ns+U629RUKWAiIbaKAAAAAAAAAAAikOHo5d6oIl4xcjufM853lmfFK7rL9MqZoOvnnPvLfOo6waZRPcXzQUQgpIFQBQQURz9Tr6/D63M2befz92nPz8mHTuxU7tbE8bd+TQfkS9fnaRXn6OFQLVAAAAAAEIKDYZ+Xi9/07K1uL1hipWwAQYUm3aJQKyAAqBzXS890NoAKyIKIogoAAAAAgKIAACLmypQqmlERSYTleqgM6zzHUdXlIKWogoIKCCggACggoIKCKAgoSClLox6pzs3omZdPJt38nk9RLlCHDp31wLVbaJHOh9yhH1cGuZVnq8+4IuvMoEwgqAAhOZ6Cvj1+gqhy+gAAihz3Q4G/An3qXutunaYm02+azrJ9O1y7033J567X6fH2qZ1P07v8A2K5uXp3eXt3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d......"
+LETZY_BASE64 = "data:image/jpeg;base64,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......"
 
 def render_logo(size="180px"):
     return f'<img src="{LOGO_BASE64}" style="width:{size}; height:auto; display:inline-block;" />'
@@ -94,18 +187,7 @@ def render_letzy(size="60px"):
     return f'<img src="{LETZY_BASE64}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block; object-fit:cover;" />'
 
 # ============================================================================
-# CONFIGURACION PAGINA
-# ============================================================================
-
-st.set_page_config(
-    page_title="Tech Maint Pro",
-    page_icon="",
-    layout="wide",
-    initial_sidebar_state="collapsed", # Comienza colapsado para efecto de pestaña
-)
-
-# ============================================================================
-# ESTILOS CSS PERSONALIZADOS (INCLUYE PANEL LATERAL DERECHO)
+# FUNCIONES DE ESTILO (DEFINIDAS ANTES DE USARSE)
 # ============================================================================
 
 def apply_custom_styles():
@@ -271,7 +353,7 @@ def apply_custom_styles():
     st.markdown(css, unsafe_allow_html=True)
 
 # ============================================================================
-# NOTIFICACIONES TELEGRAM
+# FUNCIONES DE NOTIFICACIONES Y ALARMAS
 # ============================================================================
 
 def send_telegram(chat_id, message):
@@ -333,10 +415,6 @@ def notify_economic_impact(intervention):
                 server.quit()
             except Exception:
                 pass
-
-# ============================================================================
-# ALARMAS SONORAS
-# ============================================================================
 
 def play_critical_alarm(event_id):
     if st.session_state.get("last_beep_event") == event_id:
@@ -800,30 +878,43 @@ def process_floating_query(query, ai_platform="rag"):
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
 # ============================================================================
-# BOTON FLOTANTE DE LETZY - HTML FIJO EN EL DOM
+# VISUALIZACION - GRAFICAS
 # ============================================================================
 
-st.markdown(f"""
-<a href="#" class="letzy-btn" id="letzyToggleBtn" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #1a5fa8, #8bc34a); border: 3px solid #f5a623; box-shadow: 0 4px 20px rgba(0,0,0,0.3); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease; text-decoration: none;">
-    <img src="{LETZY_BASE64}" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;" alt="Letzy">
-</a>
+def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None, threshold_alert=None, reverse=False):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df[column], mode="lines+markers", name=title, line=dict(color=color, width=3), marker=dict(size=4), fill="tozeroy" if not reverse else None, fillcolor="rgba(26,95,168,0.08)" if not reverse else None))
+    if threshold_normal is not None:
+        fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
+    if threshold_alert is not None:
+        fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
+    
+    fig.update_layout(
+        title=dict(text=title, font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
+        template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=78, b=30),
+        xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45),
+        yaxis=dict(title=dict(text=y_title, font=dict(color=COLORS["texto_oscuro"], size=12)), autorange="reversed" if reverse else True, showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)),
+        hovermode="x unified", showlegend=False, height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12)
+    )
+    return fig
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {{
-    let btn = document.getElementById('letzyToggleBtn');
-    if (btn) {{
-        btn.addEventListener('click', function(e) {{
-            e.preventDefault();
-            // Busca el botón nativo de colapsar/expandir sidebar de Streamlit y haz clic
-            let toggleBtn = document.querySelector('div[data-testid="stSidebarCollapsedControl"] button');
-            if (toggleBtn) {{
-                toggleBtn.click();
-            }}
-        }});
-    }}
-}});
-</script>
-""", unsafe_allow_html=True)
+def create_vibration_chart(df): return create_sensor_chart(df, "vibracion_rms_mm_s", "Vibracion RMS", "mm/s", COLORS["azul"], THRESHOLDS["vibration_normal"], THRESHOLDS["vibration_alert"])
+def create_temperature_chart(df): return create_sensor_chart(df, "temperatura_c", "Temperatura", "C", COLORS["amarillo"], THRESHOLDS["temperature_normal"], THRESHOLDS["temperature_alert"])
+def create_vacuum_chart(df): return create_sensor_chart(df, "presion_vacio_kpa", "Presion de vacio", "kPa", COLORS["verde"], THRESHOLDS["vacuum_normal"], THRESHOLDS["vacuum_alert"], reverse=True)
+
+def create_risk_chart(df):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df["indice_riesgo"], mode="lines+markers", name="IR", line=dict(color=COLORS["amarillo"], width=3), fill="tozeroy", fillcolor="rgba(245,166,35,0.10)", marker=dict(size=4)))
+    fig.add_hline(y=40, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
+    fig.add_hline(y=70, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
+    fig.update_layout(
+        title=dict(text="Indice de riesgo", font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
+        template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=52, b=20),
+        xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45),
+        yaxis=dict(title=dict(text="IR", font=dict(color=COLORS["texto_oscuro"], size=12)), range=[0, 100], showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)),
+        hovermode="x unified", height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12)
+    )
+    return fig
 
 # ============================================================================
 # BASE DE DATOS
@@ -838,7 +929,7 @@ def init_database():
     conn.close()
 
 # ============================================================================
-# INICIALIZACION
+# INICIALIZACION DE SESSION STATE
 # ============================================================================
 
 init_database()
@@ -856,6 +947,17 @@ sd = {
 for k, v in sd.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# ============================================================================
+# CONFIGURACION DE LA PAGINA Y ESTILOS
+# ============================================================================
+
+st.set_page_config(
+    page_title="Tech Maint Pro",
+    page_icon="",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 apply_custom_styles()
 
@@ -881,7 +983,7 @@ with st.sidebar:
     ai_mode = st.selectbox(
         "Modo:",
         options=["rag", "fallback"],
-        format_func=lambda x: "IA (PDF)" if x == "rag" else "Rápido",
+        format_func=lambda x: "IA (PDF)" if x == "rag" else "Rapido",
         index=0 if st.session_state.get("groq_api_key", "") else 1,
         key="ai_mode_selector_sidebar",
         disabled=not st.session_state.get("kb_loaded", False),
@@ -889,7 +991,7 @@ with st.sidebar:
     )
     
     if ai_mode == "rag" and not st.session_state.get("groq_api_key", ""):
-        st.session_state["groq_api_key"] = st.text_input("API Key Groq", type="password", key="groq_key_side", placeholder="Pega tu API Key aquí")
+        st.session_state["groq_api_key"] = st.text_input("API Key Groq", type="password", key="groq_key_side", placeholder="Pega tu API Key aqui")
 
     st.divider()
 
@@ -899,9 +1001,9 @@ with st.sidebar:
     st.markdown('<div style="height: 400px; overflow-y: auto; padding-right: 5px;">', unsafe_allow_html=True)
     if not chat_history:
         with st.chat_message("assistant", avatar=LETZY_BASE64):
-            st.markdown("**¡Hola! Soy Letzy.**\n\n¿En qué puedo ayudarte? Puedo consultar los manuales técnicos o responder rápidamente.")
+            st.markdown("**Hola! Soy Letzy.**\n\nEn que puedo ayudarte? Puedo consultar los manuales tecnicos o responder rapidamente.")
     
-    for msg in chat_history[-15:]: # Mostrar últimos 15 mensajes
+    for msg in chat_history[-15:]: # Mostrar ultimos 15 mensajes
         if msg["role"] == "assistant":
             with st.chat_message("assistant", avatar=LETZY_BASE64):
                 st.markdown(msg["content"])
@@ -912,8 +1014,8 @@ with st.sidebar:
 
     st.divider()
     
-    # Botones rápidos en formato compacto
-    st.markdown("**Consultas rápidas:**")
+    # Botones rapidos en formato compacto
+    st.markdown("**Consultas rapidas:**")
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Estado actual", key="sq1", use_container_width=True):
@@ -921,7 +1023,7 @@ with st.sidebar:
         if st.button("Generar OT", key="sq2", use_container_width=True):
             process_floating_query("Generar orden de trabajo", ai_mode)
     with c2:
-        if st.button("Alta vibración", key="sq3", use_container_width=True):
+        if st.button("Alta vibracion", key="sq3", use_container_width=True):
             process_floating_query("Que causa alta vibracion?", ai_mode)
         if st.button("KPIs", key="sq4", use_container_width=True):
             process_floating_query("Cuales son los KPIs?", ai_mode)
@@ -933,6 +1035,32 @@ with st.sidebar:
         
     if st.button("Limpiar chat", key="clear_chat_side", use_container_width=True):
         st.session_state["floating_chat_history"] = []
+
+# ============================================================================
+# BOTON FLOTANTE DE LETZY (Para abrir/cerrar sidebar)
+# ============================================================================
+
+st.markdown(f"""
+<a href="#" class="letzy-btn" id="letzyToggleBtn" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #1a5fa8, #8bc34a); border: 3px solid #f5a623; box-shadow: 0 4px 20px rgba(0,0,0,0.3); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease; text-decoration: none;">
+    <img src="{LETZY_BASE64}" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;" alt="Letzy">
+</a>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {{
+    let btn = document.getElementById('letzyToggleBtn');
+    if (btn) {{
+        btn.addEventListener('click', function(e) {{
+            e.preventDefault();
+            // Busca el boton nativo de colapsar/expandir sidebar de Streamlit y haz clic
+            let toggleBtn = document.querySelector('div[data-testid="stSidebarCollapsedControl"] button');
+            if (toggleBtn) {{
+                toggleBtn.click();
+            }}
+        }});
+    }}
+}});
+</script>
+""", unsafe_allow_html=True)
 
 # ============================================================================
 # HEADER CON BOTON DE DOCUMENTOS
@@ -974,7 +1102,7 @@ asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visib
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
 
 # ============================================================================
-# SIMULACION
+# SIMULACION Y LOGICA PRINCIPAL
 # ============================================================================
 
 if st.session_state.get("use_test_data", True):
