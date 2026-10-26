@@ -80,7 +80,7 @@ logging.basicConfig(
 logger = logging.getLogger("TechMaintPro")
 
 # ============================================================================
-# COLORES OFICIALES DEL LOGO (DEFINIDO PRIMERO)
+# COLORES OFICIALES DEL LOGO
 # ============================================================================
 
 COLORS = {
@@ -114,7 +114,6 @@ LOGO_PATH = os.path.join(APP_DIR, "logo.png")
 LETZY_PATH = os.path.join(APP_DIR, "letzy.png")
 
 LOGO_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iIzFhNWZhOCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiPlRFQ0ggTUFJTlQ8L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI3MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmNWE2MjMiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5QUk88L3RleHQ+PC9zdmc+"
-
 LETZY_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MCIgaGVpZ2h0PSI5MCI+PGNpcmNsZSBjeD0iNDUiIGN5PSI0NSIgcj0iNDIiIGZpbGw9IiMxYTVmYTgiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5MPC90ZXh0Pjwvc3ZnPg=="
 
 LOGO_BASE64 = load_image_as_base64(LOGO_PATH, LOGO_FALLBACK)
@@ -134,8 +133,18 @@ st.set_page_config(
     page_title="Tech Maint Pro",
     page_icon="",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
+
+st.markdown("""
+<style>
+    .main > div {padding-top: 2rem;}
+    .stChatMessage {margin: 0.5rem 0;}
+    [data-testid="stSidebar"] {display: none;}
+    .block-container {padding-top: 1rem; padding-bottom: 1rem;}
+    .stChatInputContainer {position: fixed; bottom: 1rem; width: 100%; max-width: 800px;}
+</style>
+""", unsafe_allow_html=True)
 
 # ============================================================================
 # ACTIVOS INDUSTRIALES
@@ -1050,7 +1059,7 @@ def process_floating_query(query, ai_platform="rag"):
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
 # ============================================================================
-# FUNCION AUXILIAR PARA MOSTRAR DETALLE DE OT (DEFINIDA ANTES DE USARLA)
+# FUNCION AUXILIAR PARA MOSTRAR DETALLE DE OT
 # ============================================================================
 
 def mostrar_detalle_ot(ot, conn):
@@ -1170,7 +1179,6 @@ def mostrar_detalle_ot(ot, conn):
         submitted_registro = st.form_submit_button("Guardar Cambios", use_container_width=True, type="primary")
         
         if submitted_registro:
-            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             
             update_fields = [
@@ -1218,7 +1226,6 @@ def mostrar_detalle_ot(ot, conn):
                     "hallazgos": hallazgos
                 })
             
-            conn.close()
             st.success(f"OT {ot['ot_id']} actualizada a '{nuevo_estado}'")
             st.rerun()
     
@@ -1229,34 +1236,28 @@ def mostrar_detalle_ot(ot, conn):
     
     with col_acc1:
         if st.button("Iniciar Trabajo", key=f"iniciar_{ot['ot_id']}", use_container_width=True):
-            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute("""UPDATE work_orders SET status = 'En Ejecucion', start_time = ?, updated_at = ? WHERE ot_id = ?""",
                      (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
             conn.commit()
-            conn.close()
             st.success(f"OT {ot['ot_id']} iniciada")
             st.rerun()
     
     with col_acc2:
         if st.button("Completar", key=f"completar_{ot['ot_id']}", use_container_width=True):
-            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute("""UPDATE work_orders SET status = 'Completado', end_time = ?, updated_at = ? WHERE ot_id = ?""",
                      (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
             conn.commit()
-            conn.close()
             st.success(f"OT {ot['ot_id']} completada")
             st.rerun()
     
     with col_acc3:
         if st.button("Pausar", key=f"pausar_{ot['ot_id']}", use_container_width=True):
-            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute("""UPDATE work_orders SET status = 'Pausado', updated_at = ? WHERE ot_id = ?""",
                      (datetime.now().isoformat(), ot['ot_id']))
             conn.commit()
-            conn.close()
             st.success(f"OT {ot['ot_id']} pausada")
             st.rerun()
 
@@ -1418,7 +1419,7 @@ if not st.session_state.get("kb_loaded", False):
         load_knowledge_base()
 
 # ============================================================================
-# PANEL LATERAL DE CHAT (BARRA LATERAL DERECHA)
+# PANEL LATERAL DE CHAT
 # ============================================================================
 
 with st.sidebar:
@@ -1604,7 +1605,15 @@ if latest["estado"] in ["Alerta", "Critico"]:
                 alarms_list = get_alarms(latest)
                 if alarms_list:
                     level, param, valor = alarms_list[0]
-                    threshold = THRESHOLDS.get("vibration_alert", 7.1)
+                    if "Vibracion" in param:
+                        threshold = THRESHOLDS["vibration_alert"]
+                    elif "Temperatura" in param:
+                        threshold = THRESHOLDS["temperature_alert"]
+                    elif "vacio" in param.lower():
+                        threshold = THRESHOLDS["vacuum_alert"]
+                    else:
+                        threshold = "N/A"
+                        
                     notify_critical_alarm(
                         asset_name=asset_name,
                         parameter=param,
@@ -1738,7 +1747,6 @@ with tabs[2]:
     c = conn.cursor()
     c.execute("SELECT * FROM work_orders ORDER BY creation_date DESC")
     all_orders = [dict(row) for row in c.fetchall()]
-    conn.close()
     
     st.markdown("<h3>Crear Nueva Orden de Trabajo</h3>", unsafe_allow_html=True)
     
@@ -1764,8 +1772,6 @@ with tabs[2]:
             ts = datetime.now().strftime("%Y%m%d%H%M")
             new_ot_id = f"OT-{ts}-{nueva_prioridad}"
             
-            conn = sqlite3.connect(DB_PATH)
-            c = conn.cursor()
             c.execute("""INSERT INTO work_orders 
                 (ot_id, asset_name, tag, ubicacion, description, prioridad, tipo, responsable, 
                  creation_date, estimated_hours, status, created_by, updated_at) 
@@ -1775,7 +1781,6 @@ with tabs[2]:
                  datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual",
                  datetime.now().isoformat()))
             conn.commit()
-            conn.close()
             
             st.success(f"OT creada exitosamente: {new_ot_id}")
             st.rerun()
@@ -1894,6 +1899,8 @@ with tabs[2]:
     
     if not filtered_orders:
         st.info("No hay ordenes de trabajo que coincidan con los filtros seleccionados.")
+    
+    conn.close()
 
 # ============================================================================
 # TAB 4: IMPACTO CIRCULAR
@@ -1906,30 +1913,6 @@ with tabs[3]:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    
-    c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ot_id TEXT NOT NULL,
-        asset_name TEXT,
-        component TEXT NOT NULL,
-        decision TEXT NOT NULL,
-        result TEXT,
-        mass_conserved_kg REAL DEFAULT 0,
-        mass_discarded_kg REAL DEFAULT 0,
-        costo_reparacion_eur REAL DEFAULT 0,
-        costo_reemplazo_nuevo_eur REAL DEFAULT 0,
-        vida_util_extendida_horas REAL DEFAULT 0,
-        co2_evitado_kg REAL DEFAULT 0,
-        disponibilidad_post_reparacion_pct REAL DEFAULT 0,
-        tiempo_entre_fallas_reparado_horas REAL DEFAULT 0,
-        nivel_reparacion INTEGER DEFAULT 0,
-        fabricante_original TEXT,
-        garantia_reparacion_meses INTEGER DEFAULT 0,
-        recorded_date TEXT NOT NULL,
-        recorded_by TEXT,
-        FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
-    )""")
-    conn.commit()
     
     c.execute("""SELECT * FROM circular_interventions 
                  ORDER BY recorded_date DESC""")
