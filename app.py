@@ -428,10 +428,12 @@ def notify_high_circular_impact(intervention):
 # ============================================================================
 
 def play_critical_alarm(event_id):
+    """Alarma critica con sonido via JavaScript (funciona en navegador)"""
     if st.session_state.get("last_beep_event") == event_id:
         return
     st.session_state["last_beep_event"] = event_id
     
+    # Inyectar JavaScript para reproducir sonido en el navegador
     st.markdown("""
     <script>
     try {
@@ -458,6 +460,7 @@ def play_critical_alarm(event_id):
     logger.info(f"[ALARMA CRITICA] {event_id}")
 
 def play_observation_alarm(event_id):
+    """Alarma de advertencia con sonido via JavaScript"""
     if st.session_state.get("last_observation_event") == event_id:
         return
     st.session_state["last_observation_event"] = event_id
@@ -985,11 +988,11 @@ INSTRUCCION FINAL: Responde la pregunta del usuario basandote EXCLUSIVAMENTE en 
         ]
         
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=800
-        )
+    model="llama-3.1-8b-instant",  
+    messages=messages,
+    temperature=0.3,
+    max_tokens=800
+)
         
         return response.choices[0].message.content
         
@@ -1445,8 +1448,9 @@ if not st.session_state.get("kb_loaded", False):
 # ============================================================================
 
 with st.sidebar:
+    # Header compacto
     st.markdown(f"""
-    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e8ecf1;">
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid #e8ecf1;">
         {render_letzy("35px")}
         <div>
             <h4 style="margin:0; color:#1a5fa8; font-size:1rem;">Letzy</h4>
@@ -1455,6 +1459,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    # Modo IA compacto
     ai_mode = st.selectbox(
         "Modo:",
         options=["rag", "fallback"],
@@ -1468,17 +1473,16 @@ with st.sidebar:
     if ai_mode == "rag" and not st.session_state.get("groq_api_key", ""):
         st.session_state["groq_api_key"] = st.text_input("API Key Groq", type="password", key="groq_key_side", placeholder="API Key aqui")
 
-    st.divider()
-
+    # Contenedor de chat con altura REDUCIDA
     chat_history = st.session_state.get("floating_chat_history", [])
     
-    chat_container = st.container(height=200)
+    chat_container = st.container(height=250)  # Reducido de 400 a 250
     with chat_container:
         if not chat_history:
             with st.chat_message("assistant", avatar=LETZY_BASE64):
                 st.markdown("**Hola! Soy Letzy.** En que puedo ayudarte?")
         
-        for msg in chat_history[-6:]:
+        for msg in chat_history[-8:]:  # Solo últimos 8 mensajes
             if msg["role"] == "assistant":
                 with st.chat_message("assistant", avatar=LETZY_BASE64):
                     st.markdown(msg["content"])
@@ -1486,8 +1490,7 @@ with st.sidebar:
                 with st.chat_message("user"):
                     st.markdown(msg["content"])
 
-    st.divider()
-    
+    # Botones rápidos en 2 columnas compactas
     st.markdown("**Consultas rapidas:**")
     c1, c2 = st.columns(2)
     with c1:
@@ -1501,7 +1504,7 @@ with st.sidebar:
         if st.button("KPIs", key="sq4", use_container_width=True):
             process_floating_query("Cuales son los KPIs?", ai_mode)
             
-    st.divider()
+    # Input de chat (sin divider antes)
     ui = st.chat_input("Escribe a Letzy...", key="chat_input_sidebar")
     if ui:
         process_floating_query(ui, ai_mode)
@@ -1623,19 +1626,12 @@ if latest["estado"] in ["Alerta", "Critico"]:
                  2.0, new_ot["status"], new_ot["created_by"], datetime.now().isoformat()))
             conn.commit()
             
+            # === NOTIFICACIONES ===
             if new_ot["priority"] == "P0":
                 alarms_list = get_alarms(latest)
                 if alarms_list:
                     level, param, valor = alarms_list[0]
-                    if "Vibracion" in param:
-                        threshold = THRESHOLDS["vibration_alert"]
-                    elif "Temperatura" in param:
-                        threshold = THRESHOLDS["temperature_alert"]
-                    elif "vacio" in param.lower():
-                        threshold = THRESHOLDS["vacuum_alert"]
-                    else:
-                        threshold = "N/A"
-                        
+                    threshold = THRESHOLDS.get("vibration_alert", 7.1)
                     notify_critical_alarm(
                         asset_name=asset_name,
                         parameter=param,
@@ -1647,8 +1643,7 @@ if latest["estado"] in ["Alerta", "Critico"]:
                     )
             
             notify_new_ot(new_ot)
-            
-            logger.info(f"OT creada y notificada: {new_ot['ot_id']} - Responsable: {new_ot['responsible']}")
+            logger.info(f"OT creada y notificada: {new_ot['ot_id']}")
         
         conn.close()
         st.session_state["last_order_event"] = ek
