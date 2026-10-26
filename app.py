@@ -23,6 +23,97 @@ import plotly.graph_objects as go
 
 try:
     import streamlit as st
+import time
+from datetime import datetime
+import base64
+
+# Configuración de página con layout más compacto
+st.set_page_config(
+    page_title="Letzy - Asistente de Mantenimiento",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# CSS personalizado para eliminar espacios y mejorar layout
+st.markdown("""
+<style>
+    /* Eliminar espacios en blanco */
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 0rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    /* Reducir márgenes de elementos */
+    .stAlert, .stSuccess, .stWarning, .stError, .stInfo {
+        margin-bottom: 0.5rem;
+        padding: 0.5rem;
+    }
+    
+    /* Ajustar chat */
+    .stChatMessage {
+        padding: 0.5rem;
+        margin: 0.2rem 0;
+    }
+    
+    /* Eliminar padding de contenedores */
+    div[data-testid="stVerticalBlock"] {
+        gap: 0.2rem;
+    }
+    
+    /* Ajustar header */
+    header {
+        visibility: hidden;
+    }
+    
+    #MainMenu {
+        visibility: hidden;
+    }
+    
+    footer {
+        visibility: hidden;
+    }
+    
+    /* Estilo para alertas */
+    .alert-critical {
+        background-color: #ffebee;
+        border-left: 6px solid #f44336;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        border-radius: 4px;
+    }
+    
+    .alert-warning {
+        background-color: #fff3e0;
+        border-left: 6px solid #ff9800;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        border-radius: 4px;
+    }
+    
+    .alert-normal {
+        background-color: #e8f5e9;
+        border-left: 6px solid #4caf50;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        border-radius: 4px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Función para reproducir sonido
+def play_alarm_sound(alarm_type):
+    """
+    Reproduce sonido de alarma según el tipo
+    alarm_type: 'critical' (rojo) o 'warning' (naranja)
+    """
+    if alarm_type == 'critical':
+        # Sonido de alarma crítica (más urgente)
+        sound_base64 = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE"
+    elif alarm_type == 'warning':
+        # Sonido de advertencia (menos urgente)
+        sound_base64 = "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAACAQAAPwAAAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAg"
     from streamlit_autorefresh import st_autorefresh
     HAS_AUTOREFRESH = True
 except Exception:
