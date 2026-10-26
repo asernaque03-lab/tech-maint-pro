@@ -362,7 +362,6 @@ def notify_ot_paused(ot_id, asset_name, responsable, motivo):
     )
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje_telegram)
     
-    # Obtener prioridad para notificar a gerencia si es P0
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -398,7 +397,6 @@ def notify_ot_completed(ot_data):
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
 
 def notify_maintenance_issue(asset_name, issue_description, reporter):
-    """Notificar problema o impedimento en mantenimiento a Irina"""
     mensaje_telegram = (
         f"<b>[PROBLEMA/IMPEDIMENTO DE MANTENIMIENTO]</b>\n\n"
         f"<b>Activo:</b> {asset_name}\n"
@@ -509,7 +507,6 @@ def play_observation_alarm(event_id):
     logger.info(f"[ALARMA OBSERVACION] {event_id}")
 
 def play_notification_sound():
-    """Sonido de notificacion tipo burbuja para respuestas de Letzy"""
     st.markdown("""
     <script>
     try {
@@ -518,15 +515,11 @@ def play_notification_sound():
         const gainNode = audioCtx.createGain();
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
-        
-        // Sonido tipo burbuja: frecuencia que sube rapidamente y decae
         oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
         oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-        
         gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-        
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.15);
     } catch(e) {}
@@ -1320,7 +1313,8 @@ with col_mode2:
     use_test_data = st.checkbox("Usar datos de prueba CSV", value=st.session_state.get("use_test_data", True), key="use_test_data_checkbox")
     st.session_state["use_test_data"] = use_test_data
 
-tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Plan de Mantenimiento", "KPIs y Reportes"])
+# Se agrega la nueva pestaña "Inventario y Stock" al final
+tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Plan de Mantenimiento", "KPIs y Reportes", "Inventario y Stock"])
 asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visibility="collapsed")
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
 
@@ -1501,7 +1495,7 @@ with tabs[1]:
         conn.close()
 
 # ============================================================================
-# TAB 3: ORDENES DE TRABAJO (CON FOTOS ANTES/DESPUES)
+# TAB 3: ORDENES DE TRABAJO
 # ============================================================================
 
 with tabs[2]:
@@ -1724,7 +1718,7 @@ with tabs[3]:
         st.info("No hay tareas de mantenimiento programadas. Cargue el archivo plan_de_mto.csv")
 
 # ============================================================================
-# TAB 5: KPIs Y REPORTES (CON IMPACTO CIRCULAR)
+# TAB 5: KPIs Y REPORTES
 # ============================================================================
 
 with tabs[4]:
@@ -1858,6 +1852,43 @@ with tabs[4]:
                     st.download_button(label="Descargar PDF", data=pdf_buffer, file_name=f"Reporte_{ot_id}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
         else:
             st.info("No hay OTs cerradas para generar reportes")
+
+# ============================================================================
+# TAB 6: INVENTARIO Y STOCK (NUEVA PESTAÑA)
+# ============================================================================
+
+with tabs[5]:
+    st.markdown("<h2>Inventario y Stock de Repuestos</h2>", unsafe_allow_html=True)
+    st.markdown("Consulta de repuestos, materiales y su historial de consumo registrado en producción.")
+    
+    try:
+        df_stock = pd.read_csv("registro_mantenimiento_produccion.csv")
+        
+        st.markdown("### Catálogo de Repuestos Registrados")
+        # Extraer lista única de repuestos
+        todos_los_repuestos = []
+        for rep_str in df_stock['Repuestos_Usados'].dropna():
+            todos_los_repuestos.extend([r.strip() for r in str(rep_str).split(',')])
+        
+        # Crear un dataframe de inventario único
+        df_inventario = pd.DataFrame({"Nombre del Repuesto": list(set(todos_los_repuestos))})
+        df_inventario = df_inventario.sort_values("Nombre del Repuesto").reset_index(drop=True)
+        
+        # Agregar columnas de gestión de stock para referencia visual
+        df_inventario['Unidad de Medida'] = 'Unidad'
+        df_inventario['Stock Mínimo Sugerido'] = 5
+        df_inventario['Último Registro de Uso'] = 'Ver historial abajo'
+        
+        st.dataframe(df_inventario, use_container_width=True, hide_index=True)
+        
+        st.divider()
+        st.markdown("### Historial Detallado de Consumo")
+        st.dataframe(df_stock[['Fecha', 'Nombre_Equipo', 'Repuestos_Usados', 'Tecnico_Responsable', 'Costo_Arreglo_USD']], use_container_width=True, hide_index=True)
+        
+    except FileNotFoundError:
+        st.error("No se encontró el archivo 'registro_mantenimiento_produccion.csv'. Asegúrate de que esté en la misma carpeta que la aplicación.")
+    except Exception as e:
+        st.error(f"Error al procesar el inventario: {e}")
 
 # ============================================================================
 # FOOTER
