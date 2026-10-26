@@ -1258,119 +1258,42 @@ def init_database():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    c.execute("DROP TABLE IF EXISTS work_orders")
-    c.execute("DROP TABLE IF EXISTS circular_interventions")
-    c.execute("DROP TABLE IF EXISTS maintenance_plan")
-    c.execute("DROP TABLE IF EXISTS maintenance_execution")
-    c.execute("DROP TABLE IF EXISTS ot_photos")
-    
-    c.execute("""CREATE TABLE work_orders (
+    # Usamos IF NOT EXISTS para no borrar los datos que subimos desde GitHub
+    c.execute("""CREATE TABLE IF NOT EXISTS work_orders (
         ot_id TEXT PRIMARY KEY,
         asset_name TEXT NOT NULL,
-        tag TEXT, 
-        ubicacion TEXT, 
-        alert_id TEXT, 
-        description TEXT,
-        prioridad TEXT NOT NULL DEFAULT 'P2', 
-        tipo TEXT DEFAULT 'Correctivo',
-        responsable TEXT, 
-        creation_date TEXT NOT NULL, 
-        due_date TEXT,
-        estimated_hours REAL DEFAULT 2.0, 
-        status TEXT NOT NULL DEFAULT 'Pendiente',
-        start_time TEXT, 
-        end_time TEXT, 
-        hallazgos TEXT, 
-        acciones TEXT,
-        repuestos TEXT, 
-        evidencia TEXT, 
-        firma_operario TEXT, 
-        firma_supervisor TEXT,
-        tiempo_real_horas REAL, 
-        created_by TEXT, 
-        updated_at TEXT,
-        componente_afectado TEXT, 
-        tipo_falla TEXT, 
-        decision_tecnica TEXT,
-        masa_conservada_kg REAL DEFAULT 0, 
-        masa_descartada_kg REAL DEFAULT 0,
-        costo_reparacion REAL DEFAULT 0, 
-        costo_reemplazo_nuevo REAL DEFAULT 0,
-        co2_evitado_kg REAL DEFAULT 0, 
-        vida_util_extendida_horas REAL DEFAULT 0,
+        tag TEXT, ubicacion TEXT, alert_id TEXT, description TEXT,
+        prioridad TEXT NOT NULL DEFAULT 'P2', tipo TEXT DEFAULT 'Correctivo',
+        responsable TEXT, creation_date TEXT NOT NULL, due_date TEXT,
+        estimated_hours REAL DEFAULT 2.0, status TEXT NOT NULL DEFAULT 'Pendiente',
+        start_time TEXT, end_time TEXT, hallazgos TEXT, acciones TEXT,
+        repuestos TEXT, evidencia TEXT, firma_operario TEXT, firma_supervisor TEXT,
+        tiempo_real_horas REAL, created_by TEXT, updated_at TEXT,
+        componente_afectado TEXT, tipo_falla TEXT, decision_tecnica TEXT,
+        masa_conservada_kg REAL DEFAULT 0, masa_descartada_kg REAL DEFAULT 0,
+        costo_reparacion REAL DEFAULT 0, costo_reemplazo_nuevo REAL DEFAULT 0,
+        co2_evitado_kg REAL DEFAULT 0, vida_util_extendida_horas REAL DEFAULT 0,
         disponibilidad_post_reparacion_pct REAL DEFAULT 0
     )""")
     
-    c.execute("""CREATE TABLE circular_interventions (
+    c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ot_id TEXT NOT NULL, 
-        asset_name TEXT, 
-        component TEXT NOT NULL,
-        decision TEXT NOT NULL, 
-        result TEXT, 
-        mass_conserved_kg REAL DEFAULT 0,
-        mass_discarded_kg REAL DEFAULT 0, 
-        costo_reparacion_eur REAL DEFAULT 0,
-        costo_reemplazo_nuevo_eur REAL DEFAULT 0, 
-        vida_util_extendida_horas REAL DEFAULT 0,
-        co2_evitado_kg REAL DEFAULT 0, 
-        disponibilidad_post_reparacion_pct REAL DEFAULT 0,
-        tiempo_entre_fallas_reparado_horas REAL DEFAULT 0, 
-        nivel_reparacion INTEGER DEFAULT 0,
-        fabricante_original TEXT, 
-        garantia_reparacion_meses INTEGER DEFAULT 0,
-        recorded_date TEXT NOT NULL, 
-        recorded_by TEXT,
+        ot_id TEXT NOT NULL, asset_name TEXT, component TEXT NOT NULL,
+        decision TEXT NOT NULL, result TEXT, mass_conserved_kg REAL DEFAULT 0,
+        mass_discarded_kg REAL DEFAULT 0, costo_reparacion_eur REAL DEFAULT 0,
+        costo_reemplazo_nuevo_eur REAL DEFAULT 0, vida_util_extendida_horas REAL DEFAULT 0,
+        co2_evitado_kg REAL DEFAULT 0, disponibilidad_post_reparacion_pct REAL DEFAULT 0,
+        tiempo_entre_fallas_reparado_horas REAL DEFAULT 0, nivel_reparacion INTEGER DEFAULT 0,
+        fabricante_original TEXT, garantia_reparacion_meses INTEGER DEFAULT 0,
+        recorded_date TEXT NOT NULL, recorded_by TEXT,
         FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
     )""")
     
-    c.execute("""CREATE TABLE maintenance_plan (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        asset_name TEXT NOT NULL,
-        tag TEXT,
-        ubicacion TEXT,
-        maintenance_type TEXT,
-        task_description TEXT,
-        frequency TEXT,
-        frequency_days INTEGER,
-        estimated_hours REAL,
-        responsable TEXT,
-        priority TEXT,
-        required_parts TEXT,
-        tools_needed TEXT,
-        safety_requirements TEXT,
-        checklist_items TEXT,
-        thresholds TEXT,
-        notes TEXT,
-        last_execution_date TEXT,
-        next_scheduled_date TEXT
-    )""")
-    
-    c.execute("""CREATE TABLE maintenance_execution (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        plan_id INTEGER,
-        asset_name TEXT,
-        scheduled_date TEXT,
-        execution_date TEXT,
-        executed_by TEXT,
-        status TEXT DEFAULT 'Pendiente',
-        observations TEXT,
-        photos_before TEXT,
-        photos_after TEXT,
-        circular_impact_registered INTEGER DEFAULT 0,
-        FOREIGN KEY (plan_id) REFERENCES maintenance_plan(id)
-    )""")
-    
-    c.execute("""CREATE TABLE ot_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ot_id TEXT,
-        photo_type TEXT,
-        photo_path TEXT,
-        upload_date TEXT,
-        FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
-    )""")
+    # (Mantén el resto de tu código de migración de columnas aquí si lo tienes)
     
     conn.commit()
+    conn.close()
+    logger.info("Base de datos verificada correctamente.")
     
     # Cargar plan de mantenimiento desde CSV
     df_plan = load_maintenance_plan()
