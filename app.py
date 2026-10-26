@@ -781,7 +781,6 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         
         current_context = f"""
 def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
-    """Respuesta fallback basada en reglas cuando no hay Groq"""
     text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
     sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
     alarms = get_alarms(latest)
