@@ -1850,7 +1850,11 @@ with tabs[4]:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
-        closed_orders = [dict(row) for row in c.fetchall()]
+       rows = c.fetchall()
+if rows and hasattr(rows[0], 'keys'):
+    closed_orders = [dict(row) for row in rows]
+else:
+    closed_orders = []
         conn.close()
         
         if closed_orders:
