@@ -1348,45 +1348,60 @@ st.session_state["latest_row"] = latest
 st.session_state["asset_name"] = asset_name
 
 current_estado = latest["estado"]
+
+# Detectar CAMBIO de estado (solo notificar cuando cambia)
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state["auto_chat_triggered"] = True
+    
+    # Reproducir sonido de alarma
     if current_estado == "Critico":
         play_critical_alarm(f"{latest['fecha_hora']}-critical")
     else:
         play_observation_alarm(f"{latest['fecha_hora']}-alert")
     
+    # Obtener descripción de falla
     fault_desc = latest.get('fault_description', '')
-    if pd.isna(fault_desc): fault_desc = ''
+    if pd.isna(fault_desc): 
+        fault_desc = ''
+    
+    # Mensaje de Letzy
     alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
-    if "floating_chat_history" not in st.session_state: st.session_state["floating_chat_history"] = []
+    if "floating_chat_history" not in st.session_state: 
+        st.session_state["floating_chat_history"] = []
     st.session_state["floating_chat_history"].append({"role": "assistant", "content": alert_msg})
+    
+    # === NOTIFICACION TELEGRAM ===
+    # Determinar prioridad según estado
+    priority = "P0" if current_estado == "Critico" else "P1"
+    ot_id = f"OT-{datetime.now().strftime('%Y%m%d%H%M')}-{priority}"
+    
+    # Notificar según gravedad
+    if current_estado == "Critico":
+        # Alerta crítica - notificar a TODOS
+        alarms_list = get_alarms(latest)
+        if alarms_list:
+            level, param, valor = alarms_list[0]
+            threshold = THRESHOLDS.get("vibration_alert", 7.1)
+            notify_critical_alarm(
+                asset_name=asset_name,
+                parameter=param,
+                value=valor,
+                threshold=threshold,
+                ir=latest['indice_riesgo'],
+                ot_id=ot_id,
+                responsable=STAFF["tecnico"]["nombre"]
+            )
+    else:
+        # Alerta normal - notificar al técnico
+        notify_new_ot({
+            "ot_id": ot_id,
+            "asset_name": asset_name,
+            "priority": priority,
+            "description": fault_desc,
+            "responsable": STAFF["tecnico"]["nombre"]
+        })
 
 st.session_state["previous_estado"] = current_estado
-
-if latest["estado"] in ["Alerta", "Critico"]:
-    ek = f"{latest['fecha_hora']}-{latest['estado']}"
-    if st.session_state.last_order_event != ek:
-        new_ot = create_work_order_obj(latest, asset_name, source="Automatica por alarma")
-        try:
-            conn = sqlite3.connect(DB_PATH)
-            c = conn.cursor()
-            c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot["ot_id"],))
-            if not c.fetchone():
-                c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (new_ot["ot_id"], new_ot["asset_name"], ASSETS.get(new_ot["asset_name"], {}).get("tag", "N/A"), "Planta Principal", new_ot["alert_id"], new_ot["description"], new_ot["priority"], "Correctivo", new_ot["responsible"], new_ot["creation_date"], 2.0, new_ot["status"], new_ot["created_by"], datetime.now().isoformat()))
-                conn.commit()
-                if new_ot["priority"] == "P0":
-                    alarms_list = get_alarms(latest)
-                    if alarms_list:
-                        level, param, valor = alarms_list[0]
-                        threshold = THRESHOLDS.get("vibration_alert", 7.1)
-                        notify_critical_alarm(asset_name=asset_name, parameter=param, value=valor, threshold=threshold, ir=latest['indice_riesgo'], ot_id=new_ot["ot_id"], responsable=new_ot["responsible"])
-                notify_new_ot(new_ot)
-                logger.info(f"OT creada y notificada: {new_ot['ot_id']}")
-            conn.close()
-        except Exception as e:
-            logger.error(f"Error creando OT automatica: {e}")
-        st.session_state["last_order_event"] = ek
 
 # ============================================================================
 # TAB 1: MONITOREO
