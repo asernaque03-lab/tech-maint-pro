@@ -1817,6 +1817,7 @@ with tabs[4]:
         st.markdown("### Generar Reporte de Mantenimiento")
         
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         c = conn.cursor()
         c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
         rows = c.fetchall()
