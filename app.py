@@ -23,11 +23,46 @@ import plotly.graph_objects as go
 
 try:
     import streamlit as st
-import time
-from datetime import datetime
-import base64
+    from streamlit_autorefresh import st_autorefresh
+    HAS_AUTOREFRESH = True
+except Exception:
+    HAS_AUTOREFRESH = False
 
-# Configuración de página con layout más compacto
+try:
+    import requests
+    HAS_REQUESTS = True
+except Exception:
+    requests = None
+    HAS_REQUESTS = False
+
+try:
+    from PyPDF2 import PdfReader
+    HAS_PDF = True
+except Exception:
+    PdfReader = None
+    HAS_PDF = False
+
+try:
+    import fitz
+    HAS_FITZ = True
+except Exception:
+    fitz = None
+    HAS_FITZ = False
+
+try:
+    from groq import Groq
+    HAS_GROQ = True
+except ImportError:
+    HAS_GROQ = False
+    Groq = None
+
+try:
+    import winsound
+    HAS_WINSOUND = True
+except ImportError:
+    HAS_WINSOUND = False
+    
+# Configuración de página con layout 
 st.set_page_config(
     page_title="Letzy - Asistente de Mantenimiento",
     layout="wide",
