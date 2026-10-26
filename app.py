@@ -102,22 +102,9 @@ COLORS = {
 # CARGA DE IMAGENES
 # ============================================================================
 
-def load_image_as_base64(image_path, fallback_svg=""):
-    try:
-        if os.path.exists(image_path):
-            with open(image_path, "rb") as img_file:
-                encoded = base64.b64encode(img_file.read()).decode('utf-8')
-            mime = "image/png" if image_path.lower().endswith(".png") else "image/jpeg"
-            return f"data:{mime};base64,{encoded}"
-    except Exception as e:
-        logger.warning(f"No se pudo cargar {image_path}: {e}")
-    return fallback_svg
+LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAKlBB4DASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiig......"
 
-LOGO_PATH = os.path.join(APP_DIR, "logo.png")
-LETZY_PATH = os.path.join(APP_DIR, "letzy.png")
-
-LOGO_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iIzFhNWZhOCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiPlRFQ0ggTUFJTlQ8L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI3MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmNWE2MjMiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5QUk88L3RleHQ+PC9zdmc+"
-LETZY_BASE64 = load_image_as_base64(LETZY_PATH, "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MCIgaGVpZ2h0PSI5MCI+PGNpcmNsZSBjeD0iNDUiIGN5PSI0NSIgcj0iNDIiIGZpbGw9IiMxYTVmYTgiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5MPC90ZXh0Pjwvc3ZnPg==")
+LETZY_BASE64 = "data:image/jpeg;base64,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......"
 
 def render_logo(size="180px"):
     return f'<img src="{LOGO_BASE64}" style="width:{size}; height:auto; display:inline-block;" />'
@@ -832,7 +819,7 @@ def format_context_for_llm(search_results):
 
 def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
     try:
-        api_key = GROQ_API_KEY  # Usar la API Key integrada
+        api_key = GROQ_API_KEY
         
         alarms = get_alarms(latest)
         at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
@@ -924,6 +911,32 @@ def process_floating_query(query, ai_platform="rag"):
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
 # ============================================================================
+# VISUALIZACION - GRAFICAS
+# ============================================================================
+
+def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None, threshold_alert=None, reverse=False):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df[column], mode="lines+markers", name=title, line=dict(color=color, width=3), marker=dict(size=4), fill="tozeroy" if not reverse else None, fillcolor="rgba(26,95,168,0.08)" if not reverse else None))
+    if threshold_normal is not None:
+        fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
+    if threshold_alert is not None:
+        fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
+    fig.update_layout(title=dict(text=title, font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")), template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=78, b=30), xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45), yaxis=dict(title=dict(text=y_title, font=dict(color=COLORS["texto_oscuro"], size=12)), autorange="reversed" if reverse else True, showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)), hovermode="x unified", showlegend=False, height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12))
+    return fig
+
+def create_vibration_chart(df): return create_sensor_chart(df, "vibracion_rms_mm_s", "Vibracion RMS", "mm/s", COLORS["azul"], THRESHOLDS["vibration_normal"], THRESHOLDS["vibration_alert"])
+def create_temperature_chart(df): return create_sensor_chart(df, "temperatura_c", "Temperatura", "C", COLORS["amarillo"], THRESHOLDS["temperature_normal"], THRESHOLDS["temperature_alert"])
+def create_vacuum_chart(df): return create_sensor_chart(df, "presion_vacio_kpa", "Presion de vacio", "kPa", COLORS["verde"], THRESHOLDS["vacuum_normal"], THRESHOLDS["vacuum_alert"], reverse=True)
+
+def create_risk_chart(df):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df["indice_riesgo"], mode="lines+markers", name="IR", line=dict(color=COLORS["amarillo"], width=3), fill="tozeroy", fillcolor="rgba(245,166,35,0.10)", marker=dict(size=4)))
+    fig.add_hline(y=40, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
+    fig.add_hline(y=70, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
+    fig.update_layout(title=dict(text="Indice de riesgo", font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")), template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=52, b=20), xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45), yaxis=dict(title=dict(text="IR", font=dict(color=COLORS["texto_oscuro"], size=12)), range=[0, 100], showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)), hovermode="x unified", height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12))
+    return fig
+
+# ============================================================================
 # BASE DE DATOS EXPANDIDA
 # ============================================================================
 
@@ -931,7 +944,6 @@ def init_database():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    # Tabla work_orders EXPANDIDA con campos para impacto circular
     c.execute("""CREATE TABLE IF NOT EXISTS work_orders (
         ot_id TEXT PRIMARY KEY,
         asset_name TEXT NOT NULL,
@@ -957,7 +969,6 @@ def init_database():
         tiempo_real_horas REAL,
         created_by TEXT,
         updated_at TEXT,
-        -- CAMPOS NUEVOS PARA IMPACTO CIRCULAR
         componente_afectado TEXT,
         tipo_falla TEXT,
         decision_tecnica TEXT,
@@ -970,7 +981,6 @@ def init_database():
         disponibilidad_post_reparacion_pct REAL DEFAULT 0
     )""")
     
-    # Agregar columnas nuevas si no existen
     c.execute("PRAGMA table_info(work_orders)")
     existing_columns = [row[1] for row in c.fetchall()]
     
@@ -1040,7 +1050,6 @@ if not st.session_state.get("kb_loaded", False):
 # ============================================================================
 
 with st.sidebar:
-    # Botón para activar audio
     if not st.session_state.get("audio_enabled", False):
         st.warning("Haz clic para activar los sonidos de alarma")
         if st.button("Activar Sonidos", key="enable_audio", use_container_width=True):
@@ -1198,4 +1207,261 @@ if latest["estado"] in ["Alerta", "Critico"]:
             logger.error(f"Error creando OT automatica: {e}")
         st.session_state["last_order_event"] = ek
 
-# El resto del código (tabs de monitoreo, diagnóstico, OT, impacto circular, KPIs) permanece igual...
+# ============================================================================
+# TAB 1: MONITOREO
+# ============================================================================
+
+with tabs[0]:
+    statuses = variable_status(latest)
+    def get_status_color(status): return COLORS["verde"] if status == "Normal" else COLORS["amarillo"] if status == "Alerta" else COLORS["rojo"]
+    def get_text_color(status): return "#ffffff"
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""<div class="metric-card status-{statuses['Vibracion'].lower()}">
+            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Vibracion'])};margin-bottom:8px;">VIBRACION RMS</div>
+            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Vibracion'])};">{latest['vibracion_rms_mm_s']:.2f} <span style="font-size:1rem;">mm/s</span></div>
+            <div style="font-size:1.1rem;color:{get_text_color(statuses['Vibracion'])};font-weight:bold;">{statuses['Vibracion'].upper()}</div>
+            <div style="font-size:0.8rem;color:{get_text_color(statuses['Vibracion'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['vibration_normal']} / {THRESHOLDS['vibration_alert']}</div>
+        </div>""", unsafe_allow_html=True)
+        st.plotly_chart(create_vibration_chart(DF), use_container_width=True)
+    
+    with col2:
+        st.markdown(f"""<div class="metric-card status-{statuses['Temperatura'].lower()}">
+            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Temperatura'])};margin-bottom:8px;">TEMPERATURA</div>
+            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Temperatura'])};">{latest['temperatura_c']:.1f} <span style="font-size:1rem;">C</span></div>
+            <div style="font-size:1.1rem;color:{get_text_color(statuses['Temperatura'])};font-weight:bold;">{statuses['Temperatura'].upper()}</div>
+            <div style="font-size:0.8rem;color:{get_text_color(statuses['Temperatura'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['temperature_normal']} / {THRESHOLDS['temperature_alert']}</div>
+        </div>""", unsafe_allow_html=True)
+        st.plotly_chart(create_temperature_chart(DF), use_container_width=True)
+    
+    with col3:
+        st.markdown(f"""<div class="metric-card status-{statuses['Presion de vacio'].lower()}">
+            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Presion de vacio'])};margin-bottom:8px;">PRESION DE VACIO</div>
+            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(statuses['Presion de vacio'])};">{latest['presion_vacio_kpa']:.1f} <span style="font-size:1rem;">kPa</span></div>
+            <div style="font-size:1.1rem;color:{get_text_color(statuses['Presion de vacio'])};font-weight:bold;">{statuses['Presion de vacio'].upper()}</div>
+            <div style="font-size:0.8rem;color:{get_text_color(statuses['Presion de vacio'])};margin-top:8px;opacity:0.9;">Mas negativo = mejor</div>
+        </div>""", unsafe_allow_html=True)
+        st.plotly_chart(create_vacuum_chart(DF), use_container_width=True)
+    
+    with col4:
+        st.markdown(f"""<div class="metric-card status-{latest['estado'].lower()}">
+            <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(latest['estado'])};margin-bottom:8px;">ESTADO GLOBAL</div>
+            <div style="font-size:2.2rem;font-weight:800;margin:10px 0;color:{get_text_color(latest['estado'])};">{latest['estado'].upper()}</div>
+            <div style="font-size:1.1rem;color:{get_text_color(latest['estado'])};">IR: {latest['indice_riesgo']:.1f}/100</div>
+            <div style="font-size:0.8rem;color:{get_text_color(latest['estado'])};margin-top:8px;opacity:0.9;">Avance: {st.session_state.sim_idx}/{max_idx}</div>
+        </div>""", unsafe_allow_html=True)
+        st.plotly_chart(create_risk_chart(DF), use_container_width=True)
+    
+    alarms = get_alarms(latest)
+    if alarms:
+        st.markdown(f"<h3 style='margin-top:20px;color:{COLORS['texto_oscuro']};'>Alarmas Activas</h3>", unsafe_allow_html=True)
+        for level, name, value in alarms:
+            ac = "alarm-critical" if level == "Critico" else ""
+            icon = "[!]" if level == "Critico" else "[*]"
+            color = COLORS["rojo"] if level == "Critico" else COLORS["amarillo"]
+            st.markdown(f"""<div class="alarm-banner {ac}">
+                <div style="font-weight:bold;font-size:1.1rem;color:{color};">{icon} {level}: {name}</div>
+                <div style="margin-top:5px;">{name} fuera de rango: <strong>{value}</strong></div>
+            </div>""", unsafe_allow_html=True)
+
+# ============================================================================
+# TAB 2: DIAGNOSTICO
+# ============================================================================
+
+with tabs[1]:
+    st.markdown("<h2>Diagnostico en Tiempo Real</h2>", unsafe_allow_html=True)
+    alarms = get_alarms(latest)
+    ec = COLORS["verde"] if latest["estado"] == "Normal" else COLORS["amarillo"] if latest["estado"] == "Alerta" else COLORS["rojo"]
+    st.markdown(f"""<div style="background:{COLORS['blanco']};padding:20px;border-radius:16px;border-left:6px solid {ec};margin-bottom:20px;box-shadow:0 4px 15px rgba(0,0,0,0.08);">
+        <div style="font-size:1.5rem;font-weight:bold;color:{ec};">Estado Actual: {latest['estado'].upper()}</div>
+        <div style="font-size:1.2rem;margin-top:10px;color:{COLORS['texto_oscuro']};">Indice de Riesgo: {latest['indice_riesgo']:.1f}/100</div>
+    </div>""", unsafe_allow_html=True)
+    
+    if alarms:
+        st.markdown("<h3>Hipotesis Tecnicas</h3>", unsafe_allow_html=True)
+        for level, name, value in alarms:
+            if name == "Vibracion": st.markdown("- **Posible desgaste de rodamientos**, desalineacion o lubricacion deficiente.")
+            elif name == "Temperatura": st.markdown("- **Posible friccion interna**, lubricacion deficiente o sobrecarga.")
+            elif name == "Presion de vacio": st.markdown("- **Posible fuga en linea**, deterioro de sellos o restriccion en succion.")
+            elif name == "Corriente del motor": st.markdown("- **Sobrecarga electrica**, posible falla en devanado o bloqueo mecanico.")
+            else: st.markdown(f"- **Falla detectada**: {value}")
+        st.markdown("<h3>Pasos Sugeridos</h3>", unsafe_allow_html=True)
+        st.markdown("1. Verificar lectura con instrumento calibrado\n2. Inspeccionar visualmente el componente\n3. Revisar manual del fabricante\n4. Comprobar operacion segura\n5. Evaluar necesidad de repuesto")
+        accion = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT Prioridad 0"
+        st.markdown(f"<div style='background:{COLORS['blanco']};padding:15px;border-radius:12px;margin-top:20px;box-shadow:0 4px 15px rgba(0,0,0,0.08);'><strong>Accion Inmediata:</strong> {accion}</div>", unsafe_allow_html=True)
+    else:
+        st.success("Sin alarmas activas. Condicion normal.")
+    
+    if st.button("Generar Orden de Trabajo", use_container_width=True, type="primary"):
+        ot = create_work_order_obj(latest, asset_name, source="Manual desde diagnostico")
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (ot["ot_id"],))
+        if not c.fetchone():
+            c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (ot["ot_id"], ot["asset_name"], ASSETS.get(ot["asset_name"], {}).get("tag", "N/A"), "Planta Principal", ot["alert_id"], ot["description"], ot["priority"], "Correctivo", ot["responsible"], ot["creation_date"], 2.0, ot["status"], ot["created_by"], datetime.now().isoformat()))
+            conn.commit()
+            st.success(f"OT creada: {ot['ot_id']}")
+        else:
+            st.info(f"OT ya existe: {ot['ot_id']}")
+        conn.close()
+
+# ============================================================================
+# TAB 3: ORDENES DE TRABAJO
+# ============================================================================
+
+with tabs[2]:
+    st.markdown("<h2>Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM work_orders ORDER BY creation_date DESC")
+    all_orders = [dict(row) for row in c.fetchall()]
+    
+    st.markdown("<h3>Crear Nueva Orden de Trabajo</h3>", unsafe_allow_html=True)
+    with st.form("nueva_ot_form", clear_on_submit=True):
+        col_n1, col_n2 = st.columns(2)
+        with col_n1:
+            nuevo_activo = st.selectbox("Activo:", list(ASSETS.keys()), key="nuevo_activo_ot")
+            nueva_prioridad = st.selectbox("Prioridad:", ["P0", "P1", "P2"], key="nueva_prioridad_ot")
+            nuevo_tipo = st.selectbox("Tipo:", ["Correctivo", "Preventivo", "Predictivo"], key="nuevo_tipo_ot")
+        with col_n2:
+            nuevo_responsable = st.selectbox("Responsable:", ["Dario Minan", "Jordy Sernaque", "Sin asignar"], key="nuevo_resp_ot")
+            nueva_ubicacion = st.text_input("Ubicacion:", "Planta Principal", key="nueva_ubicacion_ot")
+            horas_estimadas = st.number_input("Horas estimadas:", min_value=0.5, max_value=24.0, value=2.0, step=0.5, key="nueva_horas_ot")
+        nueva_descripcion = st.text_area("Descripcion del problema:", key="nueva_desc_ot")
+        nuevas_tareas = st.text_area("Tareas a realizar (una por linea):", key="nueva_tareas_ot")
+        
+        submitted = st.form_submit_button("Crear OT", use_container_width=True, type="primary")
+        if submitted:
+            ts = datetime.now().strftime("%Y%m%d%H%M")
+            new_ot_id = f"OT-{ts}-{nueva_prioridad}"
+            try:
+                c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot_id,))
+                if c.fetchone():
+                    st.info(f"La OT {new_ot_id} ya existe")
+                else:
+                    c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion, f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable, datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual", datetime.now().isoformat()))
+                    conn.commit()
+                    st.success(f"OT creada exitosamente: {new_ot_id}")
+            except Exception as e:
+                st.error(f"Error creando OT: {e}")
+    conn.close()
+    
+    st.markdown("<h3>Ordenes Existentes</h3>", unsafe_allow_html=True)
+    if all_orders:
+        for ot in all_orders[:10]:
+            with st.expander(f"{ot['ot_id']} - {ot['asset_name']} ({ot['status']})"):
+                st.markdown(f"**Activo:** {ot['asset_name']} | **Prioridad:** {ot['priority']}")
+                st.markdown(f"**Descripcion:** {ot['description']}")
+                col_a1, col_a2, col_a3 = st.columns(3)
+                with col_a1:
+                    if st.button("Iniciar", key=f"ini_{ot['ot_id']}"):
+                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+                        c.execute("UPDATE work_orders SET status='En Ejecucion', start_time=?, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+                        conn.commit(); conn.close()
+                        notify_ot_started(ot['ot_id'], ot['asset_name'], ot['responsible'])
+                        st.rerun()
+                with col_a2:
+                    if st.button("Pausar", key=f"pau_{ot['ot_id']}"):
+                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+                        c.execute("UPDATE work_orders SET status='Pausado', updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), ot['ot_id']))
+                        conn.commit(); conn.close()
+                        st.rerun()
+                with col_a3:
+                    if st.button("Completar", key=f"com_{ot['ot_id']}"):
+                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+                        c.execute("UPDATE work_orders SET status='Cerrada', end_time=?, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+                        conn.commit(); conn.close()
+                        notify_ot_completed({"ot_id": ot['ot_id'], "responsible": ot['responsible'], "tiempo_real_horas": 0, "hallazgos": "Completado"})
+                        st.rerun()
+    else:
+        st.info("No hay ordenes registradas.")
+
+# ============================================================================
+# TAB 4: IMPACTO CIRCULAR
+# ============================================================================
+
+with tabs[3]:
+    st.markdown("<h2>Panel de Impacto Circular</h2>", unsafe_allow_html=True)
+    st.markdown("Registro de decisiones de mantenimiento y su impacto en la conservacion de recursos")
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM circular_interventions ORDER BY recorded_date DESC")
+    interventions = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    if interventions:
+        df_interventions = pd.DataFrame(interventions)
+        total_intervenciones = len(df_interventions)
+        masa_total = df_interventions['mass_conserved_kg'].sum() + df_interventions['mass_discarded_kg'].sum()
+        masa_conservada = df_interventions['mass_conserved_kg'].sum()
+        masa_descartada = df_interventions['mass_discarded_kg'].sum()
+        tasa_circularidad = (masa_conservada / masa_total * 100) if masa_total > 0 else 0
+        reparados = len(df_interventions[df_interventions['result'].isin(['Reparado', 'Reutilizado'])])
+        tasa_reparacion = (reparados / total_intervenciones * 100) if total_intervenciones > 0 else 0
+        costo_total_reparacion = df_interventions['costo_reparacion_eur'].sum()
+        costo_total_reemplazo = df_interventions['costo_reemplazo_nuevo_eur'].sum()
+        ahorro_total = costo_total_reemplazo - costo_total_reparacion
+        roi_circular = ((ahorro_total - costo_total_reparacion) / costo_total_reparacion * 100) if costo_total_reparacion > 0 else 0
+        co2_total_evitado = df_interventions['co2_evitado_kg'].sum()
+        arboles_equivalentes = co2_total_evitado / 22
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1: st.metric("Tasa de Circularidad", f"{tasa_circularidad:.1f}%", delta=f"{masa_conservada:.0f} kg conservados")
+        with col2: st.metric("CO2 Evitado", f"{co2_total_evitado:.0f} kg", delta=f"Equivalente a {arboles_equivalentes:.0f} arboles/año")
+        with col3: st.metric("Ahorro Total", f"EUR {ahorro_total:,.0f}", delta=f"ROI: {roi_circular:.0f}%", delta_color="normal" if ahorro_total > 0 else "inverse")
+        with col4: st.metric("Tasa de Exito Reparaciones", f"{tasa_reparacion:.1f}%", delta=f"{reparados} reparaciones")
+        
+        st.divider()
+        cols_to_show = ['recorded_date', 'ot_id', 'asset_name', 'component', 'decision', 'result', 'mass_conserved_kg', 'mass_discarded_kg']
+        if 'costo_reparacion_eur' in df_interventions.columns: cols_to_show.append('costo_reparacion_eur')
+        if 'costo_reemplazo_nuevo_eur' in df_interventions.columns: cols_to_show.append('costo_reemplazo_nuevo_eur')
+        if 'co2_evitado_kg' in df_interventions.columns: cols_to_show.append('co2_evitado_kg')
+        
+        df_display = df_interventions[cols_to_show].copy()
+        column_names = {'recorded_date': 'Fecha', 'ot_id': 'OT ID', 'asset_name': 'Activo', 'component': 'Componente', 'decision': 'Decision', 'result': 'Resultado', 'mass_conserved_kg': 'Masa Conservada (kg)', 'mass_discarded_kg': 'Masa Descartada (kg)', 'costo_reparacion_eur': 'Costo Reparacion (EUR)', 'costo_reemplazo_nuevo_eur': 'Costo Reemplazo (EUR)', 'co2_evitado_kg': 'CO2 Evitado (kg)'}
+        st.dataframe(df_display.rename(columns=column_names).sort_values('Fecha', ascending=False), use_container_width=True, hide_index=True)
+        
+        csv = df_display.to_csv(index=False, sep=';').encode('utf-8')
+        st.download_button(label="Exportar a CSV", data=csv, file_name=f"impacto_circular_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
+    else:
+        st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular.")
+
+# ============================================================================
+# TAB 5: KPIs
+# ============================================================================
+
+with tabs[4]:
+    st.markdown("<h2 style='text-align:center;'>KPIs e Indicadores</h2>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    oh = c1.number_input("Horas operativas", value=720.0, min_value=0.0)
+    fl = c1.number_input("Numero de fallas", value=3, min_value=0)
+    dh = c2.number_input("Horas de parada", value=18.0, min_value=0.0)
+    pmd = c2.number_input("PM ejecutados", value=18, min_value=0)
+    pmp = c3.number_input("PM programados", value=20, min_value=0)
+    ph = c3.number_input("HH pendientes", value=40.0, min_value=0.0)
+    ahw = st.number_input("HH disponibles/semana", value=80.0, min_value=1.0)
+    
+    kpis = calculate_kpis(oh, fl, dh, pmd, pmp, ph, ahw, st.session_state.production_rate)
+    kk1, kk2, kk3, kk4 = st.columns(4)
+    kk1.metric("MTBF", f"{kpis['MTBF (h)']:.1f} h")
+    kk2.metric("MTTR", f"{kpis['MTTR (h)']:.1f} h")
+    kk3.metric("Disponibilidad", f"{kpis['Disponibilidad (%)']:.2f}%")
+    kk4.metric("Perdida productiva", f"{kpis['Perdida productiva (t)']:.1f} t")
+    
+    col_center1, col_center2, col_center3 = st.columns([1, 3, 1])
+    with col_center2:
+        st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
+
+# ============================================================================
+# FOOTER
+# ============================================================================
+
+st.divider()
+st.caption("Tech Maint Pro | Prototipo profesional SeedTech 2026 | Los umbrales son referenciales")
