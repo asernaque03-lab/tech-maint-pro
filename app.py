@@ -80,31 +80,12 @@ logging.basicConfig(
 logger = logging.getLogger("TechMaintPro")
 
 # ============================================================================
-# CARGA DE IMAGENES PNG LOCALES
+# CARGA DE IMAGENES BASE64
 # ============================================================================
 
-def load_image_as_base64(image_path, fallback_svg=""):
-    """Carga una imagen PNG local y la convierte a base64 para uso inline."""
-    try:
-        if os.path.exists(image_path):
-            with open(image_path, "rb") as img_file:
-                encoded = base64.b64encode(img_file.read()).decode('utf-8')
-            mime = "image/png" if image_path.lower().endswith(".png") else "image/jpeg"
-            return f"data:{mime};base64,{encoded}"
-    except Exception as e:
-        logger.warning(f"No se pudo cargar {image_path}: {e}")
-    return fallback_svg
+LOGO_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAKlBB4DASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK......"
 
-LOGO_PATH = os.path.join(APP_DIR, "logo.png")
-LETZY_PATH = os.path.join(APP_DIR, "letzy.png")
-
-# SVG fallback minimalista para el logo
-LOGO_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iIzFhNWZhOCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiPlRFQ0ggTUFJTlQ8L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI3MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmNWE2MjMiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5QUk88L3RleHQ+PC9zdmc+"
-
-LETZY_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MCIgaGVpZ2h0PSI5MCI+PGNpcmNsZSBjeD0iNDUiIGN5PSI0NSIgcj0iNDIiIGZpbGw9IiMxYTVmYTgiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5MPC90ZXh0Pjwvc3ZnPg=="
-
-LOGO_BASE64 = load_image_as_base64(LOGO_PATH, LOGO_FALLBACK)
-LETZY_BASE64 = load_image_as_base64(LETZY_PATH, LETZY_FALLBACK)
+LETZY_BASE64 = "data:image/jpeg;base64,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KtLH9c5vQtgzDqECJOK7XkLR14FZFQBUU4ns+U629RUKWAiIbaKAAAAAAAAAAAikOHo5d6oIl4xcjufM853lmfFK7rL9MqZoOvnnPvLfOo6waZRPcXzQUQgpIFQBQQURz9Tr6/D63M2befz92nPz8mHTuxU7tbE8bd+TQfkS9fnaRXn6OFQLVAAAAAAEIKDYZ+Xi9/07K1uL1hipWwAQYUm3aJQKyAAqBzXS890NoAKyIKIogoAAAAAgKIAACLmypQqmlERSYTleqgM6zzHUdXlIKWogoIKCCggACggoIKCKAgoSClLox6pzs3omZdPJt38nk9RLlCHDp31wLVbaJHOh9yhH1cGuZVnq8+4IuvMoEwgqAAhOZ6Cvj1+gqhy+gAAihz3Q4G/An3qXutunaYm02+azrJ9O1y7033J567X6fH2qZ1P07v8A2K5uXp3eXt3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d......"
 
 def render_logo(size="180px"):
     return f'<img src="{LOGO_BASE64}" style="width:{size}; height:auto; display:inline-block;" />'
@@ -163,45 +144,21 @@ THRESHOLDS = {
     "vacuum_normal": -3.0, "vacuum_alert": -5.0,
 }
 
-FMECA_KNOWLEDGE = [
-    {
-        "symptom": "vibracion alta",
-        "failure_mode": "Desgaste de rodamientos o desalineacion",
-        "effect": "Aumento de vibracion y temperatura",
-        "criticality": "Alta",
-        "tasks": ["Medir vibracion en rodamientos", "Verificar alineacion", "Revisar lubricacion"]
-    },
-    {
-        "symptom": "temperatura alta",
-        "failure_mode": "Friccion interna o lubricacion deficiente",
-        "effect": "Degradacion acelerada de componentes",
-        "criticality": "Media-Alta",
-        "tasks": ["Revisar nivel de lubricante", "Inspeccionar enfriamiento", "Verificar sobrecarga"]
-    },
-    {
-        "symptom": "perdida de vacio",
-        "failure_mode": "Fuga en linea o deterioro de sellos",
-        "effect": "Reduccion de succion y parada del muelle",
-        "criticality": "Alta",
-        "tasks": ["Prueba de fugas", "Inspeccionar sellos", "Revisar tuberias y filtros"]
-    },
-]
-
 # ============================================================================
 # METADATOS DE DOCUMENTOS
 # ============================================================================
 
 DOCUMENT_METADATA = {
-    "01_Mantenimiento_Prev": {"id": 1, "category": "Tesis / Codificacion", "tags": ["Eternit Pacifico", "codificacion", "MTBF", "MTTR", "software SM"], "desc": "Sistema de codificacion de equipos industriales"},
-    "02_Mantenimiento_Vacio": {"id": 2, "category": "Tesis / Vacio medico", "tags": ["NFPA 99", "vacio grado medico", "bombas rotativas", "hospital"], "desc": "Programa de mantenimiento para sistemas de vacio medico"},
-    "03_Gestion_KPIs": {"id": 3, "category": "Gestion / KPIs", "tags": ["KPI", "MTBF", "MTTR", "disponibilidad", "indicadores"], "desc": "Guia de indicadores clave de rendimiento"},
-    "04_Mantenimiento_Casa": {"id": 4, "category": "Tesis / AMFE", "tags": ["AMFE", "FMEA", "criticidad", "casa de maquinas", "hospital"], "desc": "Analisis de Modos de Falla y Efectos"},
-    "05_Manual_IMBIL": {"id": 5, "category": "Manual tecnico / IMBIL", "tags": ["anillo liquido", "instalacion", "desmontaje", "lubricacion"], "desc": "Manual completo de bombas de vacio IMBIL serie BVI"},
-    "06_Manual_Caterpillar": {"id": 6, "category": "Manual OEM / Caterpillar", "tags": ["G3408", "G3412", "motores a gas", "intervalos de mantenimiento"], "desc": "Manual oficial de operacion y mantenimiento de motores Caterpillar"},
-    "07_Ficha_CPS": {"id": 7, "category": "Ficha tecnica / CPS", "tags": ["VP6D", "VP12D", "doble etapa", "10 micrones", "ensayo Rice"], "desc": "Especificaciones tecnicas de bombas de vacio CPS"},
-    "08_Manual_Gadnic": {"id": 8, "category": "Manual de usuario / Gadnic", "tags": ["Serie TW", "paletas rotativas", "cambio de aceite", "solucion de problemas"], "desc": "Manual de usuario de bombas Gadnic compactas"},
-    "09_Procedimiento_Lab": {"id": 9, "category": "POE / Laboratorio", "tags": ["Thomas BV-1", "diafragma", "trampas", "silica gel", "seguridad"], "desc": "Procedimiento operativo para uso seguro de bomba de vacio"},
-    "10_Tesis_Plan": {"id": 10, "category": "Tesis / Ladrillera", "tags": ["Arcillas de Colombia", "COVENIN 2500-93", "criticidad", "programacion anual"], "desc": "Plan completo de mantenimiento preventivo para empresa ladrillera"}
+    "01": {"category": "Tesis / Codificacion de equipos", "tags": ["Eternit Pacifico", "codificacion", "MTBF", "MTTR", "software SM"], "desc": "Sistema de codificacion de equipos industriales y uso del software SM Real World"},
+    "02": {"category": "Tesis / Vacio medico", "tags": ["NFPA 99", "vacio grado medico", "bombas rotativas", "hospital"], "desc": "Programa de mantenimiento para sistemas de vacio medico segun norma NFPA 99"},
+    "03": {"category": "Gestion / KPIs", "tags": ["KPI", "MTBF", "MTTR", "disponibilidad", "indicadores"], "desc": "Guia de indicadores clave de rendimiento con formulas y ejemplos"},
+    "04": {"category": "Tesis / AMFE", "tags": ["AMFE", "FMEA", "criticidad", "casa de maquinas", "hospital"], "desc": "Analisis de Modos de Falla y Efectos aplicado a casa de maquinas hospitalaria"},
+    "05": {"category": "Manual tecnico / IMBIL", "tags": ["anillo liquido", "instalacion", "desmontaje", "lubricacion"], "desc": "Manual completo de bombas de vacio IMBIL serie BVI"},
+    "06": {"category": "Manual OEM / Caterpillar", "tags": ["G3408", "G3412", "motores a gas", "intervalos de mantenimiento"], "desc": "Manual oficial de operacion y mantenimiento de motores Caterpillar"},
+    "07": {"category": "Ficha tecnica / CPS", "tags": ["VP6D", "VP12D", "doble etapa", "10 micrones", "ensayo Rice"], "desc": "Especificaciones tecnicas de bombas de vacio CPS para laboratorio"},
+    "08": {"category": "Manual de usuario / Gadnic", "tags": ["Serie TW", "paletas rotativas", "cambio de aceite", "solucion de problemas"], "desc": "Manual de usuario y troubleshooting de bombas Gadnic compactas"},
+    "09": {"category": "POE / Laboratorio", "tags": ["Thomas BV-1", "diafragma", "trampas", "silica gel", "seguridad"], "desc": "Procedimiento operativo para uso seguro de bomba de vacio en laboratorio"},
+    "10": {"category": "Tesis / Ladrillera", "tags": ["Arcillas de Colombia", "COVENIN 2500-93", "criticidad", "programacion anual"], "desc": "Plan completo de mantenimiento preventivo para empresa ladrillera con 37 equipos"}
 }
 
 # ============================================================================
@@ -210,11 +167,11 @@ DOCUMENT_METADATA = {
 
 SYSTEM_PROMPT = """Eres Letzy, Asistente Experto en Ingenieria de Mantenimiento Industrial, Operacion de Equipos y Gestion de Calidad. Tu base de conocimiento contiene 10 documentos tecnicos especializados.
 
-REGLAS DE RESPUESTA OBLIGATORIAS:
+REGLAS DE RESPUESTA:
 1. Se preciso, tecnico y conciso. Ve directo al dato solicitado.
 2. CITA SIEMPRE la fuente entre parentesis al final, usando el numero del archivo. Ejemplo: [Fuente: Archivo 10 - Tesis Arcillas de Colombia]
-3. Si te preguntan por PROCEDIMIENTOS o INSTRUCCIONES TECNICAS de equipos especificos, busca primero en el Archivo 10.
-4. Si te preguntan por COMO CALCULAR MTBF, MTTR o Disponibilidad, usa el Archivo 03.
+3. Si te preguntan por PROCEDIMIENTOS o INSTRUCCIONES TECNICAS de equipos especificos (extrusora, molino, banda transportadora), busca primero en el Archivo 10 (Arcillas de Colombia) que contiene los anexos detallados.
+4. Si te preguntan por COMO CALCULAR MTBF, MTTR o Disponibilidad, usa el Archivo 03 (KPIs) para las formulas y el Archivo 10 para ejemplos aplicados.
 5. Si te preguntan por BOMBAS DE VACIO, diferencia segun el contexto:
    - Laboratorio/acidos -> Archivo 09 (Thomas BV-1 con trampas)
    - Industrial/anillo liquido -> Archivo 05 (IMBIL)
@@ -224,12 +181,12 @@ REGLAS DE RESPUESTA OBLIGATORIAS:
 6. Si te preguntan por MOTORES Caterpillar G3408/G3412 -> Archivo 06
 7. Si te preguntan por ANALISIS DE CRITICIDAD o AMFE -> Archivo 04 o Archivo 10
 8. Si te preguntan por SISTEMAS DE CODIFICACION de equipos -> Archivo 01 o Archivo 10
-9. Si la informacion NO esta en los documentos, indica claramente que no la encuentras.
+9. Si la informacion NO esta en los documentos, di: "No encuentro esa informacion especifica en los documentos proporcionados. Puedes reformular tu pregunta o indicarme que equipo/sistema te interesa?"
 10. NUNCA inventes datos tecnicos, valores de torque, frecuencias de mantenimiento o especificaciones que no esten en los documentos.
 
 FORMATO DE RESPUESTA PREFERIDO:
 - Usa vinetas y tablas cuando sea posible
-- Incluye valores numericos exactos
+- Incluye valores numericos exactos (torques, frecuencias, tiempos)
 - Menciona el responsable (mecanico, electricista, operario) cuando aplique
 - Indica si la actividad es rutinaria (R) o programada (P)"""
 
@@ -499,12 +456,10 @@ def play_observation_alarm(event_id):
 # ============================================================================
 
 def load_test_data_from_csv():
-    """Carga datos de prueba desde el archivo CSV con conversion de unidades"""
     try:
         if os.path.exists(CSV_TEST_PATH):
             df = pd.read_csv(CSV_TEST_PATH)
             
-            # Mapeo de columnas del CSV
             column_mapping = {
                 'Timestamp': 'fecha_hora',
                 'Time_Seconds': 'time_seconds',
@@ -518,21 +473,17 @@ def load_test_data_from_csv():
             
             df = df.rename(columns=column_mapping)
             
-            # Convertir presion de vacio de mbar a kPa e invertir signo
             if 'vacuum_mbar' in df.columns:
                 df['presion_vacio_kpa'] = -(df['vacuum_mbar'] * 0.1)
             
-            # Convertir Timestamp a datetime
             if 'fecha_hora' in df.columns:
                 df['fecha_hora'] = pd.to_datetime(df['fecha_hora'], errors='coerce')
                 if df['fecha_hora'].isna().any():
                     start_date = datetime.now() - timedelta(minutes=len(df))
                     df['fecha_hora'] = [start_date + timedelta(minutes=i) for i in range(len(df))]
             
-            # Enriquecer datos con estado y riesgo
             df = enrich_data(df)
             
-            # Agregar columna de descripcion de falla si existe
             if 'fault_description' in df.columns:
                 df['fault_description'] = df['fault_description'].fillna('Normal')
             
@@ -624,38 +575,25 @@ def enrich_data(df):
     return df
 
 def get_alarms(row):
-    """Obtiene alarmas basadas en umbrales o en el status del CSV"""
     alarms = []
-    
-    # Si el CSV tiene columna Status, usarla directamente
-    if 'status' in row and row['status'] in ['ALARM', 'CRITICAL', 'TRIP', 'WARNING']:
-        fault_desc = row.get('fault_description', 'Falla detectada')
-        if pd.isna(fault_desc):
-            fault_desc = 'Falla detectada'
-        level = 'Critico' if row['status'] in ['CRITICAL', 'TRIP'] else 'Alerta'
-        
-        # Clasificar por tipo de falla
-        fault_lower = fault_desc.lower()
-        if 'vibracion' in fault_lower or 'vibration' in fault_lower:
-            alarms.append((level, "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s - {fault_desc}"))
-        elif 'vacio' in fault_lower or 'vacuum' in fault_lower:
-            alarms.append((level, "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa - {fault_desc}"))
-        elif 'temperatura' in fault_lower or 'sobrecalentamiento' in fault_lower or 'aceite' in fault_lower:
-            alarms.append((level, "Temperatura", f"{row['temperatura_c']:.1f} C - {fault_desc}"))
-        elif 'sobrecarga' in fault_lower or 'corriente' in fault_lower or 'electrica' in fault_lower:
-            if 'motor_current_a' in row:
-                alarms.append((level, "Corriente del motor", f"{row['motor_current_a']:.2f} A - {fault_desc}"))
-            else:
-                alarms.append((level, "Sobrecarga", fault_desc))
-        elif 'lubricacion' in fault_lower or 'termica' in fault_lower:
-            alarms.append((level, "Temperatura", f"{row['temperatura_c']:.1f} C - {fault_desc}"))
-        elif 'mecanica' in fault_lower or 'multiple' in fault_lower:
-            alarms.append((level, "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s - {fault_desc}"))
-            alarms.append((level, "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa - {fault_desc}"))
+    if 'status' in row and pd.notna(row['status']) and str(row['status']).strip() != 'OK':
+        level = 'Critico' if str(row['status']).upper() in ['CRITICAL', 'TRIP'] else 'Alerta'
+        desc = str(row.get('fault_description', 'Falla detectada')).strip()
+        if not desc or desc.lower() == 'nan':
+            desc = 'Falla detectada'
+
+        desc_lower = desc.lower()
+        if 'vibracion' in desc_lower or 'vibration' in desc_lower:
+            alarms.append((level, "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s - {desc}"))
+        elif 'vacio' in desc_lower or 'vacuum' in desc_lower:
+            alarms.append((level, "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa - {desc}"))
+        elif 'temperatura' in desc_lower or 'sobrecalentamiento' in desc_lower or 'aceite' in desc_lower:
+            alarms.append((level, "Temperatura", f"{row['temperatura_c']:.1f} C - {desc}"))
+        elif 'sobrecarga' in desc_lower or 'corriente' in desc_lower or 'electrica' in desc_lower:
+            alarms.append((level, "Corriente del motor", f"{row['motor_current_a']:.2f} A - {desc}"))
         else:
-            alarms.append((level, "General", fault_desc))
+            alarms.append((level, "General", desc))
     else:
-        # Fallback: usar umbrales tradicionales
         s = variable_status(row)
         if s["Vibracion"] != "Normal":
             alarms.append((s["Vibracion"], "Vibracion", f"{row['vibracion_rms_mm_s']:.2f} mm/s"))
@@ -663,7 +601,6 @@ def get_alarms(row):
             alarms.append((s["Temperatura"], "Temperatura", f"{row['temperatura_c']:.1f} C"))
         if s["Presion de vacio"] != "Normal":
             alarms.append((s["Presion de vacio"], "Presion de vacio", f"{row['presion_vacio_kpa']:.1f} kPa"))
-    
     return alarms
 
 def create_work_order_obj(row, asset_name, source="Automatica"):
@@ -747,11 +684,11 @@ def load_knowledge_base():
     for pdf_file in pdf_files:
         meta_key = None
         for key in DOCUMENT_METADATA.keys():
-            if key.lower() in pdf_file.lower():
+            if key in pdf_file:
                 meta_key = key
                 break
         
-        meta = DOCUMENT_METADATA.get(meta_key, {"id": 0, "category": "General", "tags": [], "desc": ""})
+        meta = DOCUMENT_METADATA.get(meta_key, {"category": "General", "tags": [], "desc": ""})
         
         pdf_path = os.path.join(PDF_DIR, pdf_file)
         text = extract_text_from_pdf(pdf_path)
@@ -760,7 +697,7 @@ def load_knowledge_base():
             chunks = chunk_text(text, chunk_size=400, overlap=80)
             for idx, chunk in enumerate(chunks):
                 kb.append({
-                    "doc_id": meta["id"],
+                    "doc_id": meta_key or "00",
                     "filename": pdf_file,
                     "category": meta["category"],
                     "tags": meta["tags"],
@@ -831,8 +768,6 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         current_context = f"""
 === ESTADO ACTUAL DEL EQUIPO ===
 Activo: {asset_name}
-Tag: {ASSETS[asset_name]['tag']}
-Criticidad: {ASSETS[asset_name]['criticality']}
 Estado: {latest['estado']}
 IR: {latest['indice_riesgo']:.1f}/100
 Vibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s
@@ -939,7 +874,11 @@ def process_floating_query(query, ai_platform="rag"):
     if not query or not query.strip():
         return
     q = query.strip()
-    st.session_state.floating_chat_history.append({"role": "user", "content": q})
+    
+    if "floating_chat_history" not in st.session_state:
+        st.session_state["floating_chat_history"] = []
+        
+    st.session_state["floating_chat_history"].append({"role": "user", "content": q})
     
     try:
         kp = calculate_kpis(720, 3, 18, 18, 20, 40, 80, st.session_state.get("production_rate", 85.5))
@@ -951,9 +890,9 @@ def process_floating_query(query, ai_platform="rag"):
         else:
             reply = chatbot_response_fallback(q, latest, asset_name, kp)
         
-        st.session_state.floating_chat_history.append({"role": "assistant", "content": reply})
+        st.session_state["floating_chat_history"].append({"role": "assistant", "content": reply})
     except Exception as e:
-        st.session_state.floating_chat_history.append({"role": "assistant", "content": f"Error: {e}"})
+        st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
 @st.dialog("Asistente Tech Maint Pro - Letzy", width="large")
 def floating_chat_dialog():
@@ -997,11 +936,12 @@ def floating_chat_dialog():
     st.caption("Respuestas basadas en 10 documentos tecnicos especializados")
     st.divider()
     
-    if not st.session_state.floating_chat_history:
+    chat_history = st.session_state.get("floating_chat_history", [])
+    if not chat_history:
         with st.chat_message("assistant", avatar=LETZY_BASE64):
             st.markdown("**HOLA, SOY LETZY TU ASISTENTE DE TECH MAINT PRO**\n\nEn que puedo ayudarte hoy? Tengo acceso a manuales tecnicos, procedimientos de mantenimiento, fichas de equipos y guias de KPIs.")
     
-    for msg in st.session_state.floating_chat_history[-10:]:
+    for msg in chat_history[-10:]:
         if msg["role"] == "assistant":
             with st.chat_message("assistant", avatar=LETZY_BASE64):
                 st.markdown(msg["content"])
@@ -1032,7 +972,7 @@ def floating_chat_dialog():
         if st.button("Temperatura", key="qr8", use_container_width=True):
             process_floating_query("Analiza la temperatura actual", ai_mode)
         if st.button("Limpiar", key="qr9", use_container_width=True):
-            st.session_state.floating_chat_history = []
+            st.session_state["floating_chat_history"] = []
     
     st.divider()
     ui = st.chat_input("Escribe tu consulta a Letzy...", key="fci")
@@ -1040,8 +980,8 @@ def floating_chat_dialog():
         process_floating_query(ui, ai_mode)
     
     if st.button("Cerrar chat", key="fcc", use_container_width=True):
-        st.session_state.floating_chat_open = False
-        st.session_state.auto_chat_triggered = False
+        st.session_state["floating_chat_open"] = False
+        st.session_state["auto_chat_triggered"] = False
 
 # ============================================================================
 # BOTON FLOTANTE DE LETZY - HTML FIJO EN EL DOM
@@ -1054,14 +994,14 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 if "open_letzy" in st.query_params:
-    st.session_state.floating_chat_open = True
+    st.session_state["floating_chat_open"] = True
     st.query_params.clear()
 
 if st.session_state.get("floating_chat_open", False):
     floating_chat_dialog()
 
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
-    st.session_state.floating_chat_open = True
+    st.session_state["floating_chat_open"] = True
 
 # ============================================================================
 # VISUALIZACION - GRAFICAS
@@ -1124,7 +1064,7 @@ sd = {
     "running": True, "sim_idx": 1, "orders": [], "last_order_event": None,
     "chat_history": [], "theme_mode": "default", "kb_docs": [],
     "kb_chunks": [], "kb_ready": False, "last_beep_event": None,
-    "floating_chat_open": False, "floating_chat_history": [],  
+    "floating_chat_open": False, "floating_chat_history": [],
     "auto_chat_triggered": False, "previous_estado": None,
     "scenario": "Operacion normal", "seed": 42, "n_hours": 168,
     "step_speed": 1, "production_rate": 85.5, "groq_api_key": "",
@@ -1136,7 +1076,6 @@ for k, v in sd.items():
 
 apply_custom_styles()
 
-# Cargar base de conocimiento al inicio
 if not st.session_state.get("kb_loaded", False):
     with st.spinner("Cargando base de conocimiento PDF..."):
         load_knowledge_base()
@@ -1162,72 +1101,62 @@ st.markdown(f"""
                 <line x1="16" y1="17" x2="8" y2="17"></line>
                 <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-              Documentos
+            Documentos
         </a>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Selector de modo de datos
 col_mode1, col_mode2 = st.columns([3, 1])
 with col_mode1:
     st.caption("Seleccione el modo de datos para la demostracion")
 with col_mode2:
     use_test_data = st.checkbox("Usar datos de prueba CSV", value=st.session_state.get("use_test_data", True), key="use_test_data_checkbox")
-    st.session_state.use_test_data = use_test_data
+    st.session_state["use_test_data"] = use_test_data
 
 tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Impacto Circular", "KPIs"])
 
 asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visibility="collapsed")
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
 
-# Mostrar modo y velocidad
-if st.session_state.use_test_data:
-    st.info(f" Modo: Datos CSV | Velocidad: 1 registro cada 10 segundos | Total: {len(DF_FULL) if 'DF_FULL' in locals() else 0} registros")
-else:
-    st.info(f" Modo: Datos Sintéticos | Velocidad: 3 registros por segundo")
-
 # ============================================================================
 # SIMULACION
 # ============================================================================
 
-# Cargar datos de prueba o generar datos sinteticos
-if st.session_state.use_test_data:
+if st.session_state.get("use_test_data", True):
     DF_FULL = load_test_data_from_csv()
     if DF_FULL is None:
         st.warning("No se encontro el archivo CSV de prueba. Usando datos sinteticos.")
         DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
-        st.session_state.step_speed = 3  # Datos sintéticos: más rápido
+        st.session_state["step_speed"] = 3
+        st.info("Modo: Datos Sinteticos | Velocidad: 3 registros por segundo")
+    else:
+        st.session_state["step_speed"] = 1
+        st.info(f"Modo: Datos CSV | Velocidad: 1 registro cada 10 segundos | Total: {len(DF_FULL)} registros")
 else:
     DF_FULL = generate_synthetic_data(st.session_state.scenario, n=st.session_state.n_hours, seed=int(st.session_state.seed))
-    st.session_state.step_speed = 3  # Datos sintéticos: más rápido
+    st.session_state["step_speed"] = 3
+    st.info("Modo: Datos Sinteticos | Velocidad: 3 registros por segundo")
 
-# AJUSTAR VELOCIDAD SEGÚN MODO
-if st.session_state.use_test_data and DF_FULL is not None:
-    st.session_state.step_speed = 1  # CSV: 1 registro cada actualización (10 segundos reales)
-    
 max_idx = len(DF_FULL)
-st.session_state.sim_idx = min(max(1, st.session_state.sim_idx), max_idx)
+st.session_state["sim_idx"] = min(max(1, st.session_state.sim_idx), max_idx)
 
 if st.session_state.running and st.session_state.sim_idx < max_idx:
-    # Ajustar intervalo según modo: 10000ms para CSV, 1000ms para sintético
-    refresh_interval = 10000 if st.session_state.use_test_data else 1000
-    
-    if HAS_AUTOREFRESH: 
+    if HAS_AUTOREFRESH:
+        refresh_interval = 10000 if st.session_state.get("use_test_data", True) else 1000
         st_autorefresh(interval=refresh_interval, key="tm_live")
-    
-    st.session_state.sim_idx = min(max_idx, st.session_state.sim_idx + st.session_state.step_speed)
+    st.session_state["sim_idx"] = min(max_idx, st.session_state.sim_idx + st.session_state.step_speed)
 elif st.session_state.sim_idx >= max_idx:
-    st.session_state.sim_idx = 1
+    st.session_state["sim_idx"] = 1
 
 DF = DF_FULL.iloc[:st.session_state.sim_idx].copy()
 latest = DF.iloc[-1]
-st.session_state.latest_row = latest
-st.session_state.asset_name = asset_name
+st.session_state["latest_row"] = latest
+st.session_state["asset_name"] = asset_name
 
 current_estado = latest["estado"]
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
-    st.session_state.auto_chat_triggered = True
+    st.session_state["auto_chat_triggered"] = True
     if current_estado == "Critico": play_critical_alarm(f"{latest['fecha_hora']}-critical")
     else: play_observation_alarm(f"{latest['fecha_hora']}-alert")
     
@@ -1235,9 +1164,9 @@ if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado 
     if pd.isna(fault_desc):
         fault_desc = ''
     alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
-    st.session_state.floating_chat_history.append({"role": "assistant", "content": alert_msg})
+    st.session_state["floating_chat_history"].append({"role": "assistant", "content": alert_msg})
 
-st.session_state.previous_estado = current_estado
+st.session_state["previous_estado"] = current_estado
 
 if latest["estado"] in ["Alerta", "Critico"]:
     ek = f"{latest['fecha_hora']}-{latest['estado']}"
@@ -1251,7 +1180,7 @@ if latest["estado"] in ["Alerta", "Critico"]:
                 (new_ot["ot_id"], new_ot["asset_name"], new_ot["alert_id"], new_ot["description"], new_ot["priority"], new_ot["responsible"], new_ot["creation_date"], new_ot["status"], new_ot["created_by"], datetime.now().isoformat()))
             conn.commit()
         conn.close()
-        st.session_state.last_order_event = ek
+        st.session_state["last_order_event"] = ek
 
 # ============================================================================
 # TAB 1: MONITOREO
