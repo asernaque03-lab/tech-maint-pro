@@ -1953,7 +1953,40 @@ with tabs[4]:
     with sub_tabs[1]:
         st.markdown("<h2>Panel de Impacto Circular</h2>", unsafe_allow_html=True)
         st.markdown("Registro de decisiones de mantenimiento y su impacto en la conservacion de recursos")
-        
+        # BOTÓN PARA CARGAR DATOS DE DEMOSTRACIÓN
+if st.button(" Cargar Datos de Demostración", use_container_width=True):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Datos de demostración
+    datos_demo = [
+        ("OT-20261020-P1", "Bomba de vacio BV-01", "Rodamiento SKF 6205", "Reparacion", "Reparado", 8.5, 0.3, 250, 1500, 12.5, 2000, 95.0),
+        ("OT-20261018-P2", "Motor CAT 3408 MD-01", "Filtro de aceite", "Reemplazo Parcial", "Reutilizado", 2.1, 0.8, 80, 450, 3.2, 500, 98.0),
+        ("OT-20261015-P1", "Compresor Leroi CA-01", "Correa de transmision", "Reparacion", "Reparado", 5.2, 0.1, 180, 800, 8.7, 1500, 92.0),
+        ("OT-20261012-P0", "Bomba de vacio BV-01", "Sello mecanico", "Reemplazo Total", "Reemplazado", 0.0, 3.5, 0, 2200, 0.0, 0, 100.0),
+        ("OT-20261010-P1", "Motor CAT 3408 MD-01", "Inyector de combustible", "Reparacion", "Reparado", 12.8, 0.5, 450, 3200, 18.3, 3000, 96.0),
+        ("OT-20261008-P2", "Compresor Leroi CA-01", "Filtro de aire", "Reemplazo Parcial", "Reutilizado", 1.5, 0.4, 60, 320, 2.1, 400, 97.0),
+        ("OT-20261005-P1", "Bomba de vacio BV-01", "Eje principal", "Reparacion", "Reparado", 15.3, 0.2, 680, 4500, 22.5, 4000, 94.0),
+        ("OT-20261002-P0", "Motor CAT 3408 MD-01", "Turbo compresor", "Reemplazo Total", "Reemplazado", 0.0, 18.5, 0, 8500, 0.0, 0, 100.0),
+    ]
+    
+    for row in datos_demo:
+        try:
+            c.execute("""INSERT INTO circular_interventions 
+                (ot_id, asset_name, component, decision, result, 
+                 mass_conserved_kg, mass_discarded_kg, 
+                 costo_reparacion_eur, costo_reemplazo_nuevo_eur, 
+                 co2_evitado_kg, vida_util_extendida_horas, 
+                 disponibilidad_post_reparacion_pct, recorded_date, recorded_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (*row, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Dario Minan"))
+        except sqlite3.IntegrityError:
+            pass  # Si ya existe, ignorar
+    
+    conn.commit()
+    conn.close()
+    st.success("Datos de demostración cargados correctamente!")
+    st.rerun()
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
