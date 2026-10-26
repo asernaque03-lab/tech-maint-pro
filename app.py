@@ -114,6 +114,7 @@ LOGO_PATH = os.path.join(APP_DIR, "logo.png")
 LETZY_PATH = os.path.join(APP_DIR, "letzy.png")
 
 LOGO_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iIzFhNWZhOCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiPlRFQ0ggTUFJTlQ8L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI3MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmNWE2MjMiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5QUk88L3RleHQ+PC9zdmc+"
+
 LETZY_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MCIgaGVpZ2h0PSI5MCI+PGNpcmNsZSBjeD0iNDUiIGN5PSI0NSIgcj0iNDIiIGZpbGw9IiMxYTVmYTgiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5MPC90ZXh0Pjwvc3ZnPg=="
 
 LOGO_BASE64 = load_image_as_base64(LOGO_PATH, LOGO_FALLBACK)
@@ -133,16 +134,113 @@ st.set_page_config(
     page_title="Tech Maint Pro",
     page_icon="",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",  # Sidebar expandido por defecto
 )
 
+# CSS personalizado para maximizar espacio visible
 st.markdown("""
 <style>
     .main > div {padding-top: 2rem;}
     .stChatMessage {margin: 0.5rem 0;}
-    [data-testid="stSidebar"] {display: none;}
     .block-container {padding-top: 1rem; padding-bottom: 1rem;}
-    .stChatInputContainer {position: fixed; bottom: 1rem; width: 100%; max-width: 800px;}
+    
+    /* Ajustes para el sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #e8ecf1 !important;
+        z-index: 9998 !important;
+        padding-top: 1.5rem !important;
+        box-shadow: 4px 0 15px rgba(0,0,0,0.05) !important;
+    }
+    
+    .metric-card {
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-align: center;
+        border: none;
+    }
+    .metric-card:hover { 
+        transform: translateY(-5px); 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    }
+    
+    .status-normal { background: #8bc34a !important; }
+    .status-alerta { background: #f5a623 !important; }
+    .status-critico { background: #d32f2f !important; }
+    
+    .alarm-banner {
+        background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
+        border-left: 5px solid #f5a623;
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        border: 1px solid rgba(245,166,35,0.3);
+    }
+    .alarm-critical {
+        background: linear-gradient(90deg, rgba(211,47,47,0.15), rgba(211,47,47,0.05));
+        border-left: 5px solid #d32f2f;
+        border: 1px solid rgba(211,47,47,0.3);
+    }
+    
+    h1, h2, h3, p, label, span, div { 
+        color: #1a2b4c !important; 
+    }
+    .stMarkdown p { color: #1a2b4c !important; }
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { 
+        color: #1a5fa8 !important; 
+    }
+    
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background: rgba(26,95,168,0.1) !important;
+        color: #1a2b4c !important;
+        border-radius: 8px 8px 0 0;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background: #1a5fa8 !important;
+        color: white !important;
+    }
+    
+    .stSelectbox {
+        margin-bottom: 8px;
+    }
+    
+    .stDataFrame {
+        margin: 0 auto;
+    }
+    
+    .doc-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #1a5fa8, #8bc34a);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .doc-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        color: white;
+    }
+
+    section[data-testid="stSidebar"] .stChatMessage {
+        background-color: #f5f7fa !important;
+        border: 1px solid #e8ecf1 !important;
+        border-radius: 12px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -466,143 +564,6 @@ def play_observation_alarm(event_id):
             logger.warning(f"No se pudo reproducir alarma observacion: {e}")
     else:
         logger.info(f"[ALARMA OBSERVACION SIMULADA] {event_id}")
-
-# ============================================================================
-# ESTILOS CSS PERSONALIZADOS
-# ============================================================================
-
-def apply_custom_styles():
-    css = f"""
-    <style>
-    .stApp {{ 
-        background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; 
-        padding-top: 0 !important;
-    }}
-    
-    section[data-testid="stSidebar"] {{
-        left: auto !important;
-        right: 0 !important;
-        width: 400px !important;
-        min-width: 400px !important;
-        background-color: #ffffff !important;
-        border-left: 1px solid #e8ecf1 !important;
-        z-index: 9998 !important;
-        padding-top: 1.5rem !important;
-        box-shadow: -4px 0 15px rgba(0,0,0,0.05) !important;
-    }}
-    
-    .stApp > div[data-testid="stAppViewBlockContainer"] {{
-        margin-right: 400px !important;
-    }}
-
-    div[data-testid="stSidebarCollapsedControl"] {{
-        position: fixed !important;
-        top: -100px !important; 
-        z-index: -1 !important;
-    }}
-
-    .metric-card {{
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        text-align: center;
-        border: none;
-    }}
-    .metric-card:hover {{ 
-        transform: translateY(-5px); 
-        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-    }}
-    
-    .status-normal {{ background: {COLORS['verde']} !important; }}
-    .status-alerta {{ background: {COLORS['amarillo']} !important; }}
-    .status-critico {{ background: {COLORS['rojo']} !important; }}
-    
-    .alarm-banner {{
-        background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
-        border-left: 5px solid {COLORS['amarillo']};
-        border-radius: 12px;
-        padding: 12px 16px;
-        margin-bottom: 12px;
-        border: 1px solid rgba(245,166,35,0.3);
-    }}
-    .alarm-critical {{
-        background: linear-gradient(90deg, rgba(211,47,47,0.15), rgba(211,47,47,0.05));
-        border-left: 5px solid {COLORS['rojo']};
-        border: 1px solid rgba(211,47,47,0.3);
-    }}
-    
-    h1, h2, h3, p, label, span, div {{ 
-        color: {COLORS['texto_oscuro']} !important; 
-    }}
-    .stMarkdown p {{ color: {COLORS['texto_oscuro']} !important; }}
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {{ 
-        color: {COLORS['azul']} !important; 
-    }}
-    
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 4px;
-        margin-bottom: 8px;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        background: rgba(26,95,168,0.1) !important;
-        color: {COLORS['texto_oscuro']} !important;
-        border-radius: 8px 8px 0 0;
-        padding: 8px 16px;
-        font-size: 0.9rem;
-    }}
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
-        background: {COLORS['azul']} !important;
-        color: white !important;
-    }}
-    
-    .stSelectbox {{
-        margin-bottom: 8px;
-    }}
-    
-    .stDataFrame {{
-        margin: 0 auto;
-    }}
-    
-    .doc-button {{
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 20px;
-        background: linear-gradient(135deg, #1a5fa8, #8bc34a);
-        color: white;
-        text-decoration: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }}
-    .doc-button:hover {{
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        color: white;
-    }}
-
-    section[data-testid="stSidebar"] .stChatMessage {{
-        background-color: #f5f7fa !important;
-        border: 1px solid #e8ecf1 !important;
-        border-radius: 12px !important;
-    }}
-    
-    @media (max-width: 768px) {{
-        .metric-value {{ font-size: 1.5rem !important; }}
-        section[data-testid="stSidebar"] {{
-            width: 100% !important;
-            min-width: 100% !important;
-        }}
-        .stApp > div[data-testid="stAppViewBlockContainer"] {{
-            margin-right: 0 !important;
-        }}
-    }}
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
 
 # ============================================================================
 # FUNCIONES DE DATOS Y RIESGO
@@ -1412,14 +1373,8 @@ for k, v in sd.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-apply_custom_styles()
-
-if not st.session_state.get("kb_loaded", False):
-    with st.spinner("Cargando base de conocimiento PDF..."):
-        load_knowledge_base()
-
 # ============================================================================
-# PANEL LATERAL DE CHAT
+# SIDEBAR CON CHATBOT LETZY
 # ============================================================================
 
 with st.sidebar:
@@ -1450,19 +1405,20 @@ with st.sidebar:
 
     chat_history = st.session_state.get("floating_chat_history", [])
     
-    st.markdown('<div style="height: 400px; overflow-y: auto; padding-right: 5px;">', unsafe_allow_html=True)
-    if not chat_history:
-        with st.chat_message("assistant", avatar=LETZY_BASE64):
-            st.markdown("**Hola! Soy Letzy.**\n\nEn que puedo ayudarte? Puedo consultar los manuales tecnicos o responder rapidamente.")
-    
-    for msg in chat_history[-15:]:
-        if msg["role"] == "assistant":
+    # Contenedor scrollable para el chat
+    chat_container = st.container(height=400)
+    with chat_container:
+        if not chat_history:
             with st.chat_message("assistant", avatar=LETZY_BASE64):
-                st.markdown(msg["content"])
-        else:
-            with st.chat_message("user"):
-                st.markdown(msg["content"])
-    st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown("**Hola! Soy Letzy.**\n\nEn que puedo ayudarte? Puedo consultar los manuales tecnicos o responder rapidamente.")
+        
+        for msg in chat_history[-15:]:
+            if msg["role"] == "assistant":
+                with st.chat_message("assistant", avatar=LETZY_BASE64):
+                    st.markdown(msg["content"])
+            else:
+                with st.chat_message("user"):
+                    st.markdown(msg["content"])
 
     st.divider()
     
@@ -2300,3 +2256,8 @@ with tabs[4]:
 
 st.divider()
 st.caption("Tech Maint Pro | Prototipo profesional SeedTech 2026 | Los umbrales son referenciales")
+
+# Cargar base de conocimiento si no está cargada
+if not st.session_state.get("kb_loaded", False):
+    with st.spinner("Cargando base de conocimiento PDF..."):
+        load_knowledge_base()
