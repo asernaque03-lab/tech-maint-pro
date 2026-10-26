@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import io
+import json
 import math
 import os
 import re
@@ -98,7 +99,7 @@ COLORS = {
 }
 
 # ============================================================================
-# CARGA DE IMAGENES PNG LOCALES (CORREGIDO)
+# CARGA DE IMAGENES PNG LOCALES
 # ============================================================================
 
 def load_image_as_base64(image_path, fallback_svg=""):
@@ -122,14 +123,10 @@ LOGO_BASE64 = load_image_as_base64(LOGO_PATH)
 LETZY_BASE64 = load_image_as_base64(LETZY_PATH)
 
 def render_logo(size="180px"):
-    if LOGO_BASE64:
-        return f'<img src="{LOGO_BASE64}" style="width:{size}; height:auto; display:inline-block;" />'
-    return f'<div style="width:{size}; height:60px; background:#1a5fa8; display:inline-block; border-radius:8px; text-align:center; line-height:60px; color:white; font-weight:bold;">TECH MAINT PRO</div>'
+    return f'<img src="{LOGO_BASE64}" style="width:{size}; height:auto; display:inline-block;" />'
 
 def render_letzy(size="60px"):
-    if LETZY_BASE64:
-        return f'<img src="{LETZY_BASE64}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block; object-fit:cover;" />'
-    return f'<div style="width:{size}; height:{size}; background:linear-gradient(135deg, #1a5fa8, #8bc34a); border-radius:50%; display:inline-block; text-align:center; line-height:{size}; color:white; font-weight:bold;">L</div>'
+    return f'<img src="{LETZY_BASE64}" style="width:{size}; height:{size}; border-radius:50%; display:inline-block; object-fit:cover;" />'
 
 # ============================================================================
 # CONFIGURACION PAGINA
@@ -271,7 +268,8 @@ def send_email(to_email, subject, body_html):
         
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
-        server.login(STAFF["asesor"]["email"], "")
+        # NOTA: Reemplaza "910314782" con tu contraseña de aplicación de Google real si falla.
+        server.login(STAFF["asesor"]["email"], "910314782")
         server.send_message(msg)
         server.quit()
         logger.info(f"Email enviado a {to_email}: {subject}")
@@ -793,8 +791,26 @@ def chunk_text(text, chunk_size=500, overlap=100):
     return chunks
 
 def load_knowledge_base():
-    kb = []
+    cache_file = os.path.join(APP_DIR, "kb_cache.json")
     pdf_files = [f for f in os.listdir(PDF_DIR) if f.endswith('.pdf')]
+    
+    # Verificar si el caché existe y es válido
+    use_cache = False
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+            if len(cache_data.get('pdf_files', [])) == len(pdf_files) and len(cache_data.get('kb', [])) > 0:
+                use_cache = True
+                st.session_state.knowledge_base = cache_data['kb']
+                st.session_state.kb_loaded = True
+                logger.info("Base de conocimiento cargada desde caché.")
+                return
+        except Exception:
+            pass # Si falla la lectura del caché, se reconstruye
+
+    # Si no hay caché o es inválido, reconstruir
+    kb = []
     for pdf_file in pdf_files:
         meta_key = None
         for key in DOCUMENT_METADATA.keys():
@@ -806,9 +822,26 @@ def load_knowledge_base():
         if text.strip():
             chunks = chunk_text(text, chunk_size=400, overlap=80)
             for idx, chunk in enumerate(chunks):
-                kb.append({"doc_id": meta_key or "00", "filename": pdf_file, "category": meta["category"], "tags": meta["tags"], "chunk_idx": idx, "content": chunk, "total_chunks": len(chunks)})
+                kb.append({
+                    "doc_id": meta_key or "00", 
+                    "filename": pdf_file, 
+                    "category": meta["category"], 
+                    "tags": meta["tags"], 
+                    "chunk_idx": idx, 
+                    "content": chunk, 
+                    "total_chunks": len(chunks)
+                })
+    
     st.session_state.knowledge_base = kb
     st.session_state.kb_loaded = True
+    
+    # Guardar en caché
+    try:
+        with open(cache_file, 'w') as f:
+            json.dump({'pdf_files': pdf_files, 'kb': kb}, f)
+    except Exception as e:
+        logger.warning(f"No se pudo guardar caché: {e}")
+        
     logger.info(f"Base de conocimiento cargada: {len(kb)} chunks de {len(pdf_files)} documentos")
 
 def search_knowledge_base(query, top_k=5):
@@ -854,7 +887,6 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
             {"role": "user", "content": user_query}
         ]
         
-        # MODELO CORREGIDO - usa llama-3.1-8b-instant que es gratuito y estable
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=messages,
@@ -864,7 +896,6 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error en Groq RAG: {e}")
-        # Si falla Groq, usar fallback automaticamente
         return chatbot_response_fallback(user_query, latest, asset_name, kpi_values)
 
 def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
@@ -873,11 +904,9 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
     alarms = get_alarms(latest)
     at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
     
-    # SALUDOS
     if any(k in text for k in ["hola", "ayuda", "quiero", "necesito", "buenas", "hey"]):
         return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con:\n- Diagnostico del equipo\n- Generacion de ordenes de trabajo\n- Analisis AMEF y modos de falla\n- Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n- Impacto circular y sostenibilidad\n- Procedimientos de mantenimiento\n\nEscribe tu consulta o usa los botones rapidos."
     
-    # ESTADO Y DIAGNOSTICO
     if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico", "como esta", "situacion"]):
         na = [a[1] for a in alarms]
         if "Vibracion" in na and "Temperatura" in na: 
@@ -895,7 +924,6 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
         acc = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT Prioridad 0 - Atencion inmediata requerida"
         return f"**Diagnostico Actual**\n\n{sl}\n\n**Alarmas activas:** {at if at != 'Sin alarmas' else 'Ninguna'}\n\n**Hipotesis tecnica:** {hip}\n\n**Accion recomendada:** {acc}\n\n[Fuente: Archivo 03 - Gestion KPIs]"
     
-    # ORDENES DE TRABAJO
     if any(k in text for k in ["orden", "trabajo", "ot", "generar", "crear ot", "nueva ot"]):
         pri = "P0" if latest["estado"] == "Critico" else "P1" if latest["estado"] == "Alerta" else "P2"
         sint = "; ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) or "Mantenimiento preventivo programado"
@@ -907,61 +935,48 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
         if not tareas: tareas = ["Inspeccion visual general", "Verificacion de parametros operativos", "Limpieza de componentes"]
         return f"**OT Sugerida**\n\n**Prioridad:** {pri}\n**Activo:** {asset_name}\n**Sintomas:** {sint}\n\n**Tareas sugeridas:**\n" + "\n".join([f"- {t}" for t in tareas]) + f"\n\n**Responsable asignado:** {STAFF['tecnico']['nombre'] if pri in ['P0','P1'] else STAFF['asesor']['nombre']}\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
     
-    # VIBRACION
     if any(k in text for k in ["vibracion", "vibra", "oscilacion", "rms"]):
         v = latest["vibracion_rms_mm_s"]
         vs = "Critico" if v >= THRESHOLDS["vibration_alert"] else "Alerta" if v >= THRESHOLDS["vibration_normal"] else "Normal"
         return f"**Analisis de Vibracion RMS**\n\n**Lectura actual:** {v:.2f} mm/s\n**Estado:** {vs}\n**Umbral Alerta:** {THRESHOLDS['vibration_normal']} mm/s\n**Umbral Critico:** {THRESHOLDS['vibration_alert']} mm/s\n\n**Causas posibles:**\n- Desgaste de rodamientos\n- Desalineacion del eje\n- Desbalance de rotor\n- Holgura mecanica\n- Resonancia estructural\n\n**Acciones recomendadas:**\n1. Medir vibracion en 3 ejes (horizontal, vertical, axial)\n2. Analizar espectro de frecuencias\n3. Verificar alineacion laser\n4. Inspeccionar estado de rodamientos\n5. Revisar lubricacion\n\n[Fuente: Archivo 05 - Manual IMBIL]"
     
-    # TEMPERATURA
     if any(k in text for k in ["temperatura", "temp", "calor", "sobrecalentamiento", "aceite"]):
         t = latest["temperatura_c"]
         ts = "Critico" if t >= THRESHOLDS["temperature_alert"] else "Alerta" if t >= THRESHOLDS["temperature_normal"] else "Normal"
         return f"**Analisis de Temperatura**\n\n**Lectura actual:** {t:.1f} C\n**Estado:** {ts}\n**Umbral Alerta:** {THRESHOLDS['temperature_normal']} C\n**Umbral Critico:** {THRESHOLDS['temperature_alert']} C\n\n**Causas posibles:**\n- Friccion interna excesiva\n- Lubricacion deficiente o aceite degradado\n- Sobrecarga del motor\n- Falla en sistema de enfriamiento\n- Obstruccion de flujo\n\n**Acciones recomendadas:**\n1. Verificar nivel y calidad del aceite\n2. Inspeccionar sistema de enfriamiento\n3. Medir corriente del motor\n4. Revisar carga operativa\n5. Limpiar filtros y intercambiadores\n\n[Fuente: Archivo 06 - Manual Caterpillar]"
     
-    # VACIO
     if any(k in text for k in ["vacio", "presion", "succcion", "mbar", "kpa"]):
         p = latest["presion_vacio_kpa"]
         ps = "Critico" if p >= THRESHOLDS["vacuum_alert"] else "Alerta" if p >= THRESHOLDS["vacuum_normal"] else "Normal"
         return f"**Analisis de Presion de Vacio**\n\n**Lectura actual:** {p:.1f} kPa\n**Estado:** {ps}\n**Umbral Alerta:** {THRESHOLDS['vacuum_normal']} kPa\n**Umbral Critico:** {THRESHOLDS['vacuum_alert']} kPa\n\n*Nota: Valores mas negativos indican mejor vacio*\n\n**Causas posibles de perdida de vacio:**\n- Fuga en linea de succion\n- Deterioro de sellos mecanicos\n- Obstruccion en filtros\n- Falla en bomba de vacio\n- Entrada de aire no deseada\n\n**Acciones recomendadas:**\n1. Realizar prueba de fugas con helio\n2. Inspeccionar sellos y juntas\n3. Revisar tuberias y conexiones\n4. Verificar estado de filtros\n5. Medir caudal de succion\n\n[Fuente: Archivo 09 - POE Laboratorio]"
     
-    # KPIs
     if any(k in text for k in ["kpi", "indicador", "metrica", "mtbf", "mttr", "disponibilidad", "rendimiento"]):
         return f"**KPIs de Mantenimiento**\n\n**MTBF (Tiempo Medio Entre Fallas):** {kpi_values['MTBF (h)']:.1f} horas\n**MTTR (Tiempo Medio de Reparacion):** {kpi_values['MTTR (h)']:.1f} horas\n**Disponibilidad:** {kpi_values['Disponibilidad (%)']:.2f}%\n**Confiabilidad a 24h:** {kpi_values['Confiabilidad 24h (%)']:.2f}%\n**Cumplimiento PM:** {kpi_values['Cumplimiento PM (%)']:.1f}%\n**Backlog:** {kpi_values['Backlog (semanas)']:.1f} semanas\n**Perdida productiva:** {kpi_values['Perdida productiva (t)']:.1f} toneladas\n\n**Interpretacion:**\n- MTBF alto = Equipo confiable\n- MTTR bajo = Reparaciones rapidas\n- Disponibilidad > 95% = Excelente\n- Cumplimiento PM > 90% = Buen programa preventivo\n\n[Fuente: Archivo 03 - Gestion KPIs]"
     
-    # AMEF / RCM
     if any(k in text for k in ["amef", "rcm", "falla", "modo de falla", "criticidad", "fmeca"]):
         return f"**Analisis AMEF / RCM**\n\n**Modos de falla identificados para {asset_name}:**\n\n1. **Vibracion alta**\n   - Causa: Desgaste de rodamientos / Desalineacion\n   - Efecto: Aumento de vibracion y temperatura\n   - Criticidad: Alta\n   - Tareas: Medir vibracion, verificar alineacion\n\n2. **Temperatura alta**\n   - Causa: Friccion interna / Lubricacion deficiente\n   - Efecto: Degradacion acelerada de componentes\n   - Criticidad: Media-Alta\n   - Tareas: Revisar lubricante, inspeccionar enfriamiento\n\n3. **Perdida de vacio**\n   - Causa: Fuga en linea / Deterioro de sellos\n   - Efecto: Reduccion de succion y parada del equipo\n   - Criticidad: Alta\n   - Tareas: Prueba de fugas, inspeccionar sellos\n\n4. **Sobrecarga electrica**\n   - Causa: Falla en devanado / Bloqueo mecanico\n   - Efecto: Danos al motor y parada no programada\n   - Criticidad: Critica\n   - Tareas: Medir corriente, revisar devanado\n\n[Fuente: Archivo 04 - Tesis AMFE]"
     
-    # IMPACTO CIRCULAR
     if any(k in text for k in ["circular", "impacto", "residuo", "sostenibilidad", "economia circular", "reciclaje"]):
         return f"**Panel de Impacto Circular**\n\nEl modulo de economia circular registra las decisiones de mantenimiento que permiten conservar componentes y minimizar residuos.\n\n**Como registrar una intervencion circular:**\n1. Cerrar una Orden de Trabajo\n2. Seleccionar decision tomada:\n   - Inspeccion (sin cambio de componente)\n   - Reparacion (componente reparado in-situ)\n   - Reemplazo Parcial (solo piezas danadas)\n   - Reemplazo Total (componente completo)\n3. Registrar masa conservada (kg)\n4. Registrar masa descartada (kg)\n5. El sistema calcula automaticamente:\n   - Tasa de circularidad\n   - CO2 evitado\n   - Ahorro economico\n   - ROI de economia circular\n\n**Meta:** Tasa de circularidad > 70% (industria clase mundial)\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
     
-    # PROCEDIMIENTOS
     if any(k in text for k in ["procedimiento", "como hacer", "pasos", "instruccion", "manual"]):
         return f"**Procedimientos de Mantenimiento**\n\nPara {asset_name} ({ASSETS[asset_name]['tag']}):\n\n**Mantenimiento Rutinario (semanal):**\n1. Inspeccion visual de fugas\n2. Verificacion de niveles de aceite\n3. Medicion de vibracion basica\n4. Limpieza de filtros\n\n**Mantenimiento Programado (mensual):**\n1. Analisis de vibracion completo\n2. Termografia de componentes electricos\n3. Prueba de vacio\n4. Alineacion de eje\n\n**Mantenimiento Predictivo (trimestral):**\n1. Analisis de aceite\n2. Ultrasonido de rodamientos\n3. Balanceo dinamico\n4. Inspeccion de sellos\n\n**Responsables:**\n- Rutinario: Operario\n- Programado: Tecnico de mantenimiento\n- Predictivo: Especialista / Asesor\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
     
-    # REPUESTOS
     if any(k in text for k in ["repuesto", "stock", "inventario", "almacen", "pieza"]):
         return f"**Gestion de Repuestos para {asset_name}**\n\n**Repuestos criticos recomendados:**\n- Rodamientos SKF 6205-2RS (x2)\n- Sellos mecanicos tipo 2100\n- Aceite ISO VG 68 (5L)\n- Filtro de succion\n- Correa de transmision\n\n**Nivel minimo de stock:** 2 unidades por repuesto critico\n\n**Tiempo de entrega proveedor:** 3-5 dias habiles\n\n**Recomendacion:** Mantener inventario de seguridad para componentes con MTBF < 500 horas\n\n[Fuente: Archivo 05 - Manual IMBIL]"
     
-    # SEGURIDAD
     if any(k in text for k in ["seguridad", "epp", "lockout", "loto", "bloqueo", "riesgo"]):
         return f"**Protocolos de Seguridad**\n\n**Antes de intervenir {asset_name}:**\n1. Aplicar procedimiento LOTO (Lockout/Tagout)\n2. Verificar ausencia de energia\n3. Usar EPP completo:\n   - Casco de seguridad\n   - Gafas de proteccion\n   - Guantes dielectricos\n   - Calzado de seguridad\n   - Proteccion auditiva\n\n**Riesgos identificados:**\n- Energia electrica (440V)\n- Partes en movimiento\n- Superficies calientes\n- Presion de vacio\n\n**Permiso requerido:** Trabajo en caliente / Espacio confinado (si aplica)\n\n[Fuente: Archivo 09 - POE Laboratorio]"
     
-    # HISTORIAL
     if any(k in text for k in ["historial", "ultima", "anterior", "previa", "registro"]):
         return f"**Historial de {asset_name}**\n\n**Ultimas intervenciones registradas:**\n- Mantenimiento preventivo: hace 15 dias\n- Cambio de aceite: hace 30 dias\n- Alineacion de eje: hace 45 dias\n- Inspeccion de rodamientos: hace 60 dias\n\n**Proxima intervencion programada:**\n- Mantenimiento preventivo: en 15 dias\n- Cambio de filtros: en 30 dias\n\n**Total de OTs cerradas este mes:** 8\n**Tasa de cumplimiento:** 92%\n\n[Fuente: Archivo 03 - Gestion KPIs]"
     
-    # COSTOS
     if any(k in text for k in ["costo", "precio", "presupuesto", "gasto", "inversion", "ahorro"]):
         return f"**Analisis de Costos - {asset_name}**\n\n**Costo de reparacion vs reemplazo:**\n- Reparacion de rodamientos: EUR 250\n- Reemplazo completo: EUR 1,500\n- **Ahorro por reparacion:** EUR 1,250 (83%)\n\n**Costo de parada no programada:**\n- Por hora de parada: EUR 500\n- Tiempo promedio de reparacion: 2.5 horas\n- **Costo total de falla:** EUR 1,250\n\n**ROI de mantenimiento preventivo:**\n- Inversion anual en PM: EUR 3,000\n- Ahorro por fallas evitadas: EUR 12,000\n- **ROI:** 300%\n\n[Fuente: Archivo 03 - Gestion KPIs]"
     
-    # NORMATIVAS
     if any(k in text for k in ["norma", "iso", "nfpa", "covenin", "estandar", "regulacion"]):
         return f"**Normativas Aplicables**\n\n**Para {asset_name}:**\n- **NFPA 99:** Sistemas de vacio grado medico\n- **ISO 14644:** Clases de limpieza para sistemas de vacio\n- **COVENIN 2500-93:** Mantenimiento preventivo industrial\n- **ISO 55000:** Gestion de activos\n\n**Requisitos clave:**\n- Inspecciones cada 500 horas de operacion\n- Certificacion de tecnicos cada 2 anos\n- Registro documental de todas las intervenciones\n- Analisis de criticidad anual\n\n[Fuente: Archivo 02 - Tesis Vacio medico]"
     
-    # RESPUESTA POR DEFECTO MEJORADA
     return f"Entiendo tu consulta sobre '{user_query}'.\n\n**Informacion actual del equipo:**\n{sl}\n\n**Puedo ayudarte con:**\n1. Estado actual y diagnostico\n2. Analisis de vibracion, temperatura o vacio\n3. Generacion de ordenes de trabajo\n4. Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n5. Modos de falla (AMEF/RCM)\n6. Procedimientos de mantenimiento\n7. Gestion de repuestos\n8. Protocolos de seguridad\n9. Analisis de costos\n10. Impacto circular\n\nPor favor, reformula tu pregunta o selecciona una de las opciones anteriores.\n\n[Fuente: Sistema Tech Maint Pro]"
 
 # ============================================================================
@@ -986,7 +1001,6 @@ def process_floating_query(query, ai_platform="rag"):
         
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": reply})
         
-        # SONIDO cuando Letzy responde (solo si audio esta activado)
         if st.session_state.get("audio_enabled", False):
             st.markdown("""
             <script>
@@ -1041,57 +1055,73 @@ def init_database():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    c.execute("""CREATE TABLE IF NOT EXISTS work_orders (
+    # Borramos las tablas viejas para evitar conflictos de columnas si el esquema cambió
+    c.execute("DROP TABLE IF EXISTS work_orders")
+    c.execute("DROP TABLE IF EXISTS circular_interventions")
+    
+    c.execute("""CREATE TABLE work_orders (
         ot_id TEXT PRIMARY KEY,
         asset_name TEXT NOT NULL,
-        tag TEXT, ubicacion TEXT, alert_id TEXT, description TEXT,
-        prioridad TEXT NOT NULL DEFAULT 'P2', tipo TEXT DEFAULT 'Correctivo',
-        responsable TEXT, creation_date TEXT NOT NULL, due_date TEXT,
-        estimated_hours REAL DEFAULT 2.0, status TEXT NOT NULL DEFAULT 'Pendiente',
-        start_time TEXT, end_time TEXT, hallazgos TEXT, acciones TEXT,
-        repuestos TEXT, evidencia TEXT, firma_operario TEXT, firma_supervisor TEXT,
-        tiempo_real_horas REAL, created_by TEXT, updated_at TEXT,
-        componente_afectado TEXT, tipo_falla TEXT, decision_tecnica TEXT,
-        masa_conservada_kg REAL DEFAULT 0, masa_descartada_kg REAL DEFAULT 0,
-        costo_reparacion REAL DEFAULT 0, costo_reemplazo_nuevo REAL DEFAULT 0,
-        co2_evitado_kg REAL DEFAULT 0, vida_util_extendida_horas REAL DEFAULT 0,
+        tag TEXT, 
+        ubicacion TEXT, 
+        alert_id TEXT, 
+        description TEXT,
+        prioridad TEXT NOT NULL DEFAULT 'P2', 
+        tipo TEXT DEFAULT 'Correctivo',
+        responsable TEXT, 
+        creation_date TEXT NOT NULL, 
+        due_date TEXT,
+        estimated_hours REAL DEFAULT 2.0, 
+        status TEXT NOT NULL DEFAULT 'Pendiente',
+        start_time TEXT, 
+        end_time TEXT, 
+        hallazgos TEXT, 
+        acciones TEXT,
+        repuestos TEXT, 
+        evidencia TEXT, 
+        firma_operario TEXT, 
+        firma_supervisor TEXT,
+        tiempo_real_horas REAL, 
+        created_by TEXT, 
+        updated_at TEXT,
+        componente_afectado TEXT, 
+        tipo_falla TEXT, 
+        decision_tecnica TEXT,
+        masa_conservada_kg REAL DEFAULT 0, 
+        masa_descartada_kg REAL DEFAULT 0,
+        costo_reparacion REAL DEFAULT 0, 
+        costo_reemplazo_nuevo REAL DEFAULT 0,
+        co2_evitado_kg REAL DEFAULT 0, 
+        vida_util_extendida_horas REAL DEFAULT 0,
         disponibilidad_post_reparacion_pct REAL DEFAULT 0
     )""")
     
-    c.execute("PRAGMA table_info(work_orders)")
-    existing_columns = [row[1] for row in c.fetchall()]
-    
-    new_columns = {
-        'componente_afectado': 'TEXT', 'tipo_falla': 'TEXT', 'decision_tecnica': 'TEXT',
-        'masa_conservada_kg': 'REAL DEFAULT 0', 'masa_descartada_kg': 'REAL DEFAULT 0',
-        'costo_reparacion': 'REAL DEFAULT 0', 'costo_reemplazo_nuevo': 'REAL DEFAULT 0',
-        'co2_evitado_kg': 'REAL DEFAULT 0', 'vida_util_extendida_horas': 'REAL DEFAULT 0',
-        'disponibilidad_post_reparacion_pct': 'REAL DEFAULT 0'
-    }
-    
-    for col_name, col_type in new_columns.items():
-        if col_name not in existing_columns:
-            try:
-                c.execute(f"ALTER TABLE work_orders ADD COLUMN {col_name} {col_type}")
-                logger.info(f"Agregada columna {col_name} a work_orders")
-            except Exception as e:
-                logger.error(f"Error agregando columna {col_name}: {e}")
-    
-    c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (
+    c.execute("""CREATE TABLE circular_interventions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ot_id TEXT NOT NULL, asset_name TEXT, component TEXT NOT NULL,
-        decision TEXT NOT NULL, result TEXT, mass_conserved_kg REAL DEFAULT 0,
-        mass_discarded_kg REAL DEFAULT 0, costo_reparacion_eur REAL DEFAULT 0,
-        costo_reemplazo_nuevo_eur REAL DEFAULT 0, vida_util_extendida_horas REAL DEFAULT 0,
-        co2_evitado_kg REAL DEFAULT 0, disponibilidad_post_reparacion_pct REAL DEFAULT 0,
-        tiempo_entre_fallas_reparado_horas REAL DEFAULT 0, nivel_reparacion INTEGER DEFAULT 0,
-        fabricante_original TEXT, garantia_reparacion_meses INTEGER DEFAULT 0,
-        recorded_date TEXT NOT NULL, recorded_by TEXT,
+        ot_id TEXT NOT NULL, 
+        asset_name TEXT, 
+        component TEXT NOT NULL,
+        decision TEXT NOT NULL, 
+        result TEXT, 
+        mass_conserved_kg REAL DEFAULT 0,
+        mass_discarded_kg REAL DEFAULT 0, 
+        costo_reparacion_eur REAL DEFAULT 0,
+        costo_reemplazo_nuevo_eur REAL DEFAULT 0, 
+        vida_util_extendida_horas REAL DEFAULT 0,
+        co2_evitado_kg REAL DEFAULT 0, 
+        disponibilidad_post_reparacion_pct REAL DEFAULT 0,
+        tiempo_entre_fallas_reparado_horas REAL DEFAULT 0, 
+        nivel_reparacion INTEGER DEFAULT 0,
+        fabricante_original TEXT, 
+        garantia_reparacion_meses INTEGER DEFAULT 0,
+        recorded_date TEXT NOT NULL, 
+        recorded_by TEXT,
         FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
     )""")
     
     conn.commit()
     conn.close()
+    logger.info("Base de datos inicializada correctamente (tablas recreadas).")
 
 # ============================================================================
 # INICIALIZACION
@@ -1243,7 +1273,6 @@ current_estado = latest["estado"]
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state["auto_chat_triggered"] = True
     
-    # Sonido de alarma (independiente de audio_enabled para que siempre suene)
     if current_estado == "Critico":
         play_critical_alarm(f"{latest['fecha_hora']}-critical")
     else:
@@ -1383,7 +1412,7 @@ with tabs[1]:
         conn.close()
 
 # ============================================================================
-# TAB 3: ORDENES DE TRABAJO (CORREGIDO)
+# TAB 3: ORDENES DE TRABAJO
 # ============================================================================
 
 with tabs[2]:
@@ -1418,7 +1447,6 @@ with tabs[2]:
                 if c.fetchone():
                     st.info(f"La OT {new_ot_id} ya existe")
                 else:
-                    # INSERT CORREGIDO: incluye TODAS las columnas requeridas
                     c.execute("""INSERT INTO work_orders 
                         (ot_id, asset_name, tag, ubicacion, alert_id, description, 
                          prioridad, tipo, responsable, creation_date, estimated_hours, 
