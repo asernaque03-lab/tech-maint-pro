@@ -61,132 +61,6 @@ try:
     HAS_WINSOUND = True
 except ImportError:
     HAS_WINSOUND = False
-    
-# Configuración de página con layout 
-st.set_page_config(
-    page_title="Letzy - Asistente de Mantenimiento",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-# CSS personalizado para eliminar espacios y mejorar layout
-st.markdown("""
-<style>
-    /* Eliminar espacios en blanco */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 0rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-    
-    /* Reducir márgenes de elementos */
-    .stAlert, .stSuccess, .stWarning, .stError, .stInfo {
-        margin-bottom: 0.5rem;
-        padding: 0.5rem;
-    }
-    
-    /* Ajustar chat */
-    .stChatMessage {
-        padding: 0.5rem;
-        margin: 0.2rem 0;
-    }
-    
-    /* Eliminar padding de contenedores */
-    div[data-testid="stVerticalBlock"] {
-        gap: 0.2rem;
-    }
-    
-    /* Ajustar header */
-    header {
-        visibility: hidden;
-    }
-    
-    #MainMenu {
-        visibility: hidden;
-    }
-    
-    footer {
-        visibility: hidden;
-    }
-    
-    /* Estilo para alertas */
-    .alert-critical {
-        background-color: #ffebee;
-        border-left: 6px solid #f44336;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        border-radius: 4px;
-    }
-    
-    .alert-warning {
-        background-color: #fff3e0;
-        border-left: 6px solid #ff9800;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        border-radius: 4px;
-    }
-    
-    .alert-normal {
-        background-color: #e8f5e9;
-        border-left: 6px solid #4caf50;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        border-radius: 4px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# Función para reproducir sonido
-def play_alarm_sound(alarm_type):
-    """
-    Reproduce sonido de alarma según el tipo
-    alarm_type: 'critical' (rojo) o 'warning' (naranja)
-    """
-    if alarm_type == 'critical':
-        # Sonido de alarma crítica (más urgente)
-        sound_base64 = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE"
-    elif alarm_type == 'warning':
-        # Sonido de advertencia (menos urgente)
-        sound_base64 = "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAACAQAAPwAAAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAgABAD8AAg"
-    from streamlit_autorefresh import st_autorefresh
-    HAS_AUTOREFRESH = True
-except Exception:
-    HAS_AUTOREFRESH = False
-
-try:
-    import requests
-    HAS_REQUESTS = True
-except Exception:
-    requests = None
-    HAS_REQUESTS = False
-
-try:
-    from PyPDF2 import PdfReader
-    HAS_PDF = True
-except Exception:
-    PdfReader = None
-    HAS_PDF = False
-
-try:
-    import fitz
-    HAS_FITZ = True
-except Exception:
-    fitz = None
-    HAS_FITZ = False
-
-try:
-    from groq import Groq
-    HAS_GROQ = True
-except ImportError:
-    HAS_GROQ = False
-    Groq = None
-
-try:
-    import winsound
-    HAS_WINSOUND = True
-except ImportError:
-    HAS_WINSOUND = False
 
 # ============================================================================
 # CONFIGURACION GENERAL
@@ -206,7 +80,7 @@ logging.basicConfig(
 logger = logging.getLogger("TechMaintPro")
 
 # ============================================================================
-# COLORES OFICIALES DEL LOGO
+# COLORES OFICIALES
 # ============================================================================
 
 COLORS = {
@@ -240,7 +114,6 @@ LOGO_PATH = os.path.join(APP_DIR, "logo.png")
 LETZY_PATH = os.path.join(APP_DIR, "letzy.png")
 
 LOGO_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iIzFhNWZhOCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiPlRFQ0ggTUFJTlQ8L3RleHQ+PHRleHQgeD0iNTAlIiB5PSI3MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNmNWE2MjMiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5QUk88L3RleHQ+PC9zdmc+"
-
 LETZY_FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5MCIgaGVpZ2h0PSI5MCI+PGNpcmNsZSBjeD0iNDUiIGN5PSI0NSIgcj0iNDIiIGZpbGw9IiMxYTVmYTgiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSJib2xkIj5MPC90ZXh0Pjwvc3ZnPg=="
 
 LOGO_BASE64 = load_image_as_base64(LOGO_PATH, LOGO_FALLBACK)
@@ -260,115 +133,8 @@ st.set_page_config(
     page_title="Tech Maint Pro",
     page_icon="",
     layout="wide",
-    initial_sidebar_state="expanded",  # Sidebar expandido por defecto
+    initial_sidebar_state="expanded",
 )
-
-# CSS personalizado para maximizar espacio visible
-st.markdown("""
-<style>
-    .main > div {padding-top: 2rem;}
-    .stChatMessage {margin: 0.5rem 0;}
-    .block-container {padding-top: 1rem; padding-bottom: 1rem;}
-    
-    /* Ajustes para el sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e8ecf1 !important;
-        z-index: 9998 !important;
-        padding-top: 1.5rem !important;
-        box-shadow: 4px 0 15px rgba(0,0,0,0.05) !important;
-    }
-    
-    .metric-card {
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        text-align: center;
-        border: none;
-    }
-    .metric-card:hover { 
-        transform: translateY(-5px); 
-        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-    }
-    
-    .status-normal { background: #8bc34a !important; }
-    .status-alerta { background: #f5a623 !important; }
-    .status-critico { background: #d32f2f !important; }
-    
-    .alarm-banner {
-        background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
-        border-left: 5px solid #f5a623;
-        border-radius: 12px;
-        padding: 12px 16px;
-        margin-bottom: 12px;
-        border: 1px solid rgba(245,166,35,0.3);
-    }
-    .alarm-critical {
-        background: linear-gradient(90deg, rgba(211,47,47,0.15), rgba(211,47,47,0.05));
-        border-left: 5px solid #d32f2f;
-        border: 1px solid rgba(211,47,47,0.3);
-    }
-    
-    h1, h2, h3, p, label, span, div { 
-        color: #1a2b4c !important; 
-    }
-    .stMarkdown p { color: #1a2b4c !important; }
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { 
-        color: #1a5fa8 !important; 
-    }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-        margin-bottom: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background: rgba(26,95,168,0.1) !important;
-        color: #1a2b4c !important;
-        border-radius: 8px 8px 0 0;
-        padding: 8px 16px;
-        font-size: 0.9rem;
-    }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background: #1a5fa8 !important;
-        color: white !important;
-    }
-    
-    .stSelectbox {
-        margin-bottom: 8px;
-    }
-    
-    .stDataFrame {
-        margin: 0 auto;
-    }
-    
-    .doc-button {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 20px;
-        background: linear-gradient(135deg, #1a5fa8, #8bc34a);
-        color: white;
-        text-decoration: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-    .doc-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        color: white;
-    }
-
-    section[data-testid="stSidebar"] .stChatMessage {
-        background-color: #f5f7fa !important;
-        border: 1px solid #e8ecf1 !important;
-        border-radius: 12px !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # ============================================================================
 # ACTIVOS INDUSTRIALES
@@ -658,32 +424,33 @@ def notify_high_circular_impact(intervention):
         send_email(STAFF[key]["email"], f"[Circular] {ot_id} - {component}", cuerpo_email)
 
 # ============================================================================
-# ALARMAS SONORAS DIFERENCIADAS
+# ALARMAS SONORAS VIA JAVASCRIPT (FUNCIONA EN STREAMLIT CLOUD)
 # ============================================================================
 
 def play_critical_alarm(event_id):
-    """Alarma critica con sonido en el navegador via JavaScript"""
     if st.session_state.get("last_beep_event") == event_id:
         return
     st.session_state["last_beep_event"] = event_id
     
-    # Sonido de alarma critica via JavaScript (funciona en navegador)
     st.markdown("""
     <script>
-    // Alarma critica: 5 beeps agudos
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    for (let i = 0; i < 5; i++) {
-        setTimeout(() => {
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.frequency.value = 1200; // Frecuencia alta
-            oscillator.type = 'square';
-            gainNode.gain.value = 0.3;
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 400);
-        }, i * 550);
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 1200;
+                oscillator.type = 'square';
+                gainNode.gain.value = 0.3;
+                oscillator.start();
+                setTimeout(() => oscillator.stop(), 400);
+            }, i * 550);
+        }
+    } catch(e) {
+        console.log('Audio no disponible:', e);
     }
     </script>
     """, unsafe_allow_html=True)
@@ -691,33 +458,173 @@ def play_critical_alarm(event_id):
     logger.info(f"[ALARMA CRITICA] {event_id}")
 
 def play_observation_alarm(event_id):
-    """Alarma de advertencia con sonido en el navegador via JavaScript"""
     if st.session_state.get("last_observation_event") == event_id:
         return
     st.session_state["last_observation_event"] = event_id
     
-    # Sonido de advertencia via JavaScript
     st.markdown("""
     <script>
-    // Alarma de advertencia: 2 beeps suaves
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    for (let i = 0; i < 2; i++) {
-        setTimeout(() => {
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.frequency.value = 600; // Frecuencia media
-            oscillator.type = 'sine';
-            gainNode.gain.value = 0.2;
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 200);
-        }, i * 500);
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        for (let i = 0; i < 2; i++) {
+            setTimeout(() => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 600;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.2;
+                oscillator.start();
+                setTimeout(() => oscillator.stop(), 200);
+            }, i * 500);
+        }
+    } catch(e) {
+        console.log('Audio no disponible:', e);
     }
     </script>
     """, unsafe_allow_html=True)
     
     logger.info(f"[ALARMA OBSERVACION] {event_id}")
+
+# ============================================================================
+# ESTILOS CSS PERSONALIZADOS
+# ============================================================================
+
+def apply_custom_styles():
+    css = f"""
+    <style>
+    .stApp {{ 
+        background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; 
+        padding-top: 0 !important;
+    }}
+    
+    section[data-testid="stSidebar"] {{
+        background-color: #ffffff !important;
+        border-right: 1px solid #e8ecf1 !important;
+        z-index: 9998 !important;
+        padding-top: 1rem !important;
+        box-shadow: 4px 0 15px rgba(0,0,0,0.05) !important;
+    }}
+    
+    .block-container {{
+        padding-top: 0.5rem !important;
+        padding-bottom: 1rem !important;
+        max-width: 100% !important;
+    }}
+    
+    .metric-card {{
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-align: center;
+        border: none;
+    }}
+    .metric-card:hover {{ 
+        transform: translateY(-5px); 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    }}
+    
+    .status-normal {{ background: {COLORS['verde']} !important; }}
+    .status-alerta {{ background: {COLORS['amarillo']} !important; }}
+    .status-critico {{ background: {COLORS['rojo']} !important; }}
+    
+    .alarm-banner {{
+        background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
+        border-left: 5px solid {COLORS['amarillo']};
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        border: 1px solid rgba(245,166,35,0.3);
+    }}
+    .alarm-critical {{
+        background: linear-gradient(90deg, rgba(211,47,47,0.15), rgba(211,47,47,0.05));
+        border-left: 5px solid {COLORS['rojo']};
+        border: 1px solid rgba(211,47,47,0.3);
+    }}
+    
+    h1, h2, h3, p, label, span, div {{ 
+        color: {COLORS['texto_oscuro']} !important; 
+    }}
+    .stMarkdown p {{ color: {COLORS['texto_oscuro']} !important; }}
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {{ 
+        color: {COLORS['azul']} !important; 
+    }}
+    
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 4px;
+        margin-bottom: 8px;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        background: rgba(26,95,168,0.1) !important;
+        color: {COLORS['texto_oscuro']} !important;
+        border-radius: 8px 8px 0 0;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }}
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+        background: {COLORS['azul']} !important;
+        color: white !important;
+    }}
+    
+    .stSelectbox {{
+        margin-bottom: 8px;
+    }}
+    
+    .stDataFrame {{
+        margin: 0 auto;
+    }}
+    
+    .doc-button {{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #1a5fa8, #8bc34a);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }}
+    .doc-button:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        color: white;
+    }}
+
+    section[data-testid="stSidebar"] .stChatMessage {{
+        background-color: #f5f7fa !important;
+        border: 1px solid #e8ecf1 !important;
+        border-radius: 12px !important;
+        padding: 8px !important;
+        margin: 4px 0 !important;
+    }}
+    
+    section[data-testid="stSidebar"] .stChatMessage p {{
+        font-size: 0.85rem !important;
+        margin: 0 !important;
+    }}
+    
+    .quick-btn {{
+        font-size: 0.75rem !important;
+        padding: 4px 8px !important;
+        min-height: 32px !important;
+    }}
+    
+    @media (max-width: 768px) {{
+        .metric-value {{ font-size: 1.5rem !important; }}
+        section[data-testid="stSidebar"] {{
+            width: 100% !important;
+            min-width: 100% !important;
+        }}
+    }}
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
 
 # ============================================================================
 # FUNCIONES DE DATOS Y RIESGO
@@ -1527,12 +1434,17 @@ for k, v in sd.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
+apply_custom_styles()
+
+if not st.session_state.get("kb_loaded", False):
+    with st.spinner("Cargando base de conocimiento PDF..."):
+        load_knowledge_base()
+
 # ============================================================================
-# SIDEBAR CON CHATBOT LETZY
+# SIDEBAR CON CHATBOT LETZY COMPACTO
 # ============================================================================
 
 with st.sidebar:
-    # Header compacto
     st.markdown(f"""
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e8ecf1;">
         {render_letzy("35px")}
@@ -1543,7 +1455,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # Modo IA compacto
     ai_mode = st.selectbox(
         "Modo:",
         options=["rag", "fallback"],
@@ -1557,16 +1468,17 @@ with st.sidebar:
     if ai_mode == "rag" and not st.session_state.get("groq_api_key", ""):
         st.session_state["groq_api_key"] = st.text_input("API Key Groq", type="password", key="groq_key_side", placeholder="API Key aqui")
 
-    # Contenedor de chat con altura fija pequeña
+    st.divider()
+
     chat_history = st.session_state.get("floating_chat_history", [])
     
-    chat_container = st.container(height=200)  # Reducido de 400 a 200
+    chat_container = st.container(height=200)
     with chat_container:
         if not chat_history:
             with st.chat_message("assistant", avatar=LETZY_BASE64):
                 st.markdown("**Hola! Soy Letzy.** En que puedo ayudarte?")
         
-        for msg in chat_history[-8:]:  # Solo últimos 8 mensajes
+        for msg in chat_history[-6:]:
             if msg["role"] == "assistant":
                 with st.chat_message("assistant", avatar=LETZY_BASE64):
                     st.markdown(msg["content"])
@@ -1574,7 +1486,8 @@ with st.sidebar:
                 with st.chat_message("user"):
                     st.markdown(msg["content"])
 
-    # Botones rápidos en 2 columnas compactas
+    st.divider()
+    
     st.markdown("**Consultas rapidas:**")
     c1, c2 = st.columns(2)
     with c1:
@@ -1588,7 +1501,7 @@ with st.sidebar:
         if st.button("KPIs", key="sq4", use_container_width=True):
             process_floating_query("Cuales son los KPIs?", ai_mode)
             
-    # Input de chat
+    st.divider()
     ui = st.chat_input("Escribe a Letzy...", key="chat_input_sidebar")
     if ui:
         process_floating_query(ui, ai_mode)
@@ -2409,8 +2322,3 @@ with tabs[4]:
 
 st.divider()
 st.caption("Tech Maint Pro | Prototipo profesional SeedTech 2026 | Los umbrales son referenciales")
-
-# Cargar base de conocimiento si no está cargada
-if not st.session_state.get("kb_loaded", False):
-    with st.spinner("Cargando base de conocimiento PDF..."):
-        load_knowledge_base()
