@@ -1987,7 +1987,7 @@ if st.button(" Cargar Datos de Demostración", use_container_width=True):
     conn.close()
     st.success("Datos de demostración cargados correctamente!")
     st.rerun()
-        conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         c.execute("SELECT * FROM circular_interventions ORDER BY recorded_date DESC")
