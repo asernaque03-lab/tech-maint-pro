@@ -244,7 +244,7 @@ STAFF = {
 }
 
 # ============================================================================
-# NOTIFICACIONES INTELIGENTES POR CANAL (MEJORADO CON LOGS)
+# NOTIFICACIONES INTELIGENTES POR CANAL (CORREGIDO)
 # ============================================================================
 
 def send_telegram(chat_id, message):
@@ -288,11 +288,11 @@ def send_email(to_email, subject, body_html):
         logger.info(f"✓ Email enviado a {to_email}: {subject}")
         return True
     except Exception as e:
-        logger.error(f"✗ Error enviando email a {to_email}: {e}")
+        logger.error(f" Error enviando email a {to_email}: {e}")
         return False
 
 def test_telegram_connection():
-    """Función para probar la conexión con Telegram"""
+    """Función para probar la conexión con Telegram - ENVÍA A LOS 3 USUARIOS"""
     logger.info("=== PRUEBA DE CONEXIÓN TELEGRAM ===")
     try:
         r = requests.get(f"{TELEGRAM_API_URL}/getMe", timeout=5)
@@ -306,6 +306,7 @@ def test_telegram_connection():
         logger.error(f"✗ No se puede conectar al bot: {e}")
         return False
     
+    # Enviar a TODOS los usuarios
     for key, staff in STAFF.items():
         chat_id = staff.get("telegram_chat_id")
         if chat_id:
@@ -318,23 +319,27 @@ def test_telegram_connection():
     return True
 
 def notify_critical_alarm(asset_name, parameter, value, threshold, ir, ot_id, responsable):
+    """Alarma crítica - Notifica a TODOS"""
     logger.info(f"=== NOTIFICANDO ALARMA CRÍTICA: {ot_id} ===")
     mensaje = (
-        f"<b>🚨 [ALERTA CRITICA DETECTADA]</b>\n\n"
+        f"<b> [ALERTA CRITICA DETECTADA]</b>\n\n"
         f"<b>Activo:</b> {asset_name}\n"
         f"<b>Parametro:</b> {parameter}: {value} (Umbral: {threshold})\n"
         f"<b>Riesgo:</b> Alto (IR: {ir}/100)\n"
         f"<b>Accion:</b> Se ha generado la {ot_id} automaticamente.\n\n"
         f"@{responsable}, por favor verificar de inmediato."
     )
+    # Enviar a los 3: Tecnico, Asesor y Gerencia
     for key in ["tecnico", "asesor", "gerencia"]:
         send_telegram(STAFF[key]["telegram_chat_id"], mensaje)
     
+    # Email a Asesor y Gerencia
     cuerpo_email = f"<h2>[ALERTA CRITICA] {asset_name}</h2><p><b>Parametro:</b> {parameter}: {value} (Umbral: {threshold})</p><p><b>Riesgo:</b> Alto (IR: {ir}/100)</p><p><b>OT Generada:</b> {ot_id}</p><p><b>Responsable:</b> {responsable}</p>"
     for key in ["asesor", "gerencia"]:
         send_email(STAFF[key]["email"], f"[CRITICO] {ot_id} - {asset_name}", cuerpo_email)
 
 def notify_new_ot(ot_data):
+    """Nueva OT - Notifica al TECNICO asignado"""
     logger.info(f"=== NOTIFICANDO NUEVA OT: {ot_data.get('ot_id')} ===")
     responsable = ot_data.get("responsable", "Sin asignar")
     ot_id = ot_data["ot_id"]
@@ -350,21 +355,33 @@ def notify_new_ot(ot_data):
         f"<b>Responsable:</b> {responsable}\n\n"
         f"Responde a este chat con 'OK' para confirmar."
     )
+    # Enviar al TECNICO asignado (siempre)
+    send_telegram(STAFF["tecnico"]["telegram_chat_id"], mensaje)
+    # Si es P0 o P1, también al ASESOR
     if prio in ["P0", "P1"]:
-        send_telegram(STAFF["tecnico"]["telegram_chat_id"], mensaje)
         send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
-    else:
-        send_email(STAFF["tecnico"]["email"], f"Nueva OT {ot_id} ({prio})", f"<h2>Nueva OT {ot_id}</h2><p>Activo: {asset}</p><p>Responsable: {responsable}</p>")
+    # Email de respaldo
+    send_email(STAFF["tecnico"]["email"], f"Nueva OT {ot_id} ({prio})", f"<h2>Nueva OT {ot_id}</h2><p>Activo: {asset}</p><p>Responsable: {responsable}</p>")
 
 def notify_ot_started(ot_id, asset_name, responsable):
+    """OT Iniciada - Notifica al JEFE DE MANTENIMIENTO (ASESOR)"""
     logger.info(f"=== NOTIFICANDO OT INICIADA: {ot_id} ===")
     mensaje = f"<b>▶️ [OT INICIADA]</b>\n\n<b>ID:</b> {ot_id}\n<b>Tecnico:</b> {responsable} comenzó en {asset_name}\n<b>Hora:</b> {datetime.now().strftime('%H:%M')}"
+    # Enviar al ASESOR (Jefe de Mantenimiento)
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
+    # Sonido de notificación web
+    play_notification_sound()
 
 def notify_ot_paused(ot_id, asset_name, responsable, motivo):
+    """OT Pausada - Notifica al JEFE DE MANTENIMIENTO y a GERENCIA si es P0"""
     logger.info(f"=== NOTIFICANDO OT PAUSADA: {ot_id} ===")
-    mensaje = f"<b>⏸️ [OT PAUSADA]</b>\n\n<b>ID:</b> {ot_id}\n<b>Activo:</b> {asset_name}\n<b>Tecnico:</b> {responsable}\n<b>Motivo:</b> {motivo}"
+    mensaje = f"<b>⏸️ [OT PAUSADA - BLOQUEADA]</b>\n\n<b>ID:</b> {ot_id}\n<b>Activo:</b> {asset_name}\n<b>Tecnico:</b> {responsable}\n<b>Motivo:</b> {motivo}"
+    # Enviar al ASESOR (Jefe de Mantenimiento)
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
+    # Sonido de notificación web
+    play_notification_sound()
+    
+    # Si es P0, también notificar a GERENCIA (Irina) por email
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -372,21 +389,33 @@ def notify_ot_paused(ot_id, asset_name, responsable, motivo):
         row = c.fetchone()
         conn.close()
         if row and row[0] == "P0":
-            send_email(STAFF["gerencia"]["email"], f"[BLOQUEO P0] {ot_id}", f"<h2>Bloqueo en OT {ot_id}</h2><p>Motivo: {motivo}</p>")
-    except: pass
+            send_email(STAFF["gerencia"]["email"], f"[BLOQUEO P0] {ot_id}", f"<h2>Bloqueo en OT {ot_id}</h2><p>Activo: {asset_name}</p><p>Motivo: {motivo}</p><p>Se requiere atención urgente.</p>")
+            logger.info("✓ Email de bloqueo P0 enviado a Gerencia (Irina)")
+    except Exception as e:
+        logger.error(f"Error verificando prioridad: {e}")
 
 def notify_ot_completed(ot_data):
+    """OT Completada - Notifica al JEFE DE MANTENIMIENTO (ASESOR)"""
     logger.info(f"=== NOTIFICANDO OT COMPLETADA: {ot_data.get('ot_id')} ===")
     mensaje = f"<b>✅ [OT COMPLETADA]</b>\n\n<b>ID:</b> {ot_data['ot_id']}\n<b>Tecnico:</b> {ot_data.get('responsable', 'N/A')}\n<b>Tiempo:</b> {ot_data.get('tiempo_real_horas', 0)}h\n<b>Resultado:</b> {ot_data.get('hallazgos', 'Sin detalles')[:100]}"
+    # Enviar al ASESOR (Jefe de Mantenimiento)
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
+    # Sonido de notificación web
+    play_notification_sound()
 
 def notify_maintenance_issue(asset_name, issue_description, reporter):
+    """Problema/Impedimento - Notifica a GERENCIA (IRINA)"""
     logger.info(f"=== NOTIFICANDO PROBLEMA: {asset_name} ===")
-    mensaje = f"<b>⚠️ [PROBLEMA/IMPEDIMENTO]</b>\n\n<b>Activo:</b> {asset_name}\n<b>Reportado por:</b> {reporter}\n<b>Descripcion:</b> {issue_description}\n\nSe requiere atencion inmediata."
+    mensaje = f"<b>⚠️ [PROBLEMA/IMPEDIMENTO DE MANTENIMIENTO]</b>\n\n<b>Activo:</b> {asset_name}\n<b>Reportado por:</b> {reporter}\n<b>Descripcion:</b> {issue_description}\n\nSe requiere atencion inmediata."
+    # Enviar a GERENCIA (Irina)
     send_telegram(STAFF["gerencia"]["telegram_chat_id"], mensaje)
+    # Sonido de notificación web
+    play_notification_sound()
+    # Email a Gerencia
     send_email(STAFF["gerencia"]["email"], f"[PROBLEMA] {asset_name}", f"<h2>Problema en {asset_name}</h2><p>Reportado por: {reporter}</p><p>{issue_description}</p>")
 
 def notify_high_circular_impact(intervention):
+    """Impacto Circular - Notifica a GERENCIA (IRINA) por tema económico"""
     logger.info(f"=== NOTIFICANDO IMPACTO CIRCULAR ===")
     md = intervention.get("mass_discarded_kg", 0) or 0
     mc = intervention.get("mass_conserved_kg", 0) or 0
@@ -398,9 +427,12 @@ def notify_high_circular_impact(intervention):
     component = intervention.get("component", "N/A")
     decision = intervention.get("decision", "N/A")
     
-    msg = f"<b>♻️ [IMPACTO CIRCULAR]</b>\n\n<b>OT:</b> {ot_id}\n<b>Componente:</b> {component}\n<b>Decision:</b> {decision}\n<b>Masa Conservada:</b> {mc:.2f} kg\n<b>Masa Descartada:</b> {md:.2f} kg"
+    msg = f"<b>♻️ [IMPACTO CIRCULAR REGISTRADO]</b>\n\n<b>OT:</b> {ot_id}\n<b>Componente:</b> {component}\n<b>Decision:</b> {decision}\n<b>Masa Conservada:</b> {mc:.2f} kg\n<b>Masa Descartada:</b> {md:.2f} kg"
+    # Enviar a GERENCIA (Irina) - sector económico
     send_telegram(STAFF["gerencia"]["telegram_chat_id"], msg)
-    
+    # Sonido de notificación web
+    play_notification_sound()
+    # Email a Gerencia y Asesor
     cuerpo_email = f"<h2>Impacto Circular Registrado</h2><p><b>OT:</b> {ot_id}</p><p><b>Componente:</b> {component}</p><p><b>Masa Conservada:</b> {mc:.2f} kg</p><p><b>Masa Descartada:</b> {md:.2f} kg</p>"
     for key in ["gerencia", "asesor"]:
         send_email(STAFF[key]["email"], f"[Circular] {ot_id} - {component}", cuerpo_email)
