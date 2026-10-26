@@ -667,13 +667,16 @@ def chatbot_response(user_text, latest, kpi_values, asset_name, use_generative_a
     return chatbot_response_with_context(user_text, latest, asset_name, kpi_values, "")
 
 # ============================================================================
-# CHATBOT FLOTANTE CON LETZY Y GROQ (SIN st.button)
+# CHATBOT FLOTANTE CON LETZY - VERSIÓN DEFINITIVA
 # ============================================================================
 
 def process_floating_query(query, ai_platform="rules"):
+    """Procesa consulta SIN rerun"""
     if not query or not query.strip():
         return
     q = query.strip()
+    if "floating_chat_history" not in st.session_state:
+        st.session_state.floating_chat_history = []
     st.session_state.floating_chat_history.append({"role": "user", "content": q})
     
     try:
@@ -690,19 +693,47 @@ def process_floating_query(query, ai_platform="rules"):
     except Exception as e:
         st.session_state.floating_chat_history.append({"role": "assistant", "content": f"Error: {e}"})
 
-@st.dialog("Asistente Tech Maint Pro - Letzy", width="large")
+@st.dialog("Asistente Técnico Mantenimiento Pro - Letzy", width="large")
 def floating_chat_dialog():
+    """Diálogo del chatbot - SIN st.rerun()"""
     st.markdown(f"""
     <style>
-    div[data-testid="stDialog"] {{ background: #f5f7fa !important; color: #1a2b4c !important; }}
-    div[data-testid="stDialog"] * {{ color: #1a2b4c !important; }}
-    div[data-testid="stDialog"] h3 {{ color: #1a5fa8 !important; }}
-    div[data-testid="stDialog"] input {{ background: #ffffff !important; color: #1a2b4c !important; border: 1px solid #e8ecf1 !important; }}
-    div[data-testid="stChatMessage"] {{ background: #ffffff !important; border: 1px solid #e8ecf1 !important; }}
-    div[data-testid="stChatMessage"] p {{ color: #1a2b4c !important; }}
+    div[data-testid="stDialog"] {{
+        background: #f5f7fa !important;
+        color: #1a2b4c !important;
+    }}
+    div[data-testid="stDialog"] * {{
+        color: #1a2b4c !important;
+    }}
+    div[data-testid="stDialog"] h3 {{
+        color: #1a5fa8 !important;
+    }}
+    div[data-testid="stDialog"] .stButton > button {{
+        background: #1a5fa8 !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+    }}
+    div[data-testid="stDialog"] .stButton > button:hover {{
+        background: #2a7bc8 !important;
+    }}
+    div[data-testid="stDialog"] input {{
+        background: #ffffff !important;
+        color: #1a2b4c !important;
+        border: 1px solid #e8ecf1 !important;
+    }}
+    div[data-testid="stChatMessage"] {{
+        background: #ffffff !important;
+        border: 1px solid #e8ecf1 !important;
+    }}
+    div[data-testid="stChatMessage"] p {{
+        color: #1a2b4c !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
     
+    # Header con Letzy
     st.markdown(f"""
     <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
         {render_letzy("60px")}
@@ -713,26 +744,35 @@ def floating_chat_dialog():
     </div>
     """, unsafe_allow_html=True)
     
+    # Selector de plataforma IA
     ai_platform = st.selectbox(
         "Plataforma de IA:",
         options=["rules", "groq"],
-        format_func=lambda x: {"rules": "Respuestas basadas en reglas (local)", "groq": "Groq - IA Gratuita y Rapida (Llama 3)"}.get(x, x),
+        format_func=lambda x: {
+            "rules": "🔧 Respuestas basadas en reglas (local)",
+            "groq": "⚡ Groq - IA Gratuita y Rápida (Llama 3)"
+        }.get(x, x),
         index=0,
         key="ai_platform_selector"
     )
     
+    # Configuración de Groq
     if ai_platform == "groq":
-        st.info("Groq ofrece acceso gratuito a modelos potentes como Llama 3. No requiere tarjeta de credito.")
-        st.session_state["groq_api_key"] = st.text_input("API Key de Groq", type="password", key="groq_key", help="Obten tu clave gratis en console.groq.com")
+        st.info("Groq ofrece acceso gratuito a modelos potentes como Llama 3. No requiere tarjeta de crédito.")
+        st.session_state["groq_api_key"] = st.text_input("API Key de Groq", type="password", key="groq_key", help="Obtén tu clave gratis en console.groq.com")
     
-    st.caption("Respuestas instantaneas basadas en datos reales")
+    st.caption("Respuestas instantáneas basadas en datos reales")
     st.divider()
     
-    if not st.session_state.floating_chat_history:
+    # Mensaje de bienvenida si no hay historial
+    chat_history = st.session_state.get("floating_chat_history", [])
+    
+    if not chat_history:
         with st.chat_message("assistant", avatar=LETZY_BASE64):
             st.markdown("**HOLA, SOY LETZY TU ASISTENTE DE TECH MAINT PRO**\n\n¿En qué puedo ayudarte hoy? Puedo asistirte con diagnóstico, órdenes de trabajo, KPIs, modos de falla e impacto circular.")
     
-    for msg in st.session_state.floating_chat_history[-10:]:
+    # Mostrar historial de mensajes
+    for msg in chat_history[-10:]:
         if msg["role"] == "assistant":
             with st.chat_message("assistant", avatar=LETZY_BASE64):
                 st.markdown(msg["content"])
@@ -741,35 +781,86 @@ def floating_chat_dialog():
                 st.markdown(msg["content"])
     
     st.divider()
-    st.markdown("#### 💡 Consultas sugeridas (copia y pega en el chat):")
-    st.markdown("- *Estado actual*")
-    st.markdown("- *Que causa alta vibracion?*")
-    st.markdown("- *Cuales son los KPIs?*")
-    st.markdown("- *Generar orden de trabajo*")
-    st.markdown("- *Modos de falla AMEF*")
+    st.markdown("#### Consultas rápidas:")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Estado actual", key="qr1", use_container_width=True):
+            process_floating_query("Estado actual", ai_platform)
+        if st.button("Alta vibracion", key="qr2", use_container_width=True):
+            process_floating_query("Que causa alta vibracion?", ai_platform)
+        if st.button("KPIs", key="qr3", use_container_width=True):
+            process_floating_query("Cuales son los KPIs?", ai_platform)
+    with c2:
+        if st.button("Caída de vacio", key="qr4", use_container_width=True):
+            process_floating_query("Que revisar si cae el vacio?", ai_platform)
+        if st.button("Generar OT", key="qr5", use_container_width=True):
+            process_floating_query("Generar orden de trabajo", ai_platform)
+        if st.button("Impacto circular", key="qr6", use_container_width=True):
+            process_floating_query("Que es impacto circular?", ai_platform)
+    with c3:
+        if st.button("Modos de falla", key="qr7", use_container_width=True):
+            process_floating_query("Modos de falla AMEF", ai_platform)
+        if st.button("Temperatura", key="qr8", use_container_width=True):
+            process_floating_query("Analiza la temperatura actual", ai_platform)
+        if st.button("Limpiar", key="qr9", use_container_width=True):
+            st.session_state.floating_chat_history = []
     
     st.divider()
     ui = st.chat_input("Escribe tu consulta a Letzy...", key="fci")
     if ui:
         process_floating_query(ui, ai_platform)
     
-    # Nota: El diálogo se cierra de forma nativa en Streamlit haciendo clic fuera del cuadro o presionando la tecla Esc.
+    if st.button("Cerrar chat", key="fcc", use_container_width=True):
+        st.session_state.floating_chat_open = False
+        st.session_state.auto_chat_triggered = False
 
 # ============================================================================
-# BOTÓN FLOTANTE DE LETZY - HTML FIJO EN EL DOM
+# BOTÓN FLOTANTE - POSICIÓN FIJA INFERIOR DERECHA
 # ============================================================================
 
-# Botón HTML fijo en la esquina inferior derecha
-st.markdown(f"""
-<a href="?open_letzy=1" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999; width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #1a5fa8, #7cb342); border: 3px solid #f5a623; box-shadow: 0 4px 20px rgba(0,0,0,0.3); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease; text-decoration: none;">
-    <img src="{LETZY_BASE64}" style="width: 84px; height: 84px; border-radius: 50%; object-fit: cover;" alt="Letzy">
-</a>
+# CSS para posicionar el botón
+st.markdown("""
+<style>
+/* Ocultar el contenedor del botón pero mantenerlo funcional */
+div[data-testid="column"]:has(button[aria-label="Abrir Letzy"]) {
+    position: fixed !important;
+    bottom: 30px !important;
+    right: 30px !important;
+    z-index: 9999 !important;
+    width: 90px !important;
+}
+
+/* Estilo del botón circular */
+button[aria-label="Abrir Letzy"] {
+    width: 90px !important;
+    height: 90px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    background: linear-gradient(135deg, #1a5fa8, #7cb342) !important;
+    border: 3px solid #f5a623 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+    cursor: pointer !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.3s ease !important;
+}
+
+button[aria-label="Abrir Letzy"]:hover {
+    transform: scale(1.1) !important;
+}
+
+/* Ocultar el texto del botón */
+button[aria-label="Abrir Letzy"] p {
+    display: none !important;
+}
+</style>
 """, unsafe_allow_html=True)
 
-# Detectar si se abrió el chat desde el botón
-if "open_letzy" in st.query_params:
+# Botón nativo de Streamlit (será reposicionado por CSS)
+if st.button("", key="open_letzy_btn", help="Abrir Asistente Letzy", aria_label="Abrir Letzy"):
     st.session_state.floating_chat_open = True
-    st.query_params.clear()
 
 # Mostrar el diálogo si está abierto
 if st.session_state.get("floating_chat_open", False):
@@ -778,7 +869,7 @@ if st.session_state.get("floating_chat_open", False):
 # Abrir chat automáticamente en alertas
 if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
     st.session_state.floating_chat_open = True
-
+    
 # ============================================================================
 # VISUALIZACION - GRAFICAS
 # ============================================================================
