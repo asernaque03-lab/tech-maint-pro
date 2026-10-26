@@ -230,6 +230,62 @@ STAFF = {
 }
 
 # ============================================================================
+# FUNCION PARA GENERAR SONIDO WAV
+# ============================================================================
+
+def generate_alarm_wav(frequency=800, duration=0.3, num_beeps=3):
+    """Genera un archivo WAV con beeps de alarma"""
+    sample_rate = 44100
+    n_samples = int(sample_rate * duration)
+    
+    # Crear onda sinusoidal
+    t = np.linspace(0, duration, n_samples, endpoint=False)
+    wave_data = (np.sin(2 * np.pi * frequency * t) * 32767).astype(np.int16)
+    
+    # Crear buffer WAV
+    buffer = BytesIO()
+    with wave.open(buffer, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(wave_data.tobytes())
+    
+    buffer.seek(0)
+    return buffer.read()
+
+# ============================================================================
+# ALARMAS SONORAS CON st.audio()
+# ============================================================================
+
+def play_critical_alarm(event_id):
+    """Alarma critica usando st.audio()"""
+    if st.session_state.get("last_beep_event") == event_id:
+        return
+    st.session_state["last_beep_event"] = event_id
+    
+    # Generar sonido de alarma critica (5 beeps agudos)
+    wav_data = generate_alarm_wav(frequency=1200, duration=0.4, num_beeps=5)
+    
+    # Mostrar audio que se reproduce automaticamente
+    st.audio(wav_data, format='audio/wav', start_time=0)
+    
+    logger.info(f"[ALARMA CRITICA] {event_id}")
+
+def play_observation_alarm(event_id):
+    """Alarma de advertencia usando st.audio()"""
+    if st.session_state.get("last_observation_event") == event_id:
+        return
+    st.session_state["last_observation_event"] = event_id
+    
+    # Generar sonido de advertencia (2 beeps suaves)
+    wav_data = generate_alarm_wav(frequency=600, duration=0.2, num_beeps=2)
+    
+    # Mostrar audio que se reproduce automaticamente
+    st.audio(wav_data, format='audio/wav', start_time=0)
+    
+    logger.info(f"[ALARMA OBSERVACION] {event_id}")
+
+# ============================================================================
 # NOTIFICACIONES INTELIGENTES POR CANAL
 # ============================================================================
 
@@ -305,7 +361,7 @@ def notify_new_ot(ot_data):
     responsable = ot_data.get("responsable", "Sin asignar")
     ot_id = ot_data["ot_id"]
     asset = ot_data["asset_name"]
-    prio = ot_data["priority"]
+    prio = ot_data["prioridad"]
     desc = ot_data.get("description", "Sin descripcion")[:80]
     
     mensaje_telegram = (
@@ -422,76 +478,6 @@ def notify_high_circular_impact(intervention):
     """
     for key in ["gerencia", "asesor"]:
         send_email(STAFF[key]["email"], f"[Circular] {ot_id} - {component}", cuerpo_email)
-
-# ============================================================================
-# ALARMAS SONORAS MEJORADAS
-# ============================================================================
-
-def play_critical_alarm(event_id):
-    """Alarma critica con sonido via JavaScript"""
-    if st.session_state.get("last_beep_event") == event_id:
-        return
-    st.session_state["last_beep_event"] = event_id
-    
-    st.components.v1.html("""
-    <script>
-    (function() {
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            for (let i = 0; i < 5; i++) {
-                setTimeout(() => {
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    oscillator.frequency.value = 1200;
-                    oscillator.type = 'square';
-                    gainNode.gain.value = 0.3;
-                    oscillator.start();
-                    setTimeout(() => oscillator.stop(), 400);
-                }, i * 550);
-            }
-        } catch(e) {
-            console.log('Audio no disponible:', e);
-        }
-    })();
-    </script>
-    """, height=0)
-    
-    logger.info(f"[ALARMA CRITICA] {event_id}")
-
-def play_observation_alarm(event_id):
-    """Alarma de advertencia con sonido via JavaScript"""
-    if st.session_state.get("last_observation_event") == event_id:
-        return
-    st.session_state["last_observation_event"] = event_id
-    
-    st.components.v1.html("""
-    <script>
-    (function() {
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            for (let i = 0; i < 2; i++) {
-                setTimeout(() => {
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    oscillator.frequency.value = 600;
-                    oscillator.type = 'sine';
-                    gainNode.gain.value = 0.2;
-                    oscillator.start();
-                    setTimeout(() => oscillator.stop(), 200);
-                }, i * 500);
-            }
-        } catch(e) {
-            console.log('Audio no disponible:', e);
-        }
-    })();
-    </script>
-    """, height=0)
-    
-    logger.info(f"[ALARMA OBSERVACION] {event_id}")
 
 # ============================================================================
 # ESTILOS CSS PERSONALIZADOS
@@ -753,7 +739,7 @@ def create_work_order_obj(row, asset_name, source="Automatica"):
     ts = pd.to_datetime(row["fecha_hora"]).strftime("%Y%m%d%H%M")
     return {
         "ot_id": f"OT-{ts}-{priority}", "asset_name": asset_name, "alert_id": f"ALM-{ts}",
-        "description": f"Anomalia: {symptoms}", "priority": priority, "responsible": responsable,
+        "description": f"Anomalia: {symptoms}", "prioridad": priority, "responsible": responsable,
         "creation_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "status": "Pendiente", "created_by": source,
         "tasks": "\n".join([f"- {t}" for t in tasks])
     }
@@ -769,7 +755,7 @@ def calculate_kpis(oh, failures, dh, pmd, pmp, ph, ahw, pr):
     return {"MTBF (h)": mtbf, "MTTR (h)": mttr, "Disponibilidad (%)": avail * 100, "Confiabilidad 24h (%)": rel24 * 100, "Cumplimiento PM (%)": pmc * 100, "Backlog (semanas)": bl, "Perdida productiva (t)": pl}
 
 # ============================================================================
-# SISTEMA RAG - BASE DE CONOCIMIENTO PDF
+# SISTEMA RAG - BASE DE CONOCIMIENTO PDF MEJORADO
 # ============================================================================
 
 def extract_text_from_pdf(pdf_path):
@@ -821,7 +807,9 @@ def search_knowledge_base(query, top_k=5):
     for item in kb:
         content_words = set(re.findall(r'\w+', item["content"].lower()))
         tag_words = set(item["tags"])
-        score = len(query_words & content_words) + len(query_words & tag_words) * 3
+        word_overlap = len(query_words & content_words)
+        tag_match = len(query_words & tag_words) * 3
+        score = word_overlap + tag_match
         if score > 0: scores.append((score, item))
     scores.sort(key=lambda x: x[0], reverse=True)
     return [item for _, item in scores[:top_k]]
@@ -835,7 +823,7 @@ def format_context_for_llm(search_results):
     return "\n".join(context_parts)
 
 # ============================================================================
-# INTEGRACION CON GROQ + RAG
+# INTEGRACION CON GROQ + RAG - MODELO CORREGIDO
 # ============================================================================
 
 def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
@@ -849,11 +837,11 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         
         search_results = search_knowledge_base(user_query, top_k=8)
         kb_context = format_context_for_llm(search_results)
-        full_system_prompt = f"{SYSTEM_PROMPT}\n\n{current_context}\n\n{kb_context}\n\nINSTRUCCION FINAL: Responde basandote EXCLUSIVAMENTE en la informacion proporcionada. Cita siempre la fuente."
+        full_system_prompt = f"{SYSTEM_PROMPT}\n\n{current_context}\n\n{kb_context}\n\nINSTRUCCION FINAL: Responde basandote EXCLUSIVAMENTE en la informacion proporcionada. Cita siempre la fuente. Si no encuentras la respuesta, dilo claramente."
         
         client = Groq(api_key=api_key)
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",  # MODELO CORRECTO Y DISPONIBLE
             messages=[{"role": "system", "content": full_system_prompt}, {"role": "user", "content": user_query}],
             temperature=0.3,
             max_tokens=800
@@ -864,7 +852,6 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         return f"Error al consultar la IA: {str(e)}. Verifica tu API Key."
 
 def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
-    """Respuesta fallback basada en reglas cuando no hay Groq"""
     text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
     sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
     alarms = get_alarms(latest)
@@ -943,135 +930,6 @@ def process_floating_query(query, ai_platform="rag"):
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
 # ============================================================================
-# FUNCION AUXILIAR PARA MOSTRAR DETALLE DE OT
-# ============================================================================
-
-def mostrar_detalle_ot(ot, conn):
-    prioridad_color = "#d32f2f" if ot["prioridad"] == "P0" else "#f5a623" if ot["prioridad"] == "P1" else "#8bc34a"
-    prioridad_text = "URGENTE" if ot["prioridad"] == "P0" else "ALTA" if ot["prioridad"] == "P1" else "NORMAL"
-    
-    st.markdown(f"""
-    <div style="background:{prioridad_color}; color:white; padding:15px; border-radius:12px; margin-bottom:15px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; color:white;">{ot['ot_id']} - {prioridad_text}</h3>
-            <span style="background:white; color:{prioridad_color}; padding:5px 15px; border-radius:20px; font-weight:bold;">{ot['status']}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col_info1, col_info2 = st.columns(2)
-    with col_info1:
-        st.markdown(f"**Activo:** {ot['asset_name']}")
-        st.markdown(f"**Tag:** {ot.get('tag', 'N/A')}")
-        st.markdown(f"**Ubicacion:** {ot.get('ubicacion', 'N/A')}")
-        st.markdown(f"**Tipo:** {ot.get('tipo', 'N/A')}")
-    with col_info2:
-        st.markdown(f"**Responsable:** {ot.get('responsable', 'Sin asignar')}")
-        st.markdown(f"**Creada:** {ot['creation_date'][:16] if ot.get('creation_date') else 'N/A'}")
-        st.markdown(f"**Horas estimadas:** {ot.get('estimated_hours', 2.0)}h")
-        if ot.get('start_time'): st.markdown(f"**Inicio:** {ot['start_time'][:16]}")
-        if ot.get('end_time'): st.markdown(f"**Fin:** {ot['end_time'][:16]}")
-    
-    st.divider()
-    
-    if ot.get('description'):
-        st.markdown("<h4>Problema Reportado</h4>", unsafe_allow_html=True)
-        st.info(ot['description'])
-    
-    st.markdown("<h4>Tareas a Realizar</h4>", unsafe_allow_html=True)
-    tareas_text = ot.get('acciones', '')
-    if tareas_text:
-        tareas_lista = tareas_text.split('\n')
-        for i, tarea in enumerate(tareas_lista):
-            if tarea.strip(): st.checkbox(tarea.strip(), key=f"tarea_{ot['ot_id']}_{i}")
-    else:
-        st.markdown("- Medir vibracion en 3 puntos (horizontal/vertical/axial)")
-        st.markdown("- Verificar alineacion")
-        st.markdown("- Revisar nivel de aceite")
-        st.markdown("- Inspeccionar componente")
-        st.markdown("- Tomar fotos del estado actual")
-    
-    st.divider()
-    
-    st.markdown("<h4>Recursos Necesarios</h4>", unsafe_allow_html=True)
-    col_rec1, col_rec2 = st.columns(2)
-    with col_rec1:
-        st.markdown("**Herramientas:**")
-        st.markdown("- Analizador de vibraciones")
-        st.markdown("- Llave dinamometrica")
-        st.markdown("- Multimetro")
-    with col_rec2:
-        st.markdown("**Seguridad:**")
-        st.markdown("- Bloqueo/etiquetado LOTO")
-        st.markdown("- EPP completo")
-        st.markdown("- Permiso de trabajo")
-    
-    st.divider()
-    
-    st.markdown("<h4>Registro de Trabajo</h4>", unsafe_allow_html=True)
-    with st.form(f"registro_{ot['ot_id']}"):
-        col_reg1, col_reg2 = st.columns(2)
-        with col_reg1:
-            nuevo_estado = st.selectbox("Estado:", options=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"], index=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"].index(ot["status"]) if ot["status"] in ["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"] else 0, key=f"estado_{ot['ot_id']}")
-        with col_reg2:
-            tiempo_real = st.number_input("Tiempo real (horas):", min_value=0.0, max_value=24.0, value=ot.get('tiempo_real_horas', 0.0), step=0.5, key=f"tiempo_{ot['ot_id']}")
-        
-        hallazgos = st.text_area("Hallazgos (que encontro?):", value=ot.get('hallazgos', ''), height=100, key=f"hallazgos_{ot['ot_id']}")
-        acciones_realizadas = st.text_area("Acciones realizadas:", value=ot.get('acciones', ''), height=100, key=f"acciones_{ot['ot_id']}")
-        repuestos = st.text_input("Repuestos utilizados:", value=ot.get('repuestos', ''), key=f"repuestos_{ot['ot_id']}")
-        
-        submitted_registro = st.form_submit_button("Guardar Cambios", use_container_width=True, type="primary")
-        if submitted_registro:
-            c = conn.cursor()
-            update_fields = ["status = ?", "tiempo_real_horas = ?", "hallazgos = ?", "acciones = ?", "repuestos = ?", "updated_at = ?"]
-            update_values = [nuevo_estado, tiempo_real, hallazgos, acciones_realizadas, repuestos, datetime.now().isoformat()]
-            
-            if nuevo_estado == "En Ejecucion" and not ot.get('start_time'):
-                update_fields.append("start_time = ?")
-                update_values.append(datetime.now().isoformat())
-            if nuevo_estado == "Completado" and not ot.get('end_time'):
-                update_fields.append("end_time = ?")
-                update_values.append(datetime.now().isoformat())
-            
-            update_values.append(ot['ot_id'])
-            c.execute(f"""UPDATE work_orders SET {', '.join(update_fields)} WHERE ot_id = ?""", update_values)
-            conn.commit()
-            
-            responsable = ot.get('responsable', 'Sin asignar')
-            asset = ot.get('asset_name', 'N/A')
-            if nuevo_estado == "En Ejecucion" and ot["status"] != "En Ejecucion": notify_ot_started(ot['ot_id'], asset, responsable)
-            elif nuevo_estado == "Pausado" and ot["status"] != "Pausado": notify_ot_paused(ot['ot_id'], asset, responsable, hallazgos or "Sin motivo especificado")
-            elif nuevo_estado == "Completado" and ot["status"] != "Completado": notify_ot_completed({"ot_id": ot['ot_id'], "responsable": responsable, "tiempo_real_horas": tiempo_real, "hallazgos": hallazgos})
-            
-            st.success(f"OT {ot['ot_id']} actualizada a '{nuevo_estado}'")
-            st.rerun()
-    
-    st.divider()
-    st.markdown("<h4>Acciones Rapidas</h4>", unsafe_allow_html=True)
-    col_acc1, col_acc2, col_acc3 = st.columns(3)
-    with col_acc1:
-        if st.button("Iniciar Trabajo", key=f"iniciar_{ot['ot_id']}", use_container_width=True):
-            c = conn.cursor()
-            c.execute("""UPDATE work_orders SET status = 'En Ejecucion', start_time = ?, updated_at = ? WHERE ot_id = ?""", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-            conn.commit()
-            st.success(f"OT {ot['ot_id']} iniciada")
-            st.rerun()
-    with col_acc2:
-        if st.button("Completar", key=f"completar_{ot['ot_id']}", use_container_width=True):
-            c = conn.cursor()
-            c.execute("""UPDATE work_orders SET status = 'Completado', end_time = ?, updated_at = ? WHERE ot_id = ?""", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-            conn.commit()
-            st.success(f"OT {ot['ot_id']} completada")
-            st.rerun()
-    with col_acc3:
-        if st.button("Pausar", key=f"pausar_{ot['ot_id']}", use_container_width=True):
-            c = conn.cursor()
-            c.execute("""UPDATE work_orders SET status = 'Pausado', updated_at = ? WHERE ot_id = ?""", (datetime.now().isoformat(), ot['ot_id']))
-            conn.commit()
-            st.success(f"OT {ot['ot_id']} pausada")
-            st.rerun()
-
-# ============================================================================
 # VISUALIZACION - GRAFICAS
 # ============================================================================
 
@@ -1102,7 +960,6 @@ def create_risk_chart(df):
 def init_database():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    
     c.execute("""CREATE TABLE IF NOT EXISTS work_orders (
         ot_id TEXT PRIMARY KEY,
         asset_name TEXT NOT NULL,
@@ -1129,32 +986,9 @@ def init_database():
         created_by TEXT,
         updated_at TEXT
     )""")
-    
-    # Verificar y agregar columnas faltantes
     c.execute("PRAGMA table_info(work_orders)")
     existing_columns = [row[1] for row in c.fetchall()]
-    
-    columns_to_add = {
-        'tag': 'TEXT',
-        'ubicacion': 'TEXT',
-        'prioridad': "TEXT NOT NULL DEFAULT 'P2'",
-        'tipo': "TEXT DEFAULT 'Correctivo'",
-        'responsable': 'TEXT',
-        'due_date': 'TEXT',
-        'estimated_hours': 'REAL DEFAULT 2.0',
-        'start_time': 'TEXT',
-        'end_time': 'TEXT',
-        'hallazgos': 'TEXT',
-        'acciones': 'TEXT',
-        'repuestos': 'TEXT',
-        'evidencia': 'TEXT',
-        'firma_operario': 'TEXT',
-        'firma_supervisor': 'TEXT',
-        'tiempo_real_horas': 'REAL',
-        'created_by': 'TEXT',
-        'updated_at': 'TEXT'
-    }
-    
+    columns_to_add = {'tag': 'TEXT', 'ubicacion': 'TEXT', 'prioridad': "TEXT NOT NULL DEFAULT 'P2'", 'tipo': "TEXT DEFAULT 'Correctivo'", 'responsable': 'TEXT', 'due_date': 'TEXT', 'estimated_hours': 'REAL DEFAULT 2.0', 'start_time': 'TEXT', 'end_time': 'TEXT', 'hallazgos': 'TEXT', 'acciones': 'TEXT', 'repuestos': 'TEXT', 'evidencia': 'TEXT', 'firma_operario': 'TEXT', 'firma_supervisor': 'TEXT', 'tiempo_real_horas': 'REAL', 'created_by': 'TEXT', 'updated_at': 'TEXT'}
     for col_name, col_type in columns_to_add.items():
         if col_name not in existing_columns:
             try:
@@ -1162,7 +996,28 @@ def init_database():
                 logger.info(f"Agregada columna {col_name} a work_orders")
             except Exception as e:
                 logger.error(f"Error agregando columna {col_name}: {e}")
-    
+    c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ot_id TEXT NOT NULL,
+        asset_name TEXT,
+        component TEXT NOT NULL,
+        decision TEXT NOT NULL,
+        result TEXT,
+        mass_conserved_kg REAL DEFAULT 0,
+        mass_discarded_kg REAL DEFAULT 0,
+        costo_reparacion_eur REAL DEFAULT 0,
+        costo_reemplazo_nuevo_eur REAL DEFAULT 0,
+        vida_util_extendida_horas REAL DEFAULT 0,
+        co2_evitado_kg REAL DEFAULT 0,
+        disponibilidad_post_reparacion_pct REAL DEFAULT 0,
+        tiempo_entre_fallas_reparado_horas REAL DEFAULT 0,
+        nivel_reparacion INTEGER DEFAULT 0,
+        fabricante_original TEXT,
+        garantia_reparacion_meses INTEGER DEFAULT 0,
+        recorded_date TEXT NOT NULL,
+        recorded_by TEXT,
+        FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
+    )""")
     conn.commit()
     conn.close()
 
@@ -1310,9 +1165,9 @@ if latest["estado"] in ["Alerta", "Critico"]:
             c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot["ot_id"],))
             if not c.fetchone():
                 c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (new_ot["ot_id"], new_ot["asset_name"], ASSETS.get(new_ot["asset_name"], {}).get("tag", "N/A"), "Planta Principal", new_ot["alert_id"], new_ot["description"], new_ot["priority"], "Correctivo", new_ot["responsible"], new_ot["creation_date"], 2.0, new_ot["status"], new_ot["created_by"], datetime.now().isoformat()))
+                    (new_ot["ot_id"], new_ot["asset_name"], ASSETS.get(new_ot["asset_name"], {}).get("tag", "N/A"), "Planta Principal", new_ot["alert_id"], new_ot["description"], new_ot["prioridad"], "Correctivo", new_ot["responsible"], new_ot["creation_date"], 2.0, new_ot["status"], new_ot["created_by"], datetime.now().isoformat()))
                 conn.commit()
-                if new_ot["priority"] == "P0":
+                if new_ot["prioridad"] == "P0":
                     alarms_list = get_alarms(latest)
                     if alarms_list:
                         level, param, valor = alarms_list[0]
@@ -1415,7 +1270,7 @@ with tabs[1]:
         c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (ot["ot_id"],))
         if not c.fetchone():
             c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (ot["ot_id"], ot["asset_name"], ASSETS.get(ot["asset_name"], {}).get("tag", "N/A"), "Planta Principal", ot["alert_id"], ot["description"], ot["priority"], "Correctivo", ot["responsible"], ot["creation_date"], 2.0, ot["status"], ot["created_by"], datetime.now().isoformat()))
+                (ot["ot_id"], ot["asset_name"], ASSETS.get(ot["asset_name"], {}).get("tag", "N/A"), "Planta Principal", ot["alert_id"], ot["description"], ot["prioridad"], "Correctivo", ot["responsible"], ot["creation_date"], 2.0, ot["status"], ot["created_by"], datetime.now().isoformat()))
             conn.commit()
             st.success(f"OT creada: {ot['ot_id']}")
         else:
@@ -1428,91 +1283,67 @@ with tabs[1]:
 
 with tabs[2]:
     st.markdown("<h2>Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
-
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM work_orders ORDER BY creation_date DESC")
     all_orders = [dict(row) for row in c.fetchall()]
-
+    
     st.markdown("<h3>Crear Nueva Orden de Trabajo</h3>", unsafe_allow_html=True)
-
     with st.form("nueva_ot_form", clear_on_submit=True):
         col_n1, col_n2 = st.columns(2)
-
         with col_n1:
             nuevo_activo = st.selectbox("Activo:", list(ASSETS.keys()), key="nuevo_activo_ot")
             nueva_prioridad = st.selectbox("Prioridad:", ["P0", "P1", "P2"], key="nueva_prioridad_ot")
             nuevo_tipo = st.selectbox("Tipo:", ["Correctivo", "Preventivo", "Predictivo"], key="nuevo_tipo_ot")
-
         with col_n2:
             nuevo_responsable = st.selectbox("Responsable:", ["Dario Minan", "Jordy Sernaque", "Sin asignar"], key="nuevo_resp_ot")
             nueva_ubicacion = st.text_input("Ubicacion:", "Planta Principal", key="nueva_ubicacion_ot")
             horas_estimadas = st.number_input("Horas estimadas:", min_value=0.5, max_value=24.0, value=2.0, step=0.5, key="nueva_horas_ot")
-
         nueva_descripcion = st.text_area("Descripcion del problema:", key="nueva_desc_ot")
         nuevas_tareas = st.text_area("Tareas a realizar (una por linea):", key="nueva_tareas_ot")
-
+        
         submitted = st.form_submit_button("Crear OT", use_container_width=True, type="primary")
-
         if submitted:
             ts = datetime.now().strftime("%Y%m%d%H%M")
             new_ot_id = f"OT-{ts}-{nueva_prioridad}"
             try:
                 c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot_id,))
-                if c.fetchone():
-                    st.info(f"La OT {new_ot_id} ya existe")
+                if c.fetchone(): st.info(f"La OT {new_ot_id} ya existe")
                 else:
-                    c.execute("""INSERT INTO work_orders
-                        (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable,
-                         creation_date, estimated_hours, status, created_by, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion,
-                         f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable,
-                         datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual", datetime.now().isoformat()))
+                    c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion, f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable, datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual", datetime.now().isoformat()))
                     conn.commit()
                     st.success(f"OT creada exitosamente: {new_ot_id}")
-            except Exception as e:
-                st.error(f"Error creando OT: {e}")
+            except Exception as e: st.error(f"Error creando OT: {e}")
     conn.close()
-
-    st.divider()
-
+    
     st.markdown("<h3>Ordenes Existentes</h3>", unsafe_allow_html=True)
     if all_orders:
         for ot in all_orders[:10]:
             with st.expander(f"{ot['ot_id']} - {ot['asset_name']} ({ot['status']})"):
-                st.markdown(f"**Activo:** {ot['asset_name']} | **Prioridad:** {ot['priority']}")
+                st.markdown(f"**Activo:** {ot['asset_name']} | **Prioridad:** {ot['prioridad']}")
                 st.markdown(f"**Descripcion:** {ot['description']}")
                 col_a1, col_a2, col_a3 = st.columns(3)
                 with col_a1:
                     if st.button("Iniciar", key=f"ini_{ot['ot_id']}"):
-                        conn2 = sqlite3.connect(DB_PATH)
-                        c2 = conn2.cursor()
-                        c2.execute("UPDATE work_orders SET status='En Ejecucion', start_time=?, updated_at=? WHERE ot_id=?",
-                                   (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-                        conn2.commit()
-                        conn2.close()
+                        conn2 = sqlite3.connect(DB_PATH); c2 = conn2.cursor()
+                        c2.execute("UPDATE work_orders SET status='En Ejecucion', start_time=?, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+                        conn2.commit(); conn2.close()
                         notify_ot_started(ot['ot_id'], ot['asset_name'], ot['responsible'])
                         st.rerun()
                 with col_a2:
                     if st.button("Pausar", key=f"pau_{ot['ot_id']}"):
-                        conn2 = sqlite3.connect(DB_PATH)
-                        c2 = conn2.cursor()
-                        c2.execute("UPDATE work_orders SET status='Pausado', updated_at=? WHERE ot_id=?",
-                                   (datetime.now().isoformat(), ot['ot_id']))
-                        conn2.commit()
-                        conn2.close()
+                        conn2 = sqlite3.connect(DB_PATH); c2 = conn2.cursor()
+                        c2.execute("UPDATE work_orders SET status='Pausado', updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), ot['ot_id']))
+                        conn2.commit(); conn2.close()
                         st.rerun()
                 with col_a3:
                     if st.button("Completar", key=f"com_{ot['ot_id']}"):
-                        conn2 = sqlite3.connect(DB_PATH)
-                        c2 = conn2.cursor()
-                        c2.execute("UPDATE work_orders SET status='Cerrada', end_time=?, updated_at=? WHERE ot_id=?",
-                                   (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-                        conn2.commit()
-                        conn2.close()
-                        notify_ot_completed({"ot_id": ot['ot_id'], "responsible": ot['responsible'], "tiempo_real_horas": 0, "hallazgos": "Completado"})
+                        conn2 = sqlite3.connect(DB_PATH); c2 = conn2.cursor()
+                        c2.execute("UPDATE work_orders SET status='Cerrada', end_time=?, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+                        conn2.commit(); conn2.close()
+                        notify_ot_completed({"ot_id": ot['ot_id'], "responsable": ot['responsible'], "tiempo_real_horas": 0, "hallazgos": "Completado"})
                         st.rerun()
     else:
         st.info("No hay ordenes registradas.")
