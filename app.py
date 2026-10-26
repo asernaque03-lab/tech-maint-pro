@@ -1811,39 +1811,46 @@ with tabs[4]:
             st.download_button(label="Exportar a CSV", data=csv, file_name=f"impacto_circular_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
         else:
             st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular.")
-    
     with sub_tabs[2]:
-        st.markdown("<h2>Reportes y Descargas</h2>")
-        st.markdown("### Generar Reporte de Mantenimiento")
-        
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
-        rows = c.fetchall()
-        closed_orders = [dict(row) for row in (rows if rows else [])]
-        conn.close()
-        
-        if closed_orders:
-            selected_ot = st.selectbox("Seleccionar OT para generar reporte:", [f"{ot['ot_id']} - {ot['asset_name']}" for ot in closed_orders])
-            if selected_ot:
-                ot_id = selected_ot.split(" - ")[0]
-                conn = sqlite3.connect(DB_PATH)
-                c = conn.cursor()
-                c.execute("SELECT * FROM work_orders WHERE ot_id=?", (ot_id,))
-                ot_data = dict(c.fetchone())
+    st.markdown("<h2>Reportes y Descargas</h2>")
+    st.markdown("### Generar Reporte de Mantenimiento")
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row  # <-- IMPORTANTE: agregar esta línea
+    c = conn.cursor()
+    c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
+    rows = c.fetchall()
+    closed_orders = [dict(row) for row in (rows if rows else [])]
+    conn.close()
+    
+    if closed_orders:
+        selected_ot = st.selectbox("Seleccionar OT para generar reporte:", [f"{ot['ot_id']} - {ot['asset_name']}" for ot in closed_orders])
+        if selected_ot:
+            ot_id = selected_ot.split(" - ")[0]
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row  # <-- IMPORTANTE: agregar esta línea
+            c = conn.cursor()
+            c.execute("SELECT * FROM work_orders WHERE ot_id=?", (ot_id,))
+            row = c.fetchone()
+            
+            if row:  # <-- Verificar que existe antes de convertir
+                ot_data = dict(row)
                 
                 c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='before'", (ot_id,))
-                photos_before = [row[0] for row in c.fetchall()]
+                photos_before = [r[0] for r in c.fetchall()]
                 c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='after'", (ot_id,))
-                photos_after = [row[0] for row in c.fetchall()]
+                photos_after = [r[0] for r in c.fetchall()]
                 conn.close()
                 
                 if st.button("Generar PDF Reporte", use_container_width=True):
                     pdf_buffer = generate_maintenance_pdf(ot_data, photos_before, photos_after)
                     st.download_button(label="Descargar PDF", data=pdf_buffer, file_name=f"Reporte_{ot_id}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
-        else:
-            st.info("No hay OTs cerradas para generar reportes")
+            else:
+                st.error(f"No se encontró la OT {ot_id}")
+                conn.close()
+    else:
+        st.info("No hay OTs cerradas para generar reportes")
+    
 
 # ============================================================================
 # TAB 6: INVENTARIO Y STOCK
