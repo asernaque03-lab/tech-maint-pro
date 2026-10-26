@@ -424,69 +424,6 @@ def notify_high_circular_impact(intervention):
     for key in ["gerencia", "asesor"]:
         send_email(STAFF[key]["email"], f"[Circular] {ot_id} - {component}", cuerpo_email)
 
-# ============================================================================
-# ALARMAS SONORAS VIA JAVASCRIPT
-# ============================================================================
-
-def play_critical_alarm(event_id):
-    """Alarma critica con sonido via JavaScript"""
-    if st.session_state.get("last_beep_event") == event_id:
-        return
-    st.session_state["last_beep_event"] = event_id
-    
-    st.markdown("""
-    <script>
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        for (let i = 0; i < 5; i++) {
-            setTimeout(() => {
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = 1200;
-                oscillator.type = 'square';
-                gainNode.gain.value = 0.3;
-                oscillator.start();
-                setTimeout(() => oscillator.stop(), 400);
-            }, i * 550);
-        }
-    } catch(e) {
-        console.log('Audio no disponible:', e);
-    }
-    </script>
-    """, unsafe_allow_html=True)
-    logger.info(f"[ALARMA CRITICA] {event_id}")
-
-def play_observation_alarm(event_id):
-    """Alarma de advertencia con sonido via JavaScript"""
-    if st.session_state.get("last_observation_event") == event_id:
-        return
-    st.session_state["last_observation_event"] = event_id
-    
-    st.markdown("""
-    <script>
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        for (let i = 0; i < 2; i++) {
-            setTimeout(() => {
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = 600;
-                oscillator.type = 'sine';
-                gainNode.gain.value = 0.2;
-                oscillator.start();
-                setTimeout(() => oscillator.stop(), 200);
-            }, i * 500);
-        }
-    } catch(e) {
-        console.log('Audio no disponible:', e);
-    }
-    </script>
-    """, unsafe_allow_html=True)
-    logger.info(f"[ALARMA OBSERVACION] {event_id}")
 
 # ============================================================================
 # ESTILOS CSS PERSONALIZADOS
@@ -830,74 +767,134 @@ def format_context_for_llm(search_results):
     return "\n".join(context_parts)
 
 # ============================================================================
-# INTEGRACION CON GROQ + RAG
+# INTEGRACION CON GROQ + RAG - CORREGIDA
 # ============================================================================
 
 def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
     try:
         api_key = st.session_state.get("groq_api_key", "")
-        if not api_key: return "Por favor, ingresa tu API Key gratuita de Groq en la configuracion del chatbot."
+        if not api_key:
+            return "Por favor, ingresa tu API Key gratuita de Groq en la configuracion del chatbot."
         
         alarms = get_alarms(latest)
         at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
-        current_context = f"=== ESTADO ACTUAL ===\nActivo: {asset_name}\nEstado: {latest['estado']}\nIR: {latest['indice_riesgo']:.1f}/100\nVibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s\nTemperatura: {latest['temperatura_c']:.1f} C\nVacio: {latest['presion_vacio_kpa']:.1f} kPa\nAlarmas: {at}\n\nKPIs: MTBF: {kpi_values['MTBF (h)']:.1f} h, MTTR: {kpi_values['MTTR (h)']:.1f} h, Disponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%"
+        
+        current_context = f"""
+=== ESTADO ACTUAL DEL EQUIPO ===
+Activo: {asset_name}
+Estado: {latest['estado']}
+IR: {latest['indice_riesgo']:.1f}/100
+Vibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s
+Temperatura: {latest['temperatura_c']:.1f} C
+Vacio: {latest['presion_vacio_kpa']:.1f} kPa
+Alarmas: {at}
+
+KPIs Actuales:
+- MTBF: {kpi_values['MTBF (h)']:.1f} h
+- MTTR: {kpi_values['MTTR (h)']:.1f} h
+- Disponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%
+"""
         
         search_results = search_knowledge_base(user_query, top_k=8)
         kb_context = format_context_for_llm(search_results)
-        full_system_prompt = f"{SYSTEM_PROMPT}\n\n{current_context}\n\n{kb_context}\n\nINSTRUCCION FINAL: Responde basandote EXCLUSIVAMENTE en la informacion proporcionada. Cita siempre la fuente."
+        
+        full_system_prompt = f"""{SYSTEM_PROMPT}
+
+{current_context}
+
+{kb_context}
+
+INSTRUCCION FINAL: Responde la pregunta del usuario basandote EXCLUSIVAMENTE en la informacion proporcionada arriba. Cita siempre la fuente."""
         
         client = Groq(api_key=api_key)
+        
+        # DEFINIR CORRECTAMENTE LA VARIABLE MESSAGES
+        messages = [
+            {"role": "system", "content": full_system_prompt},
+            {"role": "user", "content": user_query}
+        ]
+        
         response = client.chat.completions.create(
-    model="llama-3.1-8b-instant",  # MODELO CORRECTO
-    messages=messages,
-    temperature=0.3,
-    max_tokens=800
-)
+            model="llama-3.1-8b-instant",
+            messages=messages,  # AHORA SÍ ESTÁ DEFINIDA
+            temperature=0.3,
+            max_tokens=800
+        )
+        
         return response.choices[0].message.content
+        
     except Exception as e:
         logger.error(f"Error en Groq RAG: {e}")
-        return f"Error al consultar la IA: {str(e)}. Verifica tu API Key."
+        return f"Error al consultar la IA: {str(e)}. Verifica tu API Key de Groq."
 
-def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
-    text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
-    sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
-    alarms = get_alarms(latest)
-    at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
+# ============================================================================
+# ALARMAS SONORAS - CORREGIDAS Y MEJORADAS
+# ============================================================================
+
+def play_critical_alarm(event_id):
+    """Alarma critica con sonido via JavaScript (funciona en navegador)"""
+    if st.session_state.get("last_beep_event") == event_id:
+        return
+    st.session_state["last_beep_event"] = event_id
     
-    if any(k in text for k in ["hola", "ayuda", "quiero", "necesito"]):
-        return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con diagnostico, ordenes de trabajo, AMEF, KPIs e impacto circular."
-    if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico"]):
-        na = [a[1] for a in alarms]
-        hip = "Posible desgaste de rodamientos o desalineacion." if "Vibracion" in na and "Temperatura" in na else "Posible fuga en linea o deterioro de sellos." if "Presion de vacio" in na else "Posible desalineacion o desgaste de rodamiento." if "Vibracion" in na else "Posible friccion interna o lubricacion deficiente." if "Temperatura" in na else "Condicion normal."
-        acc = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT prioritaria"
-        return f"Diagnostico\n\n{sl}\n\nAlarmas: {at}\n\nHipotesis: {hip}\n\nAccion: {acc}"
-    if any(k in text for k in ["orden", "trabajo", "ot", "generar"]):
-        pri = "P0" if latest["estado"] == "Critico" else "P1" if latest["estado"] == "Alerta" else "P2"
-        sint = "; ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) or "Sin alarma critica"
-        tareas = ["Medir vibracion", "Verificar alineacion"] if any(a[1] == "Vibracion" for a in alarms) else []
-        tareas += ["Revisar lubricacion", "Verificar friccion"] if any(a[1] == "Temperatura" for a in alarms) else []
-        tareas += ["Prueba de fugas", "Inspeccionar sellos"] if any(a[1] == "Presion de vacio" for a in alarms) else []
-        if not tareas: tareas = ["Inspeccion rutinaria"]
-        return f"OT Sugerida\n\nPrioridad: {pri}\nActivo: {asset_name}\nSintomas: {sint}\n\nTareas:\n" + "\n".join(["- " + t for t in tareas])
-    if any(k in text for k in ["vibracion", "vibra"]):
-        v = latest["vibracion_rms_mm_s"]
-        vs = "Critico" if v >= THRESHOLDS["vibration_alert"] else "Alerta" if v >= THRESHOLDS["vibration_normal"] else "Normal"
-        return f"Vibracion\n\nLectura: {v:.2f} mm/s\nEstado: {vs}\n\nCausas: Desgaste rodamientos, desalineacion, desbalance.\n\nAcciones: Medir vibracion, verificar alineacion, revisar lubricante."
-    if any(k in text for k in ["temperatura", "temp", "calor"]):
-        t = latest["temperatura_c"]
-        ts = "Critico" if t >= THRESHOLDS["temperature_alert"] else "Alerta" if t >= THRESHOLDS["temperature_normal"] else "Normal"
-        return f"Temperatura\n\nLectura: {t:.1f} C\nEstado: {ts}\n\nCausas: Friccion interna, lubricacion deficiente, sobrecarga.\n\nAcciones: Revisar lubricante, inspeccionar enfriamiento."
-    if any(k in text for k in ["vacio", "presion"]):
-        p = latest["presion_vacio_kpa"]
-        ps = "Critico" if p >= THRESHOLDS["vacuum_alert"] else "Alerta" if p >= THRESHOLDS["vacuum_normal"] else "Normal"
-        return f"Presion de Vacio\n\nLectura: {p:.1f} kPa\nEstado: {ps}\n*Mas negativo es mejor*\n\nCausas: Fuga en linea, deterioro de sellos.\n\nAcciones: Prueba de fugas, inspeccionar sellos."
-    if any(k in text for k in ["kpi", "indicador"]):
-        return f"KPIs\n\nMTBF: {kpi_values['MTBF (h)']:.1f} h\nMTTR: {kpi_values['MTTR (h)']:.1f} h\nDisponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%\nConfiabilidad 24h: {kpi_values['Confiabilidad 24h (%)']:.2f}%"
-    if any(k in text for k in ["amef", "rcm", "falla"]):
-        return "AMEF/RCM\n\nModos de falla:\n1. Vibracion alta - Desgaste rodamientos/desalineacion\n2. Temperatura alta - Friccion/lubricacion deficiente\n3. Perdida de vacio - Fuga/deterioro sellos"
-    if any(k in text for k in ["circular", "impacto", "residuo"]):
-        return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
-    return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
+    # Inyectar JavaScript para reproducir sonido en el navegador
+    st.markdown("""
+    <script>
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // 5 beeps agudos de 1200 Hz (400ms cada uno)
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 1200;
+                oscillator.type = 'square';
+                gainNode.gain.value = 0.3;
+                oscillator.start();
+                setTimeout(() => oscillator.stop(), 400);
+            }, i * 550);
+        }
+    } catch(e) {
+        console.log('Audio no disponible:', e);
+    }
+    </script>
+    """, unsafe_allow_html=True)
+    
+    logger.info(f"[ALARMA CRITICA] {event_id}")
+
+def play_observation_alarm(event_id):
+    """Alarma de advertencia con sonido via JavaScript"""
+    if st.session_state.get("last_observation_event") == event_id:
+        return
+    st.session_state["last_observation_event"] = event_id
+    
+    st.markdown("""
+    <script>
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // 2 beeps suaves de 600 Hz (200ms cada uno)
+        for (let i = 0; i < 2; i++) {
+            setTimeout(() => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 600;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.2;
+                oscillator.start();
+                setTimeout(() => oscillator.stop(), 200);
+            }, i * 500);
+        }
+    } catch(e) {
+        console.log('Audio no disponible:', e);
+    }
+    </script>
+    """, unsafe_allow_html=True)
+    
+    logger.info(f"[ALARMA OBSERVACION] {event_id}")
 
 # ============================================================================
 # CHATBOT FLOTANTE CON LETZY Y RAG
