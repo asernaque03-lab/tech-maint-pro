@@ -1192,7 +1192,7 @@ if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado 
         fault_desc = ''
     alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
     if "floating_chat_history" not in st.session_state:
-    st.session_state["floating_chat_history"] = []
+        st.session_state["floating_chat_history"] = []
 st.session_state["floating_chat_history"].append({"role": "assistant", "content": alert_msg})
 
 st.session_state.previous_estado = current_estado
