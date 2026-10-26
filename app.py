@@ -378,6 +378,26 @@ def apply_custom_styles():
         color: #1a2b4c !important;
     }}
     
+    .doc-button {{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #1a5fa8, #8bc34a);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }}
+    .doc-button:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        color: white;
+    }}
+    
     @media (max-width: 768px) {{
         .metric-value {{ font-size: 1.5rem !important; }}
         .main-header {{ padding: 8px 0; }}
@@ -914,16 +934,12 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
 # ============================================================================
 # CHATBOT FLOTANTE CON LETZY Y RAG
 # ============================================================================
+
 def process_floating_query(query, ai_platform="rag"):
     if not query or not query.strip():
         return
     q = query.strip()
-    
-    # Asegurar que la lista existe
-    if "floating_chat_history" not in st.session_state:
-        st.session_state["floating_chat_history"] = []
-    
-    st.session_state["floating_chat_history"].append({"role": "user", "content": q})
+    st.session_state.floating_chat_history.append({"role": "user", "content": q})
     
     try:
         kp = calculate_kpis(720, 3, 18, 18, 20, 40, 80, st.session_state.get("production_rate", 85.5))
@@ -935,9 +951,9 @@ def process_floating_query(query, ai_platform="rag"):
         else:
             reply = chatbot_response_fallback(q, latest, asset_name, kp)
         
-        st.session_state["floating_chat_history"].append({"role": "assistant", "content": reply})
+        st.session_state.floating_chat_history.append({"role": "assistant", "content": reply})
     except Exception as e:
-        st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
+        st.session_state.floating_chat_history.append({"role": "assistant", "content": f"Error: {e}"})
 
 @st.dialog("Asistente Tech Maint Pro - Letzy", width="large")
 def floating_chat_dialog():
@@ -981,14 +997,11 @@ def floating_chat_dialog():
     st.caption("Respuestas basadas en 10 documentos tecnicos especializados")
     st.divider()
     
-    # USAR .get() EN LUGAR DE ACCESO DIRECTO
-    chat_history = st.session_state.get("floating_chat_history", [])
-    
-    if not chat_history:
+    if not st.session_state.floating_chat_history:
         with st.chat_message("assistant", avatar=LETZY_BASE64):
             st.markdown("**HOLA, SOY LETZY TU ASISTENTE DE TECH MAINT PRO**\n\nEn que puedo ayudarte hoy? Tengo acceso a manuales tecnicos, procedimientos de mantenimiento, fichas de equipos y guias de KPIs.")
     
-    for msg in chat_history[-10:]:
+    for msg in st.session_state.floating_chat_history[-10:]:
         if msg["role"] == "assistant":
             with st.chat_message("assistant", avatar=LETZY_BASE64):
                 st.markdown(msg["content"])
@@ -1019,7 +1032,7 @@ def floating_chat_dialog():
         if st.button("Temperatura", key="qr8", use_container_width=True):
             process_floating_query("Analiza la temperatura actual", ai_mode)
         if st.button("Limpiar", key="qr9", use_container_width=True):
-            st.session_state["floating_chat_history"] = []
+            st.session_state.floating_chat_history = []
     
     st.divider()
     ui = st.chat_input("Escribe tu consulta a Letzy...", key="fci")
@@ -1027,8 +1040,8 @@ def floating_chat_dialog():
         process_floating_query(ui, ai_mode)
     
     if st.button("Cerrar chat", key="fcc", use_container_width=True):
-        st.session_state["floating_chat_open"] = False
-        st.session_state["auto_chat_triggered"] = False
+        st.session_state.floating_chat_open = False
+        st.session_state.auto_chat_triggered = False
 
 # ============================================================================
 # BOTON FLOTANTE DE LETZY - HTML FIJO EN EL DOM
@@ -1129,14 +1142,28 @@ if not st.session_state.get("kb_loaded", False):
         load_knowledge_base()
 
 # ============================================================================
-# HEADER
+# HEADER CON BOTON DE DOCUMENTOS
 # ============================================================================
 
 st.markdown(f"""
-<div style="display:flex; align-items:center; gap:20px; margin-bottom:10px; padding:10px 0;">
-    {render_logo("180px")}
-    <div style="flex:1;">
-        <p style="margin:0; color:{COLORS['amarillo']}; font-size:1.5rem; font-weight:700;">Mantenimiento Inteligente + Economia Circular</p>
+<div style="display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:10px; padding:10px 0;">
+    <div style="display:flex; align-items:center; gap:20px;">
+        {render_logo("180px")}
+        <div>
+            <p style="margin:0; color:{COLORS['amarillo']}; font-size:1.5rem; font-weight:700;">Mantenimiento Inteligente + Economia Circular</p>
+        </div>
+    </div>
+    <div>
+        <a href="https://drive.google.com/drive/folders/1alITCWZz7CxRgumUUw_kwtmaW5oNPGNI?usp=drive_link" target="_blank" class="doc-button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            📄 Documentos
+        </a>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1191,9 +1218,7 @@ if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado 
     if pd.isna(fault_desc):
         fault_desc = ''
     alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
-    if "floating_chat_history" not in st.session_state:
-        st.session_state["floating_chat_history"] = []
-st.session_state["floating_chat_history"].append({"role": "assistant", "content": alert_msg})
+    st.session_state.floating_chat_history.append({"role": "assistant", "content": alert_msg})
 
 st.session_state.previous_estado = current_estado
 
