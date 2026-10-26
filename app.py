@@ -10,9 +10,9 @@ import time
 import logging
 import unicodedata
 import smtplib
+import wave
 from email.mime.text import MIMEText
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import wave
 from datetime import datetime, timedelta
 from io import BytesIO
 from typing import Optional, Dict, List, Tuple
@@ -233,7 +233,7 @@ STAFF = {
 # FUNCION PARA GENERAR SONIDO WAV
 # ============================================================================
 
-def generate_alarm_wav(frequency=800, duration=0.3, num_beeps=3):
+def generate_alarm_wav(frequency=800, duration=0.3):
     """Genera un archivo WAV con beeps de alarma"""
     sample_rate = 44100
     n_samples = int(sample_rate * duration)
@@ -264,7 +264,7 @@ def play_critical_alarm(event_id):
     st.session_state["last_beep_event"] = event_id
     
     # Generar sonido de alarma critica (5 beeps agudos)
-    wav_data = generate_alarm_wav(frequency=1200, duration=0.4, num_beeps=5)
+    wav_data = generate_alarm_wav(frequency=1200, duration=0.4)
     
     # Mostrar audio que se reproduce automaticamente
     st.audio(wav_data, format='audio/wav', start_time=0)
@@ -278,7 +278,7 @@ def play_observation_alarm(event_id):
     st.session_state["last_observation_event"] = event_id
     
     # Generar sonido de advertencia (2 beeps suaves)
-    wav_data = generate_alarm_wav(frequency=600, duration=0.2, num_beeps=2)
+    wav_data = generate_alarm_wav(frequency=600, duration=0.2)
     
     # Mostrar audio que se reproduce automaticamente
     st.audio(wav_data, format='audio/wav', start_time=0)
@@ -755,7 +755,7 @@ def calculate_kpis(oh, failures, dh, pmd, pmp, ph, ahw, pr):
     return {"MTBF (h)": mtbf, "MTTR (h)": mttr, "Disponibilidad (%)": avail * 100, "Confiabilidad 24h (%)": rel24 * 100, "Cumplimiento PM (%)": pmc * 100, "Backlog (semanas)": bl, "Perdida productiva (t)": pl}
 
 # ============================================================================
-# SISTEMA RAG - BASE DE CONOCIMIENTO PDF MEJORADO
+# SISTEMA RAG - BASE DE CONOCIMIENTO PDF
 # ============================================================================
 
 def extract_text_from_pdf(pdf_path):
@@ -1349,12 +1349,13 @@ with tabs[2]:
         st.info("No hay ordenes registradas.")
 
 # ============================================================================
-# TAB 4: IMPACTO CIRCULAR
+# TAB 4: IMPACTO CIRCULAR - CORREGIDO
 # ============================================================================
 
 with tabs[3]:
     st.markdown("<h2>Panel de Impacto Circular</h2>", unsafe_allow_html=True)
     st.markdown("Registro de decisiones de mantenimiento y su impacto en la conservacion de recursos")
+    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -1398,6 +1399,22 @@ with tabs[3]:
         st.download_button(label="Exportar a CSV", data=csv, file_name=f"impacto_circular_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
     else:
         st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular.")
+        st.markdown("""
+        ### Como registrar intervenciones?
+        
+        1. **Complete una Orden de Trabajo** en el modulo correspondiente
+        2. **Al cerrar la OT**, seleccione:
+           - Componente intervenido
+           - Decision tomada (Inspeccion/Reparacion/Reemplazo)
+           - Masa conservada y descartada
+           - Costos asociados
+           - Vida util extendida
+        3. **El sistema calculara automaticamente**:
+           - Tasa de circularidad
+           - CO2 evitado
+           - Ahorro economico
+           - ROI de la economia circular
+        """)
 
 # ============================================================================
 # TAB 5: KPIs
