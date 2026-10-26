@@ -1786,138 +1786,64 @@ with tabs[2]:
         submitted = st.form_submit_button("Crear OT", use_container_width=True, type="primary")
         
         if submitted:
-            ts = datetime.now().strftime("%Y%m%d%H%M")
-            new_ot_id = f"OT-{ts}-{nueva_prioridad}"
+    ts = datetime.now().strftime("%Y%m%d%H%M")
+    new_ot_id = f"OT-{ts}-{nueva_prioridad}"
+    
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        
+        # Verificar si la OT ya existe
+        c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot_id,))
+        if c.fetchone():
+            st.info(f"La OT {new_ot_id} ya existe")
+        else:
+           if latest["estado"] in ["Alerta", "Critico"]:
+    ek = f"{latest['fecha_hora']}-{latest['estado']}"
+    if st.session_state.last_order_event != ek:
+        new_ot = create_work_order_obj(latest, asset_name, source="Automatica por alarma")
+        
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot["ot_id"],))
+            if not c.fetchone():
+                # Insertar solo columnas básicas
+                c.execute("""INSERT INTO work_orders 
+                    (ot_id, asset_name, description, prioridad, responsable, 
+                     creation_date, status, created_by, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (new_ot["ot_id"], new_ot["asset_name"], new_ot["description"], 
+                     new_ot["priority"], new_ot["responsible"], new_ot["creation_date"],
+                     new_ot["status"], new_ot["created_by"], datetime.now().isoformat()))
+                conn.commit()
+                
+                # Notificaciones
+                if new_ot["priority"] == "P0":
+                    alarms_list = get_alarms(latest)
+                    if alarms_list:
+                        level, param, valor = alarms_list[0]
+                        threshold = THRESHOLDS.get("vibration_alert", 7.1)
+                        notify_critical_alarm(
+                            asset_name=asset_name,
+                            parameter=param,
+                            value=valor,
+                            threshold=threshold,
+                            ir=latest['indice_riesgo'],
+                            ot_id=new_ot["ot_id"],
+                            responsable=new_ot["responsible"]
+                        )
+                
+                notify_new_ot(new_ot)
+                logger.info(f"OT creada y notificada: {new_ot['ot_id']}")
             
-            c.execute("""INSERT INTO work_orders 
-                (ot_id, asset_name, tag, ubicacion, description, prioridad, tipo, responsable, 
-                 creation_date, estimated_hours, status, created_by, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion,
-                 nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable,
-                 datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual",
-                 datetime.now().isoformat()))
-            conn.commit()
-            
-            st.success(f"OT creada exitosamente: {new_ot_id}")
-            st.rerun()
-    
-    st.divider()
-    
-    st.markdown("<h3>Filtros Rapidos</h3>", unsafe_allow_html=True)
-    
-    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-    
-    with col_f1:
-        filtro_estado = st.multiselect(
-            "Por estado:",
-            options=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"],
-            default=["Pendiente", "En Ejecucion"],
-            key="filtro_estado_ot"
-        )
-    
-    with col_f2:
-        filtro_prioridad = st.multiselect(
-            "Por prioridad:",
-            options=["P0", "P1", "P2"],
-            default=["P0", "P1", "P2"],
-            key="filtro_prioridad_ot"
-        )
-    
-    with col_f3:
-        filtro_tipo = st.multiselect(
-            "Por tipo:",
-            options=["Correctivo", "Preventivo", "Predictivo"],
-            default=["Correctivo", "Preventivo", "Predictivo"],
-            key="filtro_tipo_ot"
-        )
-    
-    with col_f4:
-        filtro_tiempo = st.selectbox(
-            "Por tiempo:",
-            options=["Todas", "Hoy", "Esta semana", "Vencidas"],
-            key="filtro_tiempo_ot"
-        )
-    
-    filtered_orders = all_orders
-    
-    if filtro_estado:
-        filtered_orders = [o for o in filtered_orders if o["status"] in filtro_estado]
-    if filtro_prioridad:
-        filtered_orders = [o for o in filtered_orders if o["prioridad"] in filtro_prioridad]
-    if filtro_tipo:
-        filtered_orders = [o for o in filtered_orders if o["tipo"] in filtro_tipo]
-    
-    if filtro_tiempo == "Hoy":
-        today = datetime.now().strftime("%Y-%m-%d")
-        filtered_orders = [o for o in filtered_orders if today in o.get("creation_date", "")]
-    elif filtro_tiempo == "Esta semana":
-        week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-        filtered_orders = [o for o in filtered_orders if o.get("creation_date", "") >= week_ago]
-    
-    col_r1, col_r2, col_r3, col_r4 = st.columns(4)
-    
-    with col_r1:
-        p0_count = len([o for o in filtered_orders if o["prioridad"] == "P0"])
-        st.metric("Prioridad 0 (Urgente)", p0_count)
-    
-    with col_r2:
-        pendiente_count = len([o for o in filtered_orders if o["status"] == "Pendiente"])
-        st.metric("Pendientes", pendiente_count)
-    
-    with col_r3:
-        ejecucion_count = len([o for o in filtered_orders if o["status"] == "En Ejecucion"])
-        st.metric("En Ejecucion", ejecucion_count)
-    
-    with col_r4:
-        completado_count = len([o for o in filtered_orders if o["status"] == "Completado"])
-        st.metric("Completadas", completado_count)
-    
-    st.divider()
-    
-    st.markdown("<h3>Ordenes de Trabajo por Prioridad</h3>", unsafe_allow_html=True)
-    
-    p0_orders = [o for o in filtered_orders if o["prioridad"] == "P0"]
-    p1_orders = [o for o in filtered_orders if o["prioridad"] == "P1"]
-    p2_orders = [o for o in filtered_orders if o["prioridad"] == "P2"]
-    
-    if p0_orders:
-        st.markdown(f"""
-        <div style="background:#d32f2f; color:white; padding:12px 20px; border-radius:12px; margin-bottom:15px;">
-            <h3 style="margin:0; color:white;">PRIORIDAD 0 - URGENTE ({len(p0_orders)} OTs)</h3>
-        </div>
-        """, unsafe_allow_html=True)
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error creando OT automática: {e}")
+            if 'conn' in locals():
+                conn.close()
         
-        for ot in p0_orders:
-            with st.expander(f"{ot['ot_id']} | {ot['asset_name']} | {ot.get('description', 'Sin descripcion')[:50]}...", expanded=True):
-                mostrar_detalle_ot(ot, conn)
-    
-    if p1_orders:
-        st.markdown(f"""
-        <div style="background:#f5a623; color:white; padding:12px 20px; border-radius:12px; margin-bottom:15px;">
-            <h3 style="margin:0; color:white;">PRIORIDAD 1 - ALTA ({len(p1_orders)} OTs)</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        for ot in p1_orders:
-            with st.expander(f"{ot['ot_id']} | {ot['asset_name']} | {ot.get('description', 'Sin descripcion')[:50]}..."):
-                mostrar_detalle_ot(ot, conn)
-    
-    if p2_orders:
-        st.markdown(f"""
-        <div style="background:#8bc34a; color:white; padding:12px 20px; border-radius:12px; margin-bottom:15px;">
-            <h3 style="margin:0; color:white;">PRIORIDAD 2 - NORMAL ({len(p2_orders)} OTs)</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        for ot in p2_orders:
-            with st.expander(f"{ot['ot_id']} | {ot['asset_name']} | {ot.get('description', 'Sin descripcion')[:50]}..."):
-                mostrar_detalle_ot(ot, conn)
-    
-    if not filtered_orders:
-        st.info("No hay ordenes de trabajo que coincidan con los filtros seleccionados.")
-    
-    conn.close()
+        st.session_state["last_order_event"] = ek
 
 # ============================================================================
 # TAB 4: IMPACTO CIRCULAR
