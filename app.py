@@ -1102,10 +1102,59 @@ def create_risk_chart(df):
 def init_database():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS work_orders (ot_id TEXT PRIMARY KEY, asset_name TEXT NOT NULL, tag TEXT, ubicacion TEXT, alert_id TEXT, description TEXT, prioridad TEXT NOT NULL DEFAULT 'P2', tipo TEXT DEFAULT 'Correctivo', responsable TEXT, creation_date TEXT NOT NULL, due_date TEXT, estimated_hours REAL DEFAULT 2.0, status TEXT NOT NULL DEFAULT 'Pendiente', start_time TEXT, end_time TEXT, hallazgos TEXT, acciones TEXT, repuestos TEXT, evidencia TEXT, firma_operario TEXT, firma_supervisor TEXT, tiempo_real_horas REAL, created_by TEXT, updated_at TEXT)""")
+    
+    c.execute("""CREATE TABLE IF NOT EXISTS work_orders (
+        ot_id TEXT PRIMARY KEY,
+        asset_name TEXT NOT NULL,
+        tag TEXT,
+        ubicacion TEXT,
+        alert_id TEXT,
+        description TEXT,
+        prioridad TEXT NOT NULL DEFAULT 'P2',
+        tipo TEXT DEFAULT 'Correctivo',
+        responsable TEXT,
+        creation_date TEXT NOT NULL,
+        due_date TEXT,
+        estimated_hours REAL DEFAULT 2.0,
+        status TEXT NOT NULL DEFAULT 'Pendiente',
+        start_time TEXT,
+        end_time TEXT,
+        hallazgos TEXT,
+        acciones TEXT,
+        repuestos TEXT,
+        evidencia TEXT,
+        firma_operario TEXT,
+        firma_supervisor TEXT,
+        tiempo_real_horas REAL,
+        created_by TEXT,
+        updated_at TEXT
+    )""")
+    
+    # Verificar y agregar columnas faltantes
     c.execute("PRAGMA table_info(work_orders)")
     existing_columns = [row[1] for row in c.fetchall()]
-    columns_to_add = {'tag': 'TEXT', 'ubicacion': 'TEXT', 'prioridad': "TEXT NOT NULL DEFAULT 'P2'", 'tipo': "TEXT DEFAULT 'Correctivo'", 'responsable': 'TEXT', 'due_date': 'TEXT', 'estimated_hours': 'REAL DEFAULT 2.0', 'start_time': 'TEXT', 'end_time': 'TEXT', 'hallazgos': 'TEXT', 'acciones': 'TEXT', 'repuestos': 'TEXT', 'evidencia': 'TEXT', 'firma_operario': 'TEXT', 'firma_supervisor': 'TEXT', 'tiempo_real_horas': 'REAL', 'created_by': 'TEXT', 'updated_at': 'TEXT'}
+    
+    columns_to_add = {
+        'tag': 'TEXT',
+        'ubicacion': 'TEXT',
+        'prioridad': "TEXT NOT NULL DEFAULT 'P2'",
+        'tipo': "TEXT DEFAULT 'Correctivo'",
+        'responsable': 'TEXT',
+        'due_date': 'TEXT',
+        'estimated_hours': 'REAL DEFAULT 2.0',
+        'start_time': 'TEXT',
+        'end_time': 'TEXT',
+        'hallazgos': 'TEXT',
+        'acciones': 'TEXT',
+        'repuestos': 'TEXT',
+        'evidencia': 'TEXT',
+        'firma_operario': 'TEXT',
+        'firma_supervisor': 'TEXT',
+        'tiempo_real_horas': 'REAL',
+        'created_by': 'TEXT',
+        'updated_at': 'TEXT'
+    }
+    
     for col_name, col_type in columns_to_add.items():
         if col_name not in existing_columns:
             try:
@@ -1113,7 +1162,7 @@ def init_database():
                 logger.info(f"Agregada columna {col_name} a work_orders")
             except Exception as e:
                 logger.error(f"Error agregando columna {col_name}: {e}")
-    c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (id INTEGER PRIMARY KEY AUTOINCREMENT, ot_id TEXT NOT NULL, asset_name TEXT, component TEXT NOT NULL, decision TEXT NOT NULL, result TEXT, mass_conserved_kg REAL DEFAULT 0, mass_discarded_kg REAL DEFAULT 0, costo_reparacion_eur REAL DEFAULT 0, costo_reemplazo_nuevo_eur REAL DEFAULT 0, vida_util_extendida_horas REAL DEFAULT 0, co2_evitado_kg REAL DEFAULT 0, disponibilidad_post_reparacion_pct REAL DEFAULT 0, tiempo_entre_fallas_reparado_horas REAL DEFAULT 0, nivel_reparacion INTEGER DEFAULT 0, fabricante_original TEXT, garantia_reparacion_meses INTEGER DEFAULT 0, recorded_date TEXT NOT NULL, recorded_by TEXT, FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id))""")
+    
     conn.commit()
     conn.close()
 
@@ -1400,21 +1449,39 @@ with tabs[2]:
         nuevas_tareas = st.text_area("Tareas a realizar (una por linea):", key="nueva_tareas_ot")
         
         submitted = st.form_submit_button("Crear OT", use_container_width=True, type="primary")
-        if submitted:
-            ts = datetime.now().strftime("%Y%m%d%H%M")
-            new_ot_id = f"OT-{ts}-{nueva_prioridad}"
-            try:
-                c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot_id,))
-                if c.fetchone(): st.info(f"La OT {new_ot_id} ya existe")
-                else:
-                    c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion, f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable, datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual", datetime.now().isoformat()))
-                    conn.commit()
-                    st.success(f"OT creada exitosamente: {new_ot_id}")
-            except Exception as e: st.error(f"Error creando OT: {e}")
-    conn.close()
-    
-    st.markdown("<h3>Ordenes Existentes</h3>", unsafe_allow_html=True)
+       if submitted:
+    ts = datetime.now().strftime("%Y%m%d%H%M")
+    new_ot_id = f"OT-{ts}-{nueva_prioridad}"
+    try:
+        c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot_id,))
+        if c.fetchone():
+            st.info(f"La OT {new_ot_id} ya existe")
+        else:
+            # INSERT corregido con todos los campos requeridos
+            c.execute("""INSERT INTO work_orders 
+                (ot_id, asset_name, tag, ubicacion, alert_id, description, 
+                 prioridad, tipo, responsable, creation_date, estimated_hours, 
+                 status, created_by, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (new_ot_id, 
+                 nuevo_activo, 
+                 ASSETS[nuevo_activo]["tag"], 
+                 nueva_ubicacion, 
+                 f"ALM-{ts}", 
+                 nueva_descripcion, 
+                 nueva_prioridad,  # ← Este es el campo que faltaba
+                 nuevo_tipo, 
+                 nuevo_responsable, 
+                 datetime.now().isoformat(), 
+                 horas_estimadas, 
+                 "Pendiente", 
+                 "manual", 
+                 datetime.now().isoformat()))
+            conn.commit()
+            st.success(f"OT creada exitosamente: {new_ot_id}")
+    except Exception as e:
+        st.error(f"Error creando OT: {e}")
+        logger.error(f"Error detallado: {str(e)}")
     if all_orders:
         for ot in all_orders[:10]:
             with st.expander(f"{ot['ot_id']} - {ot['asset_name']} ({ot['status']})"):
