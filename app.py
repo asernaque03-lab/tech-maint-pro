@@ -780,6 +780,61 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
         
         current_context = f"""
+        def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
+    """Respuesta fallback basada en reglas cuando no hay Groq"""
+    text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
+    sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
+    alarms = get_alarms(latest)
+    at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
+    
+    if any(k in text for k in ["hola", "ayuda", "quiero", "necesito"]):
+        return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con diagnostico, ordenes de trabajo, AMEF, KPIs e impacto circular."
+    
+    if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico"]):
+        na = [a[1] for a in alarms]
+        if "Vibracion" in na and "Temperatura" in na: hip = "Posible desgaste de rodamientos o desalineacion."
+        elif "Presion de vacio" in na: hip = "Posible fuga en linea o deterioro de sellos."
+        elif "Vibracion" in na: hip = "Posible desalineacion o desgaste de rodamiento."
+        elif "Temperatura" in na: hip = "Posible friccion interna o lubricacion deficiente."
+        else: hip = "Condicion normal."
+        acc = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT prioritaria"
+        return f"Diagnostico\n\n{sl}\n\nAlarmas: {at}\n\nHipotesis: {hip}\n\nAccion: {acc}"
+    
+    if any(k in text for k in ["orden", "trabajo", "ot", "generar"]):
+        pri = "P0" if latest["estado"] == "Critico" else "P1" if latest["estado"] == "Alerta" else "P2"
+        sint = "; ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) or "Sin alarma critica"
+        tareas = []
+        if any(a[1] == "Vibracion" for a in alarms): tareas += ["Medir vibracion", "Verificar alineacion"]
+        if any(a[1] == "Temperatura" for a in alarms): tareas += ["Revisar lubricacion", "Verificar friccion"]
+        if any(a[1] == "Presion de vacio" for a in alarms): tareas += ["Prueba de fugas", "Inspeccionar sellos"]
+        if not tareas: tareas = ["Inspeccion rutinaria"]
+        return f"OT Sugerida\n\nPrioridad: {pri}\nActivo: {asset_name}\nSintomas: {sint}\n\nTareas:\n" + "\n".join(["- " + t for t in tareas])
+    
+    if any(k in text for k in ["vibracion", "vibra"]):
+        v = latest["vibracion_rms_mm_s"]
+        vs = "Critico" if v >= THRESHOLDS["vibration_alert"] else "Alerta" if v >= THRESHOLDS["vibration_normal"] else "Normal"
+        return f"Vibracion\n\nLectura: {v:.2f} mm/s\nEstado: {vs}\n\nCausas: Desgaste rodamientos, desalineacion, desbalance.\n\nAcciones: Medir vibracion, verificar alineacion, revisar lubricante."
+    
+    if any(k in text for k in ["temperatura", "temp", "calor"]):
+        t = latest["temperatura_c"]
+        ts = "Critico" if t >= THRESHOLDS["temperature_alert"] else "Alerta" if t >= THRESHOLDS["temperature_normal"] else "Normal"
+        return f"Temperatura\n\nLectura: {t:.1f} C\nEstado: {ts}\n\nCausas: Friccion interna, lubricacion deficiente, sobrecarga.\n\nAcciones: Revisar lubricante, inspeccionar enfriamiento."
+    
+    if any(k in text for k in ["vacio", "presion"]):
+        p = latest["presion_vacio_kpa"]
+        ps = "Critico" if p >= THRESHOLDS["vacuum_alert"] else "Alerta" if p >= THRESHOLDS["vacuum_normal"] else "Normal"
+        return f"Presion de Vacio\n\nLectura: {p:.1f} kPa\nEstado: {ps}\n*Mas negativo es mejor*\n\nCausas: Fuga en linea, deterioro de sellos.\n\nAcciones: Prueba de fugas, inspeccionar sellos."
+    
+    if any(k in text for k in ["kpi", "indicador"]):
+        return f"KPIs\n\nMTBF: {kpi_values['MTBF (h)']:.1f} h\nMTTR: {kpi_values['MTTR (h)']:.1f} h\nDisponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%\nConfiabilidad 24h: {kpi_values['Confiabilidad 24h (%)']:.2f}%"
+    
+    if any(k in text for k in ["amef", "rcm", "falla"]):
+        return "AMEF/RCM\n\nModos de falla:\n1. Vibracion alta - Desgaste rodamientos/desalineacion\n2. Temperatura alta - Friccion/lubricacion deficiente\n3. Perdida de vacio - Fuga/deterioro sellos"
+    
+    if any(k in text for k in ["circular", "impacto", "residuo"]):
+        return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
+    
+    return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
 === ESTADO ACTUAL DEL EQUIPO ===
 Activo: {asset_name}
 Estado: {latest['estado']}
