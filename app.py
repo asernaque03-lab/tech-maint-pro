@@ -344,13 +344,25 @@ def notify_new_ot(ot_data):
 
 def notify_ot_started(ot_id, asset_name, responsable):
     hora = datetime.now().strftime("%H:%M")
-    mensaje = f"<b>[OT INICIADA]</b>\n\n<b>ID:</b> {ot_id}\n<b>Tecnico:</b> {responsable} comenzo el trabajo en {asset_name}\n<b>Hora:</b> {hora}"
+    mensaje = (
+        f"<b>[OT INICIADA]</b>\n\n"
+        f"<b>ID:</b> {ot_id}\n"
+        f"<b>Tecnico:</b> {responsable} comenzo el trabajo en {asset_name}\n"
+        f"<b>Hora:</b> {hora}"
+    )
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
 
 def notify_ot_paused(ot_id, asset_name, responsable, motivo):
-    mensaje_telegram = f"<b>[OT PAUSADA - BLOQUEADA]</b>\n\n<b>ID:</b> {ot_id}\n<b>Activo:</b> {asset_name}\n<b>Tecnico:</b> {responsable}\n<b>Motivo:</b> {motivo}"
+    mensaje_telegram = (
+        f"<b>[OT PAUSADA - BLOQUEADA]</b>\n\n"
+        f"<b>ID:</b> {ot_id}\n"
+        f"<b>Activo:</b> {asset_name}\n"
+        f"<b>Tecnico:</b> {responsable}\n"
+        f"<b>Motivo:</b> {motivo}"
+    )
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje_telegram)
     
+    # Obtener prioridad para notificar a gerencia si es P0
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
@@ -359,7 +371,13 @@ def notify_ot_paused(ot_id, asset_name, responsable, motivo):
         conn.close()
         prio = row[0] if row else "P2"
         if prio == "P0":
-            cuerpo_email = f"<h2>[BLOQUEO EN OT] {ot_id} - Requiere aprobacion</h2><p><b>Activo:</b> {asset_name}</p><p><b>Tecnico:</b> {responsable}</p><p><b>Motivo:</b> {motivo}</p><p>Se solicita aprobacion urgente para evitar parada de linea.</p>"
+            cuerpo_email = f"""
+            <h2>[BLOQUEO EN OT] {ot_id} - Requiere aprobacion</h2>
+            <p><b>Activo:</b> {asset_name}</p>
+            <p><b>Tecnico:</b> {responsable}</p>
+            <p><b>Motivo:</b> {motivo}</p>
+            <p>Se solicita aprobacion urgente para evitar parada de linea.</p>
+            """
             send_email(STAFF["gerencia"]["email"], f"[BLOQUEO] {ot_id} - {asset_name}", cuerpo_email)
     except:
         pass
@@ -369,35 +387,68 @@ def notify_ot_completed(ot_data):
     responsable = ot_data.get("responsable", "N/A")
     tiempo = ot_data.get("tiempo_real_horas", 0)
     hallazgos = ot_data.get("hallazgos", "Sin detalles")
-    mensaje = f"<b>[OT COMPLETADA]</b>\n\n<b>ID:</b> {ot_id}\n<b>Tecnico:</b> {responsable}\n<b>Tiempo total:</b> {tiempo}h\n<b>Resultado:</b> {hallazgos[:100]}"
+    
+    mensaje = (
+        f"<b>[OT COMPLETADA]</b>\n\n"
+        f"<b>ID:</b> {ot_id}\n"
+        f"<b>Tecnico:</b> {responsable}\n"
+        f"<b>Tiempo total:</b> {tiempo}h\n"
+        f"<b>Resultado:</b> {hallazgos[:100]}"
+    )
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
 
-def notify_maintenance_reminder(plan_task):
-    asset_name = plan_task.get('asset_name', 'N/A')
-    task_desc = plan_task.get('task_description', '')
-    scheduled_date = plan_task.get('scheduled_date', '')
-    responsable = plan_task.get('responsable', '')
-    mensaje_telegram = f"<b>[RECORDATORIO DE MANTENIMIENTO]</b>\n\n<b>Activo:</b> {asset_name}\n<b>Tarea:</b> {task_desc}\n<b>Fecha programada:</b> {scheduled_date}\n<b>Responsable:</b> {responsable}\n\nPor favor confirmar ejecucion."
-    send_telegram(STAFF["tecnico"]["telegram_chat_id"], mensaje_telegram)
-    send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje_telegram)
-
 def notify_maintenance_issue(asset_name, issue_description, reporter):
-    mensaje_telegram = f"<b>[PROBLEMA/IMPEDIMENTO DE MANTENIMIENTO]</b>\n\n<b>Activo:</b> {asset_name}\n<b>Reportado por:</b> {reporter}\n<b>Descripcion:</b> {issue_description}\n\nSe requiere atencion inmediata."
+    """Notificar problema o impedimento en mantenimiento a Irina"""
+    mensaje_telegram = (
+        f"<b>[PROBLEMA/IMPEDIMENTO DE MANTENIMIENTO]</b>\n\n"
+        f"<b>Activo:</b> {asset_name}\n"
+        f"<b>Reportado por:</b> {reporter}\n"
+        f"<b>Descripcion:</b> {issue_description}\n\n"
+        f"Se requiere atencion inmediata."
+    )
     send_telegram(STAFF["gerencia"]["telegram_chat_id"], mensaje_telegram)
-    cuerpo_email = f"<h2>Problema/Impedimento de Mantenimiento</h2><p><b>Activo:</b> {asset_name}</p><p><b>Reportado por:</b> {reporter}</p><p><b>Descripcion:</b> {issue_description}</p><p>Se requiere atencion inmediata.</p>"
+    
+    cuerpo_email = f"""
+    <h2>Problema/Impedimento de Mantenimiento</h2>
+    <p><b>Activo:</b> {asset_name}</p>
+    <p><b>Reportado por:</b> {reporter}</p>
+    <p><b>Descripcion:</b> {issue_description}</p>
+    <p>Se requiere atencion inmediata.</p>
+    """
     send_email(STAFF["gerencia"]["email"], f"[PROBLEMA] {asset_name} - {issue_description[:50]}", cuerpo_email)
 
 def notify_high_circular_impact(intervention):
     md = intervention.get("mass_discarded_kg", 0) or 0
     mc = intervention.get("mass_conserved_kg", 0) or 0
+    
     if md <= 5 and mc <= 2:
         return
+    
     ot_id = intervention.get("ot_id", "N/A")
     component = intervention.get("component", "N/A")
     decision = intervention.get("decision", "N/A")
-    msg_telegram = f"<b>[IMPACTO CIRCULAR REGISTRADO]</b>\n\n<b>OT:</b> {ot_id}\n<b>Componente:</b> {component}\n<b>Decision:</b> {decision}\n<b>Masa Conservada:</b> {mc:.2f} kg\n<b>Masa Descartada:</b> {md:.2f} kg\n\nExcelente trabajo del equipo de mantenimiento."
+    
+    msg_telegram = (
+        f"<b>[IMPACTO CIRCULAR REGISTRADO]</b>\n\n"
+        f"<b>OT:</b> {ot_id}\n"
+        f"<b>Componente:</b> {component}\n"
+        f"<b>Decision:</b> {decision}\n"
+        f"<b>Masa Conservada:</b> {mc:.2f} kg\n"
+        f"<b>Masa Descartada:</b> {md:.2f} kg\n\n"
+        f"Excelente trabajo del equipo de mantenimiento."
+    )
     send_telegram(STAFF["gerencia"]["telegram_chat_id"], msg_telegram)
-    cuerpo_email = f"<h2>Impacto Circular Registrado</h2><p><b>OT:</b> {ot_id}</p><p><b>Componente:</b> {component}</p><p><b>Decision:</b> {decision}</p><p><b>Masa Conservada:</b> {mc:.2f} kg</p><p><b>Masa Descartada:</b> {md:.2f} kg</p><hr><p>Este registro contribuye a los objetivos de economia circular de la empresa.</p>"
+    
+    cuerpo_email = f"""
+    <h2>Impacto Circular Registrado</h2>
+    <p><b>OT:</b> {ot_id}</p>
+    <p><b>Componente:</b> {component}</p>
+    <p><b>Decision:</b> {decision}</p>
+    <p><b>Masa Conservada:</b> {mc:.2f} kg</p>
+    <p><b>Masa Descartada:</b> {md:.2f} kg</p>
+    <hr>
+    <p>Este registro contribuye a los objetivos de economia circular de la empresa.</p>
+    """
     for key in ["gerencia", "asesor"]:
         send_email(STAFF[key]["email"], f"[Circular] {ot_id} - {component}", cuerpo_email)
 
@@ -426,7 +477,7 @@ def play_critical_alarm(event_id):
                 setTimeout(() => oscillator.stop(), 400);
             }, i * 550);
         }
-    } catch(e) { console.log('Audio no disponible:', e); }
+    } catch(e) {}
     </script>
     """, unsafe_allow_html=True)
     logger.info(f"[ALARMA CRITICA] {event_id}")
@@ -452,12 +503,13 @@ def play_observation_alarm(event_id):
                 setTimeout(() => oscillator.stop(), 200);
             }, i * 500);
         }
-    } catch(e) { console.log('Audio no disponible:', e); }
+    } catch(e) {}
     </script>
     """, unsafe_allow_html=True)
     logger.info(f"[ALARMA OBSERVACION] {event_id}")
 
 def play_notification_sound():
+    """Sonido de notificacion tipo burbuja para respuestas de Letzy"""
     st.markdown("""
     <script>
     try {
@@ -466,11 +518,17 @@ def play_notification_sound():
         const gainNode = audioCtx.createGain();
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
-        oscillator.frequency.value = 880;
+        
+        // Sonido tipo burbuja: frecuencia que sube rapidamente y decae
         oscillator.type = 'sine';
-        gainNode.gain.value = 0.15;
+        oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        
         oscillator.start();
-        setTimeout(() => oscillator.stop(), 150);
+        oscillator.stop(audioCtx.currentTime + 0.15);
     } catch(e) {}
     </script>
     """, unsafe_allow_html=True)
@@ -482,31 +540,121 @@ def play_notification_sound():
 def apply_custom_styles():
     css = f"""
     <style>
-    .stApp {{ background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; padding-top: 0 !important; }}
-    section[data-testid="stSidebar"] {{ background-color: #ffffff !important; border-right: 1px solid #e8ecf1 !important; z-index: 9998 !important; padding-top: 1rem !important; box-shadow: 4px 0 15px rgba(0,0,0,0.05) !important; }}
-    .block-container {{ padding-top: 0.5rem !important; padding-bottom: 1rem !important; max-width: 100% !important; }}
-    .metric-card {{ border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); transition: transform 0.3s ease, box-shadow 0.3s ease; text-align: center; border: none; }}
-    .metric-card:hover {{ transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }}
+    .stApp {{ 
+        background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; 
+        padding-top: 0 !important;
+    }}
+    section[data-testid="stSidebar"] {{
+        background-color: #ffffff !important;
+        border-right: 1px solid #e8ecf1 !important;
+        z-index: 9998 !important;
+        padding-top: 1rem !important;
+        box-shadow: 4px 0 15px rgba(0,0,0,0.05) !important;
+    }}
+    .block-container {{
+        padding-top: 0.5rem !important;
+        padding-bottom: 1rem !important;
+        max-width: 100% !important;
+    }}
+    .metric-card {{
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-align: center;
+        border: none;
+    }}
+    .metric-card:hover {{ 
+        transform: translateY(-5px); 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    }}
     .status-normal {{ background: {COLORS['verde']} !important; }}
     .status-alerta {{ background: {COLORS['amarillo']} !important; }}
     .status-critico {{ background: {COLORS['rojo']} !important; }}
-    .alarm-banner {{ background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05)); border-left: 5px solid {COLORS['amarillo']}; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid rgba(245,166,35,0.3); }}
-    .alarm-critical {{ background: linear-gradient(90deg, rgba(211,47,47,0.15), rgba(211,47,47,0.05)); border-left: 5px solid {COLORS['rojo']}; border: 1px solid rgba(211,47,47,0.3); }}
-    h1, h2, h3, p, label, span, div {{ color: {COLORS['texto_oscuro']} !important; }}
+    .alarm-banner {{
+        background: linear-gradient(90deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05));
+        border-left: 5px solid {COLORS['amarillo']};
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        border: 1px solid rgba(245,166,35,0.3);
+    }}
+    .alarm-critical {{
+        background: linear-gradient(90deg, rgba(211,47,47,0.15), rgba(211,47,47,0.05));
+        border-left: 5px solid {COLORS['rojo']};
+        border: 1px solid rgba(211,47,47,0.3);
+    }}
+    h1, h2, h3, p, label, span, div {{ 
+        color: {COLORS['texto_oscuro']} !important; 
+    }}
     .stMarkdown p {{ color: {COLORS['texto_oscuro']} !important; }}
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {{ color: {COLORS['azul']} !important; }}
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {{ 
+        color: {COLORS['azul']} !important; 
+    }}
     .stTabs [data-baseweb="tab-list"] {{ gap: 4px; margin-bottom: 8px; }}
-    .stTabs [data-baseweb="tab"] {{ background: rgba(26,95,168,0.1) !important; color: {COLORS['texto_oscuro']} !important; border-radius: 8px 8px 0 0; padding: 8px 16px; font-size: 0.9rem; }}
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {{ background: {COLORS['azul']} !important; color: white !important; }}
+    .stTabs [data-baseweb="tab"] {{
+        background: rgba(26,95,168,0.1) !important;
+        color: {COLORS['texto_oscuro']} !important;
+        border-radius: 8px 8px 0 0;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }}
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+        background: {COLORS['azul']} !important;
+        color: white !important;
+    }}
     .stSelectbox {{ margin-bottom: 8px; }}
     .stDataFrame {{ margin: 0 auto; }}
-    .doc-button {{ display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: linear-gradient(135deg, #1a5fa8, #8bc34a); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }}
-    .doc-button:hover {{ transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); color: white; }}
-    section[data-testid="stSidebar"] .stChatMessage {{ background-color: #f5f7fa !important; border: 1px solid #e8ecf1 !important; border-radius: 12px !important; padding: 8px !important; margin: 4px 0 !important; }}
-    section[data-testid="stSidebar"] .stChatMessage p {{ font-size: 0.85rem !important; margin: 0 !important; }}
-    .search-box {{ border: 2px solid {COLORS['azul']}; border-radius: 8px; padding: 10px; margin-bottom: 15px; }}
-    .calendar-month {{ background: {COLORS['azul']}; color: white; padding: 15px; border-radius: 8px; margin: 5px; display: flex; justify-content: space-between; align-items: center; }}
-    @media (max-width: 768px) {{ .metric-value {{ font-size: 1.5rem !important; }} section[data-testid="stSidebar"] {{ width: 100% !important; min-width: 100% !important; }} }}
+    .doc-button {{
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #1a5fa8, #8bc34a);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }}
+    .doc-button:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        color: white;
+    }}
+    section[data-testid="stSidebar"] .stChatMessage {{
+        background-color: #f5f7fa !important;
+        border: 1px solid #e8ecf1 !important;
+        border-radius: 12px !important;
+        padding: 8px !important;
+        margin: 4px 0 !important;
+    }}
+    section[data-testid="stSidebar"] .stChatMessage p {{
+        font-size: 0.85rem !important;
+        margin: 0 !important;
+    }}
+    .search-box {{
+        border: 2px solid {COLORS['azul']};
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 15px;
+    }}
+    .calendar-month {{
+        background: {COLORS['azul']};
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }}
+    @media (max-width: 768px) {{
+        .metric-value {{ font-size: 1.5rem !important; }}
+        section[data-testid="stSidebar"] {{ width: 100% !important; min-width: 100% !important; }}
+    }}
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
@@ -533,9 +681,11 @@ def load_test_data_from_csv():
                 if df['fecha_hora'].isna().any():
                     start_date = datetime.now() - timedelta(minutes=len(df))
                     df['fecha_hora'] = [start_date + timedelta(minutes=i) for i in range(len(df))]
+            
             df = enrich_data(df)
             if 'fault_description' in df.columns:
                 df['fault_description'] = df['fault_description'].fillna('Normal')
+            
             logger.info(f"CSV de prueba cargado: {len(df)} registros")
             return df
         else:
@@ -566,6 +716,7 @@ def generate_synthetic_data(scenario, n=240, seed=42):
     vibration = 2.8 + 0.28 * rng.normal(size=n) + 0.12 * np.sin(t / 9)
     temperature = 66 + 1.6 * rng.normal(size=n) + 0.5 * np.sin(t / 12)
     vacuum = -72 + 1.2 * rng.normal(size=n) + 0.7 * np.sin(t / 10)
+    
     if scenario == "Degradacion progresiva":
         vibration += np.linspace(0, 4.1, n); temperature += np.linspace(0, 16, n); vacuum += np.linspace(0, 18, n)
     elif scenario == "Condicion critica":
@@ -579,6 +730,7 @@ def generate_synthetic_data(scenario, n=240, seed=42):
     elif scenario == "Rodamiento degradado":
         vibration += np.linspace(0.4, 5.2, n) + 0.8 * np.maximum(0, np.sin(t / 4))
         temperature += np.linspace(1, 13, n); vacuum += np.linspace(0, 7, n)
+    
     df = pd.DataFrame({"fecha_hora": dates, "vibracion_rms_mm_s": np.round(vibration, 3), "temperatura_c": np.round(temperature, 2), "presion_vacio_kpa": np.round(vacuum, 2)})
     return enrich_data(df)
 
@@ -648,6 +800,7 @@ def create_work_order_obj(row, asset_name, source="Automatica"):
     if any(a[1] == "Presion de vacio" for a in alarms): tasks += ["Prueba de fugas", "Inspeccionar sellos"]
     if any(a[1] == "Corriente del motor" for a in alarms): tasks += ["Medir corriente", "Revisar devanado", "Verificar carga"]
     if not tasks: tasks = ["Inspeccion rutinaria"]
+    
     ts = pd.to_datetime(row["fecha_hora"]).strftime("%Y%m%d%H%M")
     return {
         "ot_id": f"OT-{ts}-{priority}", "asset_name": asset_name, "alert_id": f"ALM-{ts}",
@@ -675,35 +828,49 @@ def generate_maintenance_pdf(ot_data, photos_before=None, photos_after=None):
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
     styles = getSampleStyleSheet()
+    
     title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor(COLORS['azul']), spaceAfter=30)
     elements.append(Paragraph("REPORTE DE MANTENIMIENTO - FORMATO SANIPES", title_style))
     elements.append(Spacer(1, 0.2*inch))
+    
     data = [
-        ['OT ID:', ot_data.get('ot_id', 'N/A')], ['Activo:', ot_data.get('asset_name', 'N/A')],
-        ['Tag:', ot_data.get('tag', 'N/A')], ['Ubicacion:', ot_data.get('ubicacion', 'N/A')],
-        ['Fecha Creacion:', ot_data.get('creation_date', 'N/A')], ['Responsable:', ot_data.get('responsable', 'N/A')],
-        ['Prioridad:', ot_data.get('prioridad', 'N/A')], ['Estado:', ot_data.get('status', 'N/A')],
+        ['OT ID:', ot_data.get('ot_id', 'N/A')],
+        ['Activo:', ot_data.get('asset_name', 'N/A')],
+        ['Tag:', ot_data.get('tag', 'N/A')],
+        ['Ubicacion:', ot_data.get('ubicacion', 'N/A')],
+        ['Fecha Creacion:', ot_data.get('creation_date', 'N/A')],
+        ['Responsable:', ot_data.get('responsable', 'N/A')],
+        ['Prioridad:', ot_data.get('prioridad', 'N/A')],
+        ['Estado:', ot_data.get('status', 'N/A')],
     ]
     table = Table(data, colWidths=[2*inch, 4*inch])
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(COLORS['azul'])), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12), ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige), ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(COLORS['azul'])),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
     ]))
     elements.append(table)
     elements.append(Spacer(1, 0.3*inch))
+    
     elements.append(Paragraph("<b>Descripcion del Problema:</b>", styles['Heading2']))
     elements.append(Paragraph(ot_data.get('description', 'N/A'), styles['Normal']))
     elements.append(Spacer(1, 0.2*inch))
+    
     if ot_data.get('acciones'):
         elements.append(Paragraph("<b>Acciones Realizadas:</b>", styles['Heading2']))
         elements.append(Paragraph(ot_data.get('acciones', 'N/A'), styles['Normal']))
         elements.append(Spacer(1, 0.2*inch))
+    
     if ot_data.get('hallazgos'):
         elements.append(Paragraph("<b>Hallazgos:</b>", styles['Heading2']))
         elements.append(Paragraph(ot_data.get('hallazgos', 'N/A'), styles['Normal']))
         elements.append(Spacer(1, 0.2*inch))
+    
     if ot_data.get('masa_conservada_kg') or ot_data.get('masa_descartada_kg'):
         elements.append(Paragraph("<b>Impacto Circular:</b>", styles['Heading2']))
         circular_data = [
@@ -714,12 +881,15 @@ def generate_maintenance_pdf(ot_data, photos_before=None, photos_after=None):
         ]
         circular_table = Table(circular_data, colWidths=[3*inch, 3*inch])
         circular_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(COLORS['verde'])), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(COLORS['verde'])),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
         ]))
         elements.append(circular_table)
         elements.append(Spacer(1, 0.2*inch))
+    
     if photos_before or photos_after:
         elements.append(Paragraph("<b>Registro Fotografico:</b>", styles['Heading2']))
         if photos_before:
@@ -740,9 +910,11 @@ def generate_maintenance_pdf(ot_data, photos_before=None, photos_after=None):
                         elements.append(img)
                         elements.append(Spacer(1, 0.1*inch))
                     except: pass
+    
     elements.append(Spacer(1, 0.5*inch))
     elements.append(Paragraph("<b>Firmas:</b>", styles['Heading2']))
     elements.append(Spacer(1, 0.3*inch))
+    
     signature_data = [
         ['_________________________', '_________________________'],
         ['Tecnico de Mantenimiento', 'Jefe de Mantenimiento'],
@@ -751,6 +923,7 @@ def generate_maintenance_pdf(ot_data, photos_before=None, photos_after=None):
     sig_table = Table(signature_data, colWidths=[3*inch, 3*inch])
     sig_table.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black)]))
     elements.append(sig_table)
+    
     doc.build(elements)
     buffer.seek(0)
     return buffer
@@ -784,6 +957,7 @@ def chunk_text(text, chunk_size=500, overlap=100):
 def load_knowledge_base():
     cache_file = os.path.join(APP_DIR, "kb_cache.json")
     pdf_files = [f for f in os.listdir(PDF_DIR) if f.endswith('.pdf')]
+    
     use_cache = False
     if os.path.exists(cache_file):
         try:
@@ -797,6 +971,7 @@ def load_knowledge_base():
                 return
         except Exception:
             pass
+
     kb = []
     for pdf_file in pdf_files:
         meta_key = None
@@ -809,7 +984,11 @@ def load_knowledge_base():
         if text.strip():
             chunks = chunk_text(text, chunk_size=400, overlap=80)
             for idx, chunk in enumerate(chunks):
-                kb.append({"doc_id": meta_key or "00", "filename": pdf_file, "category": meta["category"], "tags": meta["tags"], "chunk_idx": idx, "content": chunk, "total_chunks": len(chunks)})
+                kb.append({
+                    "doc_id": meta_key or "00", "filename": pdf_file, "category": meta["category"], 
+                    "tags": meta["tags"], "chunk_idx": idx, "content": chunk, "total_chunks": len(chunks)
+                })
+    
     st.session_state.knowledge_base = kb
     st.session_state.kb_loaded = True
     try:
@@ -850,9 +1029,11 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         alarms = get_alarms(latest)
         at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
         current_context = f"=== ESTADO ACTUAL ===\nActivo: {asset_name}\nEstado: {latest['estado']}\nIR: {latest['indice_riesgo']:.1f}/100\nVibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s\nTemperatura: {latest['temperatura_c']:.1f} C\nVacio: {latest['presion_vacio_kpa']:.1f} kPa\nAlarmas: {at}\n\nKPIs: MTBF: {kpi_values['MTBF (h)']:.1f} h, MTTR: {kpi_values['MTTR (h)']:.1f} h, Disponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%"
+        
         search_results = search_knowledge_base(user_query, top_k=8)
         kb_context = format_context_for_llm(search_results)
         full_system_prompt = f"{SYSTEM_PROMPT}\n\n{current_context}\n\n{kb_context}\n\nINSTRUCCION FINAL: Responde basandote EXCLUSIVAMENTE en la informacion proporcionada. Cita siempre la fuente."
+        
         client = Groq(api_key=api_key)
         messages = [{"role": "system", "content": full_system_prompt}, {"role": "user", "content": user_query}]
         response = client.chat.completions.create(model="llama-3.1-8b-instant", messages=messages, temperature=0.3, max_tokens=800)
@@ -866,8 +1047,10 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
     sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
     alarms = get_alarms(latest)
     at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
+    
     if any(k in text for k in ["hola", "ayuda", "quiero", "necesito", "buenas", "hey"]):
         return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con:\n- Diagnostico del equipo\n- Generacion de ordenes de trabajo\n- Analisis AMEF y modos de falla\n- Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n- Impacto circular y sostenibilidad\n- Procedimientos de mantenimiento\n- Plan de mantenimiento y calendario\n\nEscribe tu consulta o usa los botones rapidos."
+    
     if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico", "como esta", "situacion"]):
         na = [a[1] for a in alarms]
         if "Vibracion" in na and "Temperatura" in na: hip = "Posible desgaste de rodamientos o desalineacion del eje. Se recomienda verificar alineacion laser y estado de rodamientos."
@@ -878,8 +1061,10 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
         else: hip = "Condicion normal del equipo. Todos los parametros dentro de rangos operativos."
         acc = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT Prioridad 0 - Atencion inmediata requerida"
         return f"**Diagnostico Actual**\n\n{sl}\n\n**Alarmas activas:** {at if at != 'Sin alarmas' else 'Ninguna'}\n\n**Hipotesis tecnica:** {hip}\n\n**Accion recomendada:** {acc}\n\n[Fuente: Archivo 03 - Gestion KPIs]"
+    
     if any(k in text for k in ["plan", "mantenimiento", "calendario", "programa"]):
         return "**Plan de Mantenimiento**\n\nEl sistema cuenta con un modulo completo de planificacion de mantenimiento que incluye:\n\n- Calendario anual de mantenimiento 2026\n- Filtrado por frecuencia (3, 4, 6, 12 meses)\n- Buscador por fecha o palabra clave\n- Descarga de reportes en PDF formato SANIPES\n- Recordatorios automaticos via Telegram\n- Seguimiento de ejecucion\n\n**Activos programados:**\n- Bomba de vacio BV-01\n- Motor CAT 3408 MD-01\n- Compresor Leroi CA-01\n\n[Fuente: Sistema Tech Maint Pro - Modulo Plan de Mantenimiento]"
+    
     if any(k in text for k in ["orden", "trabajo", "ot", "generar", "crear ot", "nueva ot"]):
         pri = "P0" if latest["estado"] == "Critico" else "P1" if latest["estado"] == "Alerta" else "P2"
         sint = "; ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) or "Mantenimiento preventivo programado"
@@ -890,22 +1075,28 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
         if any(a[1] == "Corriente del motor" for a in alarms): tareas += ["Medir corriente en 3 fases", "Inspeccionar devanado", "Verificar carga del motor"]
         if not tareas: tareas = ["Inspeccion visual general", "Verificacion de parametros operativos", "Limpieza de componentes"]
         return f"**OT Sugerida**\n\n**Prioridad:** {pri}\n**Activo:** {asset_name}\n**Sintomas:** {sint}\n\n**Tareas sugeridas:**\n" + "\n".join([f"- {t}" for t in tareas]) + f"\n\n**Responsable asignado:** {STAFF['tecnico']['nombre'] if pri in ['P0','P1'] else STAFF['asesor']['nombre']}\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
+    
     if any(k in text for k in ["vibracion", "vibra", "oscilacion", "rms"]):
         v = latest["vibracion_rms_mm_s"]
         vs = "Critico" if v >= THRESHOLDS["vibration_alert"] else "Alerta" if v >= THRESHOLDS["vibration_normal"] else "Normal"
         return f"**Analisis de Vibracion RMS**\n\n**Lectura actual:** {v:.2f} mm/s\n**Estado:** {vs}\n**Umbral Alerta:** {THRESHOLDS['vibration_normal']} mm/s\n**Umbral Critico:** {THRESHOLDS['vibration_alert']} mm/s\n\n**Causas posibles:**\n- Desgaste de rodamientos\n- Desalineacion del eje\n- Desbalance de rotor\n- Holgura mecanica\n- Resonancia estructural\n\n**Acciones recomendadas:**\n1. Medir vibracion en 3 ejes (horizontal, vertical, axial)\n2. Analizar espectro de frecuencias\n3. Verificar alineacion laser\n4. Inspeccionar estado de rodamientos\n5. Revisar lubricacion\n\n[Fuente: Archivo 05 - Manual IMBIL]"
+    
     if any(k in text for k in ["temperatura", "temp", "calor", "sobrecalentamiento", "aceite"]):
         t = latest["temperatura_c"]
         ts = "Critico" if t >= THRESHOLDS["temperature_alert"] else "Alerta" if t >= THRESHOLDS["temperature_normal"] else "Normal"
         return f"**Analisis de Temperatura**\n\n**Lectura actual:** {t:.1f} C\n**Estado:** {ts}\n**Umbral Alerta:** {THRESHOLDS['temperature_normal']} C\n**Umbral Critico:** {THRESHOLDS['temperature_alert']} C\n\n**Causas posibles:**\n- Friccion interna excesiva\n- Lubricacion deficiente o aceite degradado\n- Sobrecarga del motor\n- Falla en sistema de enfriamiento\n- Obstruccion de flujo\n\n**Acciones recomendadas:**\n1. Verificar nivel y calidad del aceite\n2. Inspeccionar sistema de enfriamiento\n3. Medir corriente del motor\n4. Revisar carga operativa\n5. Limpiar filtros y intercambiadores\n\n[Fuente: Archivo 06 - Manual Caterpillar]"
+    
     if any(k in text for k in ["vacio", "presion", "succcion", "mbar", "kpa"]):
         p = latest["presion_vacio_kpa"]
         ps = "Critico" if p >= THRESHOLDS["vacuum_alert"] else "Alerta" if p >= THRESHOLDS["vacuum_normal"] else "Normal"
         return f"**Analisis de Presion de Vacio**\n\n**Lectura actual:** {p:.1f} kPa\n**Estado:** {ps}\n**Umbral Alerta:** {THRESHOLDS['vacuum_normal']} kPa\n**Umbral Critico:** {THRESHOLDS['vacuum_alert']} kPa\n\n*Nota: Valores mas negativos indican mejor vacio*\n\n**Causas posibles de perdida de vacio:**\n- Fuga en linea de succion\n- Deterioro de sellos mecanicos\n- Obstruccion en filtros\n- Falla en bomba de vacio\n- Entrada de aire no deseada\n\n**Acciones recomendadas:**\n1. Realizar prueba de fugas con helio\n2. Inspeccionar sellos y juntas\n3. Revisar tuberias y conexiones\n4. Verificar estado de filtros\n5. Medir caudal de succion\n\n[Fuente: Archivo 09 - POE Laboratorio]"
+    
     if any(k in text for k in ["kpi", "indicador", "metrica", "mtbf", "mttr", "disponibilidad", "rendimiento"]):
         return f"**KPIs de Mantenimiento**\n\n**MTBF (Tiempo Medio Entre Fallas):** {kpi_values['MTBF (h)']:.1f} horas\n**MTTR (Tiempo Medio de Reparacion):** {kpi_values['MTTR (h)']:.1f} horas\n**Disponibilidad:** {kpi_values['Disponibilidad (%)']:.2f}%\n**Confiabilidad a 24h:** {kpi_values['Confiabilidad 24h (%)']:.2f}%\n**Cumplimiento PM:** {kpi_values['Cumplimiento PM (%)']:.1f}%\n**Backlog:** {kpi_values['Backlog (semanas)']:.1f} semanas\n**Perdida productiva:** {kpi_values['Perdida productiva (t)']:.1f} toneladas\n\n**Interpretacion:**\n- MTBF alto = Equipo confiable\n- MTTR bajo = Reparaciones rapidas\n- Disponibilidad > 95% = Excelente\n- Cumplimiento PM > 90% = Buen programa preventivo\n\n[Fuente: Archivo 03 - Gestion KPIs]"
+    
     if any(k in text for k in ["circular", "impacto", "residuo", "sostenibilidad", "economia circular", "reciclaje"]):
         return f"**Panel de Impacto Circular**\n\nEl modulo de economia circular registra las decisiones de mantenimiento que permiten conservar componentes y minimizar residuos.\n\n**Como registrar una intervencion circular:**\n1. Cerrar una Orden de Trabajo\n2. Seleccionar decision tomada:\n   - Inspeccion (sin cambio de componente)\n   - Reparacion (componente reparado in-situ)\n   - Reemplazo Parcial (solo piezas danadas)\n   - Reemplazo Total (componente completo)\n3. Registrar masa conservada (kg)\n4. Registrar masa descartada (kg)\n5. El sistema calcula automaticamente:\n   - Tasa de circularidad\n   - CO2 evitado\n   - Ahorro economico\n   - ROI de economia circular\n**Meta:** Tasa de circularidad > 70% (industria clase mundial)\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
+    
     return f"Entiendo tu consulta sobre '{user_query}'.\n\n**Informacion actual del equipo:**\n{sl}\n\n**Puedo ayudarte con:**\n1. Estado actual y diagnostico\n2. Analisis de vibracion, temperatura o vacio\n3. Generacion de ordenes de trabajo\n4. Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n5. Modos de falla (AMEF/RCM)\n6. Procedimientos de mantenimiento\n7. Gestion de repuestos\n8. Protocolos de seguridad\n9. Analisis de costos\n10. Impacto circular\n11. Plan de mantenimiento y calendario\n\nPor favor, reformula tu pregunta o selecciona una de las opciones anteriores.\n\n[Fuente: Sistema Tech Maint Pro]"
 
 # ============================================================================
@@ -917,15 +1108,19 @@ def process_floating_query(query, ai_platform="rag"):
     q = query.strip()
     if "floating_chat_history" not in st.session_state: st.session_state["floating_chat_history"] = []
     st.session_state["floating_chat_history"].append({"role": "user", "content": q})
+    
     try:
         kp = calculate_kpis(720, 3, 18, 18, 20, 40, 80, st.session_state.get("production_rate", 85.5))
         latest = st.session_state.get("latest_row", pd.Series())
         asset_name = st.session_state.get("asset_name", "")
+        
         if ai_platform == "rag":
             reply = query_groq_with_rag(q, latest, asset_name, kp)
         else:
             reply = chatbot_response_fallback(q, latest, asset_name, kp)
+        
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": reply})
+        
         if st.session_state.get("audio_enabled", False):
             play_notification_sound()
     except Exception as e:
@@ -964,6 +1159,7 @@ def create_risk_chart(df):
 def init_database():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    
     c.execute("""CREATE TABLE IF NOT EXISTS work_orders (
         ot_id TEXT PRIMARY KEY, asset_name TEXT NOT NULL, tag TEXT, ubicacion TEXT, alert_id TEXT, description TEXT,
         prioridad TEXT NOT NULL DEFAULT 'P2', tipo TEXT DEFAULT 'Correctivo', responsable TEXT, creation_date TEXT NOT NULL, due_date TEXT,
@@ -971,23 +1167,33 @@ def init_database():
         repuestos TEXT, evidencia TEXT, firma_operario TEXT, firma_supervisor TEXT, tiempo_real_horas REAL, created_by TEXT, updated_at TEXT,
         componente_afectado TEXT, tipo_falla TEXT, decision_tecnica TEXT, masa_conservada_kg REAL DEFAULT 0, masa_descartada_kg REAL DEFAULT 0,
         costo_reparacion REAL DEFAULT 0, costo_reemplazo_nuevo REAL DEFAULT 0, co2_evitado_kg REAL DEFAULT 0, vida_util_extendida_horas REAL DEFAULT 0,
-        disponibilidad_post_reparacion_pct REAL DEFAULT 0)""")
+        disponibilidad_post_reparacion_pct REAL DEFAULT 0
+    )""")
+    
     c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, ot_id TEXT NOT NULL, asset_name TEXT, component TEXT NOT NULL, decision TEXT NOT NULL, result TEXT,
-        mass_conserved_kg REAL DEFAULT 0, mass_discarded_kg REAL DEFAULT 0, costo_reparacion_eur REAL DEFAULT 0, costo_reemplazo_nuevo_eur REAL DEFAULT 0,
-        vida_util_extendida_horas REAL DEFAULT 0, co2_evitado_kg REAL DEFAULT 0, disponibilidad_post_reparacion_pct REAL DEFAULT 0,
+        id INTEGER PRIMARY KEY AUTOINCREMENT, ot_id TEXT NOT NULL, asset_name TEXT, component TEXT NOT NULL, decision TEXT NOT NULL, result TEXT, 
+        mass_conserved_kg REAL DEFAULT 0, mass_discarded_kg REAL DEFAULT 0, costo_reparacion_eur REAL DEFAULT 0, costo_reemplazo_nuevo_eur REAL DEFAULT 0, 
+        vida_util_extendida_horas REAL DEFAULT 0, co2_evitado_kg REAL DEFAULT 0, disponibilidad_post_reparacion_pct REAL DEFAULT 0, 
         tiempo_entre_fallas_reparado_horas REAL DEFAULT 0, nivel_reparacion INTEGER DEFAULT 0, fabricante_original TEXT, garantia_reparacion_meses INTEGER DEFAULT 0,
-        recorded_date TEXT NOT NULL, recorded_by TEXT, FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id))""")
+        recorded_date TEXT NOT NULL, recorded_by TEXT, FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
+    )""")
+    
     c.execute("""CREATE TABLE IF NOT EXISTS maintenance_plan (
         id INTEGER PRIMARY KEY AUTOINCREMENT, asset_name TEXT NOT NULL, tag TEXT, ubicacion TEXT, maintenance_type TEXT, task_description TEXT,
         frequency TEXT, frequency_days INTEGER, estimated_hours REAL, responsable TEXT, priority TEXT, required_parts TEXT, tools_needed TEXT,
-        safety_requirements TEXT, checklist_items TEXT, thresholds TEXT, notes TEXT, last_execution_date TEXT, next_scheduled_date TEXT)""")
+        safety_requirements TEXT, checklist_items TEXT, thresholds TEXT, notes TEXT, last_execution_date TEXT, next_scheduled_date TEXT
+    )""")
+    
     c.execute("""CREATE TABLE IF NOT EXISTS maintenance_execution (
         id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id INTEGER, asset_name TEXT, scheduled_date TEXT, execution_date TEXT, executed_by TEXT,
         status TEXT DEFAULT 'Pendiente', observations TEXT, photos_before TEXT, photos_after TEXT, circular_impact_registered INTEGER DEFAULT 0,
-        FOREIGN KEY (plan_id) REFERENCES maintenance_plan(id))""")
+        FOREIGN KEY (plan_id) REFERENCES maintenance_plan(id)
+    )""")
+    
     c.execute("""CREATE TABLE IF NOT EXISTS ot_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, ot_id TEXT, photo_type TEXT, photo_path TEXT, upload_date TEXT, FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id))""")
+        id INTEGER PRIMARY KEY AUTOINCREMENT, ot_id TEXT, photo_type TEXT, photo_path TEXT, upload_date TEXT,
+        FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
+    )""")
     
     df_plan = load_maintenance_plan()
     if not df_plan.empty:
@@ -1006,6 +1212,7 @@ def init_database():
                 pass
             except Exception as e:
                 logger.error(f"Error insertando tarea de mantenimiento: {e}")
+    
     conn.commit()
     conn.close()
     logger.info("Base de datos inicializada correctamente.")
@@ -1020,8 +1227,8 @@ sd = {
     "running": True, "sim_idx": 1, "orders": [], "last_order_event": None, "chat_history": [], "theme_mode": "default", "kb_docs": [],
     "kb_chunks": [], "kb_ready": False, "last_beep_event": None, "floating_chat_open": False, "floating_chat_history": [],
     "auto_chat_triggered": False, "previous_estado": None, "scenario": "Operacion normal", "seed": 42, "n_hours": 168,
-    "step_speed": 1, "production_rate": 85.5, "groq_api_key": GROQ_API_KEY, "knowledge_base": [], "kb_loaded": False,
-    "use_test_data": True, "audio_enabled": False, "maintenance_plan_df": None
+    "step_speed": 1, "production_rate": 85.5, "groq_api_key": GROQ_API_KEY, "knowledge_base": [], "kb_loaded": False, "use_test_data": True,
+    "audio_enabled": False, "maintenance_plan_df": None
 }
 for k, v in sd.items():
     if k not in st.session_state: st.session_state[k] = v
@@ -1159,6 +1366,7 @@ if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado 
         play_critical_alarm(f"{latest['fecha_hora']}-critical")
     else:
         play_observation_alarm(f"{latest['fecha_hora']}-alert")
+    
     fault_desc = latest.get('fault_description', '')
     if pd.isna(fault_desc): fault_desc = ''
     alert_msg = f"Hola! Soy Letzy. Se ha detectado un estado {current_estado} en {asset_name}. IR: {latest['indice_riesgo']:.1f}/100. {fault_desc}. Se requiere atencion inmediata. En que puedo ayudarte?"
@@ -1200,6 +1408,7 @@ with tabs[0]:
     statuses = variable_status(latest)
     def get_status_color(status): return COLORS["verde"] if status == "Normal" else COLORS["amarillo"] if status == "Alerta" else COLORS["rojo"]
     def get_text_color(status): return "#ffffff"
+    
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown(f"""<div class="metric-card status-{statuses['Vibracion'].lower()}">
@@ -1209,6 +1418,7 @@ with tabs[0]:
             <div style="font-size:0.8rem;color:{get_text_color(statuses['Vibracion'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['vibration_normal']} / {THRESHOLDS['vibration_alert']}</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_vibration_chart(DF), use_container_width=True)
+    
     with col2:
         st.markdown(f"""<div class="metric-card status-{statuses['Temperatura'].lower()}">
             <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Temperatura'])};margin-bottom:8px;">TEMPERATURA</div>
@@ -1217,6 +1427,7 @@ with tabs[0]:
             <div style="font-size:0.8rem;color:{get_text_color(statuses['Temperatura'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['temperature_normal']} / {THRESHOLDS['temperature_alert']}</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_temperature_chart(DF), use_container_width=True)
+    
     with col3:
         st.markdown(f"""<div class="metric-card status-{statuses['Presion de vacio'].lower()}">
             <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Presion de vacio'])};margin-bottom:8px;">PRESION DE VACIO</div>
@@ -1225,6 +1436,7 @@ with tabs[0]:
             <div style="font-size:0.8rem;color:{get_text_color(statuses['Presion de vacio'])};margin-top:8px;opacity:0.9;">Mas negativo = mejor</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_vacuum_chart(DF), use_container_width=True)
+    
     with col4:
         st.markdown(f"""<div class="metric-card status-{latest['estado'].lower()}">
             <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(latest['estado'])};margin-bottom:8px;">ESTADO GLOBAL</div>
@@ -1233,6 +1445,7 @@ with tabs[0]:
             <div style="font-size:0.8rem;color:{get_text_color(latest['estado'])};margin-top:8px;opacity:0.9;">Avance: {st.session_state.sim_idx}/{max_idx}</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_risk_chart(DF), use_container_width=True)
+    
     alarms = get_alarms(latest)
     if alarms:
         st.markdown(f"<h3 style='margin-top:20px;color:{COLORS['texto_oscuro']};'>Alarmas Activas</h3>", unsafe_allow_html=True)
@@ -1257,6 +1470,7 @@ with tabs[1]:
         <div style="font-size:1.5rem;font-weight:bold;color:{ec};">Estado Actual: {latest['estado'].upper()}</div>
         <div style="font-size:1.2rem;margin-top:10px;color:{COLORS['texto_oscuro']};">Indice de Riesgo: {latest['indice_riesgo']:.1f}/100</div>
     </div>""", unsafe_allow_html=True)
+    
     if alarms:
         st.markdown("<h3>Hipotesis Tecnicas</h3>", unsafe_allow_html=True)
         for level, name, value in alarms:
@@ -1271,6 +1485,7 @@ with tabs[1]:
         st.markdown(f"<div style='background:{COLORS['blanco']};padding:15px;border-radius:12px;margin-top:20px;box-shadow:0 4px 15px rgba(0,0,0,0.08);'><strong>Accion Inmediata:</strong> {accion}</div>", unsafe_allow_html=True)
     else:
         st.success("Sin alarmas activas. Condicion normal.")
+    
     if st.button("Generar Orden de Trabajo", use_container_width=True, type="primary"):
         ot = create_work_order_obj(latest, asset_name, source="Manual desde diagnostico")
         conn = sqlite3.connect(DB_PATH)
@@ -1286,16 +1501,18 @@ with tabs[1]:
         conn.close()
 
 # ============================================================================
-# TAB 3: ORDENES DE TRABAJO
+# TAB 3: ORDENES DE TRABAJO (CON FOTOS ANTES/DESPUES)
 # ============================================================================
 
 with tabs[2]:
     st.markdown("<h2>Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
+    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM work_orders ORDER BY creation_date DESC")
     all_orders = [dict(row) for row in c.fetchall()]
+    
     st.markdown("<h3>Crear Nueva Orden de Trabajo</h3>", unsafe_allow_html=True)
     with st.form("nueva_ot_form", clear_on_submit=True):
         col_n1, col_n2 = st.columns(2)
@@ -1309,12 +1526,7 @@ with tabs[2]:
             horas_estimadas = st.number_input("Horas estimadas:", min_value=0.5, max_value=24.0, value=2.0, step=0.5, key="nueva_horas_ot")
         nueva_descripcion = st.text_area("Descripcion del problema:", key="nueva_desc_ot")
         nuevas_tareas = st.text_area("Tareas a realizar (una por linea):", key="nueva_tareas_ot")
-        st.markdown("**Fotos del antes y despues:**")
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            photos_before = st.file_uploader("Fotos ANTES (multiple)", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key="ot_before")
-        with col_f2:
-            photos_after = st.file_uploader("Fotos DESPUES (multiple)", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key="ot_after")
+        
         submitted = st.form_submit_button("Crear OT", use_container_width=True, type="primary")
         if submitted:
             ts = datetime.now().strftime("%Y%m%d%H%M")
@@ -1324,48 +1536,124 @@ with tabs[2]:
                 if c.fetchone():
                     st.info(f"La OT {new_ot_id} ya existe")
                 else:
-                    c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion, f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable, datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual", datetime.now().isoformat()))
-                    if photos_before or photos_after:
-                        for photo in photos_before:
-                            photo_path = os.path.join(UPLOAD_DIR, f"{new_ot_id}_before_{photo.name}")
-                            with open(photo_path, "wb") as f: f.write(photo.getbuffer())
-                            c.execute("INSERT INTO ot_photos (ot_id, photo_type, photo_path, upload_date) VALUES (?, ?, ?, ?)", (new_ot_id, 'before', photo_path, datetime.now().isoformat()))
-                        for photo in photos_after:
-                            photo_path = os.path.join(UPLOAD_DIR, f"{new_ot_id}_after_{photo.name}")
-                            with open(photo_path, "wb") as f: f.write(photo.getbuffer())
-                            c.execute("INSERT INTO ot_photos (ot_id, photo_type, photo_path, upload_date) VALUES (?, ?, ?, ?)", (new_ot_id, 'after', photo_path, datetime.now().isoformat()))
+                    c.execute("""INSERT INTO work_orders 
+                        (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion, f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, 
+                         nuevo_responsable, datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual", datetime.now().isoformat()))
                     conn.commit()
                     st.success(f"OT creada exitosamente: {new_ot_id}")
             except Exception as e:
                 st.error(f"Error creando OT: {e}")
     conn.close()
+    
     st.markdown("<h3>Ordenes Existentes</h3>", unsafe_allow_html=True)
     if all_orders:
         for ot in all_orders[:10]:
             with st.expander(f"{ot['ot_id']} - {ot['asset_name']} ({ot['status']})"):
                 st.markdown(f"**Activo:** {ot['asset_name']} | **Prioridad:** {ot['prioridad']}")
                 st.markdown(f"**Descripcion:** {ot['description']}")
-                col_a1, col_a2, col_a3 = st.columns(3)
-                with col_a1:
-                    if st.button("Iniciar", key=f"ini_{ot['ot_id']}"):
-                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
-                        c.execute("UPDATE work_orders SET status='En Ejecucion', start_time=?, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-                        conn.commit(); conn.close()
-                        notify_ot_started(ot['ot_id'], ot['asset_name'], ot['responsable'])
-                        st.rerun()
-                with col_a2:
-                    if st.button("Pausar", key=f"pau_{ot['ot_id']}"):
-                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
-                        c.execute("UPDATE work_orders SET status='Pausado', updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), ot['ot_id']))
-                        conn.commit(); conn.close()
-                        st.rerun()
-                with col_a3:
-                    if st.button("Completar", key=f"com_{ot['ot_id']}"):
-                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
-                        c.execute("UPDATE work_orders SET status='Cerrada', end_time=?, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-                        conn.commit(); conn.close()
-                        notify_ot_completed({"ot_id": ot['ot_id'], "responsable": ot['responsable'], "tiempo_real_horas": 0, "hallazgos": "Completado"})
+                
+                if ot['status'] == 'Pendiente':
+                    with st.form(key=f"form_start_{ot['ot_id']}"):
+                        st.markdown("### Iniciar Orden de Trabajo")
+                        st.markdown("**Foto ANTES del mantenimiento (Situación previa):**")
+                        photo_before = st.file_uploader("Subir foto ANTES", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key=f"photo_before_start_{ot['ot_id']}")
+                        
+                        if st.form_submit_button("Iniciar OT", type="primary"):
+                            conn = sqlite3.connect(DB_PATH)
+                            c = conn.cursor()
+                            c.execute("UPDATE work_orders SET status='En Ejecucion', start_time=?, updated_at=? WHERE ot_id=?", 
+                                      (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+                            
+                            if photo_before:
+                                for photo in photo_before:
+                                    photo_path = os.path.join(UPLOAD_DIR, f"{ot['ot_id']}_before_{photo.name}")
+                                    with open(photo_path, "wb") as f:
+                                        f.write(photo.getbuffer())
+                                    c.execute("INSERT INTO ot_photos (ot_id, photo_type, photo_path, upload_date) VALUES (?, ?, ?, ?)",
+                                              (ot['ot_id'], 'before', photo_path, datetime.now().isoformat()))
+                            
+                            conn.commit()
+                            conn.close()
+                            notify_ot_started(ot['ot_id'], ot['asset_name'], ot['responsable'])
+                            st.success("OT iniciada correctamente!")
+                            st.rerun()
+                
+                elif ot['status'] == 'En Ejecucion':
+                    col_btn1, col_btn2 = st.columns(2)
+                    with col_btn1:
+                        if st.button("Reportar Problema / Impedimento", key=f"issue_btn_{ot['ot_id']}", type="secondary"):
+                            st.session_state[f"show_issue_{ot['ot_id']}"] = True
+                    
+                    if st.session_state.get(f"show_issue_{ot['ot_id']}", False):
+                        with st.form(key=f"form_issue_{ot['ot_id']}"):
+                            issue_desc = st.text_area("Descripción del problema o impedimento:", key=f"issue_desc_{ot['ot_id']}")
+                            if st.form_submit_button("Notificar a Gerencia", type="primary"):
+                                notify_maintenance_issue(ot['asset_name'], issue_desc, ot['responsable'])
+                                st.session_state[f"show_issue_{ot['ot_id']}"] = False
+                                st.success("Notificación enviada a Gerencia (Irina) por Telegram y Correo.")
+                                st.rerun()
+
+                    with st.form(key=f"form_complete_{ot['ot_id']}"):
+                        st.markdown("### Registrar Cierre de OT")
+                        hallazgos = st.text_area("Hallazgos / Observaciones", key=f"hallazgos_{ot['ot_id']}")
+                        tiempo_real = st.number_input("Tiempo real (horas)", min_value=0.1, value=1.0, step=0.5, key=f"tiempo_{ot['ot_id']}")
+                        
+                        st.markdown("**Foto DESPUES del mantenimiento:**")
+                        photo_after = st.file_uploader("Subir foto DESPUES", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key=f"photo_after_{ot['ot_id']}")
+                        
+                        st.markdown("**Impacto Circular (Opcional):**")
+                        col_c1, col_c2 = st.columns(2)
+                        with col_c1:
+                            masa_cons = st.number_input("Masa conservada (kg)", min_value=0.0, value=0.0, key=f"mc_{ot['ot_id']}")
+                        with col_c2:
+                            masa_desc = st.number_input("Masa descartada (kg)", min_value=0.0, value=0.0, key=f"md_{ot['ot_id']}")
+                        
+                        if st.form_submit_button("Completar OT", type="primary"):
+                            conn = sqlite3.connect(DB_PATH)
+                            c = conn.cursor()
+                            
+                            c.execute("UPDATE work_orders SET status='Cerrada', end_time=?, updated_at=?, hallazgos=?, tiempo_real_horas=? WHERE ot_id=?", 
+                                      (datetime.now().isoformat(), datetime.now().isoformat(), hallazgos, tiempo_real, ot['ot_id']))
+                            
+                            if photo_after:
+                                for photo in photo_after:
+                                    photo_path = os.path.join(UPLOAD_DIR, f"{ot['ot_id']}_after_{photo.name}")
+                                    with open(photo_path, "wb") as f:
+                                        f.write(photo.getbuffer())
+                                    c.execute("INSERT INTO ot_photos (ot_id, photo_type, photo_path, upload_date) VALUES (?, ?, ?, ?)",
+                                              (ot['ot_id'], 'after', photo_path, datetime.now().isoformat()))
+                            
+                            if masa_cons > 0 or masa_desc > 0:
+                                c.execute("""INSERT INTO circular_interventions 
+                                    (ot_id, asset_name, component, decision, result, mass_conserved_kg, mass_discarded_kg, recorded_date, recorded_by)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                    (ot['ot_id'], ot['asset_name'], 'General', 'Reparacion', 'Reparado', masa_cons, masa_desc, datetime.now().isoformat(), ot['responsable']))
+                                
+                                notify_high_circular_impact({
+                                    "ot_id": ot['ot_id'], "component": "General", "decision": "Reparacion",
+                                    "mass_conserved_kg": masa_cons, "mass_discarded_kg": masa_desc
+                                })
+                            
+                            conn.commit()
+                            conn.close()
+                            
+                            notify_ot_completed({
+                                "ot_id": ot['ot_id'], "responsable": ot['responsable'], 
+                                "tiempo_real_horas": tiempo_real, "hallazgos": hallazgos
+                            })
+                            st.success("OT completada exitosamente!")
+                            st.rerun()
+                
+                elif ot['status'] == 'Cerrada':
+                    st.success("Esta orden de trabajo ya ha sido cerrada.")
+                    if st.button("Reabrir OT", key=f"reopen_{ot['ot_id']}"):
+                        conn = sqlite3.connect(DB_PATH)
+                        c = conn.cursor()
+                        c.execute("UPDATE work_orders SET status='Pendiente', end_time=NULL, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), ot['ot_id']))
+                        conn.commit()
+                        conn.close()
                         st.rerun()
     else:
         st.info("No hay ordenes registradas.")
@@ -1376,6 +1664,7 @@ with tabs[2]:
 
 with tabs[3]:
     st.markdown("<h2>Plan de Mantenimiento 2026</h2>", unsafe_allow_html=True)
+    
     st.markdown('<div class="search-box">', unsafe_allow_html=True)
     col_s1, col_s2 = st.columns([3, 1])
     with col_s1:
@@ -1383,32 +1672,39 @@ with tabs[3]:
     with col_s2:
         filter_freq = st.selectbox("Filtrar por frecuencia:", ["Todas", "3 meses", "4 meses", "6 meses", "12 meses", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"])
     st.markdown('</div>', unsafe_allow_html=True)
+    
     conn = sqlite3.connect(DB_PATH)
     df_plan = pd.read_sql_query("SELECT * FROM maintenance_plan", conn)
     conn.close()
+    
     if not df_plan.empty:
         if search_query:
             mask = df_plan.apply(lambda row: row.astype(str).str.lower().str.contains(search_query.lower()).any(), axis=1)
             df_plan = df_plan[mask]
+        
         if filter_freq != "Todas":
             df_plan = df_plan[df_plan['frequency'].str.lower() == filter_freq.lower()]
+        
         st.markdown("<h3>Calendario Anual de Mantenimiento 2026</h3>", unsafe_allow_html=True)
         meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
         cols = st.columns(4)
         for i, mes in enumerate(meses):
             with cols[i % 4]:
+                tareas_mes = len(df_plan)
                 st.markdown(f"""
                 <div class="calendar-month">
                     <span>{mes} 2026</span>
-                    <span style="background:rgba(255,255,255,0.2); padding:5px 10px; border-radius:15px;">{len(df_plan)} tareas</span>
+                    <span style="background:rgba(255,255,255,0.2); padding:5px 10px; border-radius:15px;">{tareas_mes} tareas</span>
                 </div>
                 """, unsafe_allow_html=True)
+        
         st.divider()
         st.markdown("<h3>Tareas Programadas</h3>", unsafe_allow_html=True)
         display_cols = ['asset_name', 'maintenance_type', 'task_description', 'frequency', 'responsable', 'priority']
         df_display = df_plan[display_cols].copy()
         df_display.columns = ['Activo', 'Tipo', 'Tarea', 'Frecuencia', 'Responsable', 'Prioridad']
         st.dataframe(df_display, use_container_width=True, hide_index=True)
+        
         if st.button("Descargar Reporte PDF (Formato SANIPES)", use_container_width=True):
             buffer = BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -1424,45 +1720,6 @@ with tabs[3]:
             doc.build(elements)
             buffer.seek(0)
             st.download_button(label="Descargar PDF", data=buffer, file_name=f"Plan_Mantenimiento_2026_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
-        st.markdown("<h3>Registrar Ejecucion de Mantenimiento</h3>", unsafe_allow_html=True)
-        with st.form("registro_ejecucion"):
-            col_e1, col_e2 = st.columns(2)
-            with col_e1:
-                ejec_activo = st.selectbox("Activo:", list(ASSETS.keys()), key="ejec_activo")
-                ejec_fecha = st.date_input("Fecha de ejecucion:", datetime.now())
-            with col_e2:
-                ejec_tecnico = st.selectbox("Tecnico:", ["Dario Minan", "Jordy Sernaque"], key="ejec_tecnico")
-                ejec_status = st.selectbox("Estado:", ["Completado", "Pendiente", "Pausado", "No realizado"], key="ejec_status")
-            ejec_obs = st.text_area("Observaciones:", key="ejec_obs")
-            col_f1, col_f2 = st.columns(2)
-            with col_f1:
-                ejec_photos_before = st.file_uploader("Fotos ANTES", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key="ejec_before")
-            with col_f2:
-                ejec_photos_after = st.file_uploader("Fotos DESPUES", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key="ejec_after")
-            circular_check = st.checkbox("Registrar impacto circular", key="circular_check")
-            submitted_ejec = st.form_submit_button("Registrar Ejecucion", use_container_width=True, type="primary")
-            if submitted_ejec:
-                conn = sqlite3.connect(DB_PATH)
-                c = conn.cursor()
-                c.execute("SELECT id FROM maintenance_plan WHERE asset_name=? LIMIT 1", (ejec_activo,))
-                result = c.fetchone()
-                plan_id = result[0] if result else None
-                c.execute("""INSERT INTO maintenance_execution (plan_id, asset_name, scheduled_date, execution_date, executed_by, status, observations) VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (plan_id, ejec_activo, datetime.now().isoformat(), ejec_fecha.isoformat(), ejec_tecnico, ejec_status, ejec_obs))
-                exec_id = c.lastrowid
-                if ejec_photos_before or ejec_photos_after:
-                    for photo in ejec_photos_before:
-                        photo_path = os.path.join(UPLOAD_DIR, f"exec_{exec_id}_before_{photo.name}")
-                        with open(photo_path, "wb") as f: f.write(photo.getbuffer())
-                    for photo in ejec_photos_after:
-                        photo_path = os.path.join(UPLOAD_DIR, f"exec_{exec_id}_after_{photo.name}")
-                        with open(photo_path, "wb") as f: f.write(photo.getbuffer())
-                conn.commit()
-                conn.close()
-                st.success("Ejecucion registrada correctamente")
-                if ejec_status == "Completado":
-                    play_notification_sound()
-                    st.balloons()
     else:
         st.info("No hay tareas de mantenimiento programadas. Cargue el archivo plan_de_mto.csv")
 
@@ -1472,6 +1729,7 @@ with tabs[3]:
 
 with tabs[4]:
     sub_tabs = st.tabs(["KPIs", "Impacto Circular", "Reportes"])
+    
     with sub_tabs[0]:
         st.markdown("<h2 style='text-align:center;'>KPIs e Indicadores</h2>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
@@ -1482,12 +1740,14 @@ with tabs[4]:
         pmp = c3.number_input("PM programados", value=20, min_value=0)
         ph = c3.number_input("HH pendientes", value=40.0, min_value=0.0)
         ahw = st.number_input("HH disponibles/semana", value=80.0, min_value=1.0)
+        
         kpis = calculate_kpis(oh, fl, dh, pmd, pmp, ph, ahw, st.session_state.production_rate)
         kk1, kk2, kk3, kk4 = st.columns(4)
         kk1.metric("MTBF", f"{kpis['MTBF (h)']:.1f} h")
         kk2.metric("MTTR", f"{kpis['MTTR (h)']:.1f} h")
         kk3.metric("Disponibilidad", f"{kpis['Disponibilidad (%)']:.2f}%")
         kk4.metric("Perdida productiva", f"{kpis['Perdida productiva (t)']:.1f} t")
+        
         col_center1, col_center2, col_center3 = st.columns([1, 3, 1])
         with col_center2:
             st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
@@ -1511,7 +1771,10 @@ with tabs[4]:
             ]
             for row in datos_demo:
                 try:
-                    c.execute("""INSERT INTO circular_interventions (ot_id, asset_name, component, decision, result, mass_conserved_kg, mass_discarded_kg, costo_reparacion_eur, costo_reemplazo_nuevo_eur, co2_evitado_kg, vida_util_extendida_horas, disponibilidad_post_reparacion_pct, recorded_date, recorded_by)
+                    c.execute("""INSERT INTO circular_interventions 
+                        (ot_id, asset_name, component, decision, result, mass_conserved_kg, mass_discarded_kg, 
+                         costo_reparacion_eur, costo_reemplazo_nuevo_eur, co2_evitado_kg, vida_util_extendida_horas, 
+                         disponibilidad_post_reparacion_pct, recorded_date, recorded_by)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (*row, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Dario Minan"))
                 except sqlite3.IntegrityError:
@@ -1527,7 +1790,7 @@ with tabs[4]:
         c.execute("SELECT * FROM circular_interventions ORDER BY recorded_date DESC")
         interventions = [dict(row) for row in c.fetchall()]
         conn.close()
-            
+        
         if interventions:
             df_interventions = pd.DataFrame(interventions)
             total_intervenciones = len(df_interventions)
@@ -1563,16 +1826,18 @@ with tabs[4]:
             csv = df_display.to_csv(index=False, sep=';').encode('utf-8')
             st.download_button(label="Exportar a CSV", data=csv, file_name=f"impacto_circular_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
         else:
-            st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular o use el botón de arriba.")
+            st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular.")
     
     with sub_tabs[2]:
         st.markdown("<h2>Reportes y Descargas</h2>")
         st.markdown("### Generar Reporte de Mantenimiento")
+        
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
         closed_orders = [dict(row) for row in c.fetchall()]
         conn.close()
+        
         if closed_orders:
             selected_ot = st.selectbox("Seleccionar OT para generar reporte:", [f"{ot['ot_id']} - {ot['asset_name']}" for ot in closed_orders])
             if selected_ot:
@@ -1581,11 +1846,13 @@ with tabs[4]:
                 c = conn.cursor()
                 c.execute("SELECT * FROM work_orders WHERE ot_id=?", (ot_id,))
                 ot_data = dict(c.fetchone())
+                
                 c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='before'", (ot_id,))
                 photos_before = [row[0] for row in c.fetchall()]
                 c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='after'", (ot_id,))
                 photos_after = [row[0] for row in c.fetchall()]
                 conn.close()
+                
                 if st.button("Generar PDF Reporte", use_container_width=True):
                     pdf_buffer = generate_maintenance_pdf(ot_data, photos_before, photos_after)
                     st.download_button(label="Descargar PDF", data=pdf_buffer, file_name=f"Reporte_{ot_id}_{datetime.now().strftime('%Y%m%d')}.pdf", mime="application/pdf", use_container_width=True)
