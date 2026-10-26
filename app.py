@@ -815,23 +815,22 @@ def floating_chat_dialog():
         st.session_state.auto_chat_triggered = False
 
 # ============================================================================
-# BOTÓN FLOTANTE - POSICIÓN FIJA INFERIOR DERECHA
+# BOTÓN FLOTANTE DE LETZY - SOLUCIÓN SIMPLE
 # ============================================================================
 
-# CSS para posicionar el botón
+# CSS para posicionar el botón en la esquina inferior derecha
 st.markdown("""
 <style>
-/* Ocultar el contenedor del botón pero mantenerlo funcional */
-div[data-testid="column"]:has(button[aria-label="Abrir Letzy"]) {
+/* Posicionar el botón en la esquina inferior derecha */
+div[data-testid="stVerticalBlock"] > div:has(button[kind="secondary"][data-testid="baseButton-secondary"]) {
     position: fixed !important;
     bottom: 30px !important;
     right: 30px !important;
     z-index: 9999 !important;
-    width: 90px !important;
 }
 
 /* Estilo del botón circular */
-button[aria-label="Abrir Letzy"] {
+button[kind="secondary"][data-testid="baseButton-secondary"] {
     width: 90px !important;
     height: 90px !important;
     border-radius: 50% !important;
@@ -844,22 +843,18 @@ button[aria-label="Abrir Letzy"] {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    font-size: 40px !important;
     transition: transform 0.3s ease !important;
 }
 
-button[aria-label="Abrir Letzy"]:hover {
+button[kind="secondary"][data-testid="baseButton-secondary"]:hover {
     transform: scale(1.1) !important;
-}
-
-/* Ocultar el texto del botón */
-button[aria-label="Abrir Letzy"] p {
-    display: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Botón nativo de Streamlit (será reposicionado por CSS)
-if st.button("", key="open_letzy_btn", help="Abrir Asistente Letzy", aria_label="Abrir Letzy"):
+# Botón simple con emoji
+if st.button("🤖", key="open_letzy_btn", help="Abrir Asistente Letzy"):
     st.session_state.floating_chat_open = True
 
 # Mostrar el diálogo si está abierto
