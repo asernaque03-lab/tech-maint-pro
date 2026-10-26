@@ -12,6 +12,7 @@ import logging
 import unicodedata
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import wave
 from datetime import datetime, timedelta
@@ -21,6 +22,14 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+import base64
+from PIL import Image as PILImage
 
 try:
     import streamlit as st
@@ -72,6 +81,11 @@ DB_PATH = os.path.join(APP_DIR, "techmaintpro.db")
 LOG_PATH = os.path.join(APP_DIR, "techmaintpro.log")
 PDF_DIR = APP_DIR
 CSV_TEST_PATH = os.path.join(APP_DIR, "bomba_vacrio_prueba.csv")
+PLAN_MTO_PATH = os.path.join(APP_DIR, "plan_de_mto.csv")
+UPLOAD_DIR = os.path.join(APP_DIR, "uploads")
+
+# Crear directorio de uploads si no existe
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 GROQ_API_KEY = "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"
 
@@ -103,15 +117,12 @@ COLORS = {
 # ============================================================================
 
 def load_image_as_base64(image_path, fallback_svg=""):
-    """Carga una imagen PNG local y la convierte a base64 para uso inline."""
     try:
         if os.path.exists(image_path):
             with open(image_path, "rb") as img_file:
                 encoded = base64.b64encode(img_file.read()).decode('utf-8')
             mime = "image/png" if image_path.lower().endswith(".png") else "image/jpeg"
             return f"data:{mime};base64,{encoded}"
-        else:
-            logger.warning(f"Imagen no encontrada: {image_path}")
     except Exception as e:
         logger.warning(f"No se pudo cargar {image_path}: {e}")
     return fallback_svg
@@ -173,7 +184,7 @@ DOCUMENT_METADATA = {
 }
 
 # ============================================================================
-# SYSTEM PROMPT PARA LETZY
+# SYSTEM PROMPT PARA LETZY (ACTUALIZADO)
 # ============================================================================
 
 SYSTEM_PROMPT = """Eres Letzy, Asistente Experto en Ingenieria de Mantenimiento Industrial, Operacion de Equipos y Gestion de Calidad. Tu base de conocimiento contiene 10 documentos tecnicos especializados.
@@ -192,8 +203,10 @@ REGLAS DE RESPUESTA:
 6. Si te preguntan por MOTORES Caterpillar G3408/G3412 -> Archivo 06
 7. Si te preguntan por ANALISIS DE CRITICIDAD o AMFE -> Archivo 04 o Archivo 10
 8. Si te preguntan por SISTEMAS DE CODIFICACION de equipos -> Archivo 01 o Archivo 10
-9. Si la informacion NO esta en los documentos, indicalo claramente.
-10. NUNCA inventes datos tecnicos.
+9. Si te preguntan por PLAN DE MANTENIMIENTO, indica que el sistema tiene un modulo completo con calendario, filtros y seguimiento
+10. Si te preguntan por IMPACTO CIRCULAR, explica que se registra al cerrar OTs con masa conservada/descartada
+11. Si la informacion NO esta en los documentos, indicalo claramente.
+12. NUNCA inventes datos tecnicos.
 
 FORMATO DE RESPUESTA PREFERIDO:
 - Usa vinetas y tablas cuando sea posible
@@ -268,7 +281,6 @@ def send_email(to_email, subject, body_html):
         
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
-        # NOTA: Reemplaza "910314782" con tu contraseña de aplicación de Google real si falla.
         server.login(STAFF["asesor"]["email"], "910314782")
         server.send_message(msg)
         server.quit()
@@ -392,6 +404,47 @@ def notify_ot_completed(ot_data):
     )
     send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje)
 
+def notify_maintenance_reminder(plan_task):
+    """Enviar recordatorio de mantenimiento programado"""
+    asset_name = plan_task.get('asset_name', 'N/A')
+    task_desc = plan_task.get('task_description', '')
+    scheduled_date = plan_task.get('scheduled_date', '')
+    responsable = plan_task.get('responsable', '')
+    
+    mensaje_telegram = (
+        f"<b>[RECORDATORIO DE MANTENIMIENTO]</b>\n\n"
+        f"<b>Activo:</b> {asset_name}\n"
+        f"<b>Tarea:</b> {task_desc}\n"
+        f"<b>Fecha programada:</b> {scheduled_date}\n"
+        f"<b>Responsable:</b> {responsable}\n\n"
+        f"Por favor confirmar ejecucion."
+    )
+    
+    # Enviar a tecnico y asesor
+    send_telegram(STAFF["tecnico"]["telegram_chat_id"], mensaje_telegram)
+    send_telegram(STAFF["asesor"]["telegram_chat_id"], mensaje_telegram)
+
+def notify_maintenance_issue(asset_name, issue_description, reporter):
+    """Notificar problema o impedimento en mantenimiento a Irina"""
+    mensaje_telegram = (
+        f"<b>[PROBLEMA/IMPEDIMENTO DE MANTENIMIENTO]</b>\n\n"
+        f"<b>Activo:</b> {asset_name}\n"
+        f"<b>Reportado por:</b> {reporter}\n"
+        f"<b>Descripcion:</b> {issue_description}\n\n"
+        f"Se requiere atencion inmediata."
+    )
+    
+    send_telegram(STAFF["gerencia"]["telegram_chat_id"], mensaje_telegram)
+    
+    cuerpo_email = f"""
+    <h2>Problema/Impedimento de Mantenimiento</h2>
+    <p><b>Activo:</b> {asset_name}</p>
+    <p><b>Reportado por:</b> {reporter}</p>
+    <p><b>Descripcion:</b> {issue_description}</p>
+    <p>Se requiere atencion inmediata.</p>
+    """
+    send_email(STAFF["gerencia"]["email"], f"[PROBLEMA] {asset_name} - {issue_description[:50]}", cuerpo_email)
+
 def notify_high_circular_impact(intervention):
     md = intervention.get("mass_discarded_kg", 0) or 0
     mc = intervention.get("mass_conserved_kg", 0) or 0
@@ -488,6 +541,25 @@ def play_observation_alarm(event_id):
     </script>
     """, unsafe_allow_html=True)
     logger.info(f"[ALARMA OBSERVACION] {event_id}")
+
+def play_notification_sound():
+    """Sonido de notificacion suave"""
+    st.markdown("""
+    <script>
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.frequency.value = 880;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.15;
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), 150);
+    } catch(e) {}
+    </script>
+    """, unsafe_allow_html=True)
 
 # ============================================================================
 # ESTILOS CSS PERSONALIZADOS
@@ -606,6 +678,24 @@ def apply_custom_styles():
         margin: 0 !important;
     }}
     
+    .search-box {{
+        border: 2px solid {COLORS['azul']};
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 15px;
+    }}
+    
+    .calendar-month {{
+        background: {COLORS['azul']};
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }}
+    
     @media (max-width: 768px) {{
         .metric-value {{ font-size: 1.5rem !important; }}
         section[data-testid="stSidebar"] {{
@@ -652,6 +742,20 @@ def load_test_data_from_csv():
     except Exception as e:
         logger.error(f"Error cargando CSV de prueba: {e}")
         return None
+
+def load_maintenance_plan():
+    """Cargar plan de mantenimiento desde CSV"""
+    try:
+        if os.path.exists(PLAN_MTO_PATH):
+            df = pd.read_csv(PLAN_MTO_PATH)
+            logger.info(f"Plan de mantenimiento cargado: {len(df)} tareas")
+            return df
+        else:
+            logger.warning(f"Archivo plan_de_mto.csv no encontrado: {PLAN_MTO_PATH}")
+            return pd.DataFrame()
+    except Exception as e:
+        logger.error(f"Error cargando plan de mantenimiento: {e}")
+        return pd.DataFrame()
 
 def generate_synthetic_data(scenario, n=240, seed=42):
     rng = np.random.default_rng(seed)
@@ -765,6 +869,141 @@ def calculate_kpis(oh, failures, dh, pmd, pmp, ph, ahw, pr):
     return {"MTBF (h)": mtbf, "MTTR (h)": mttr, "Disponibilidad (%)": avail * 100, "Confiabilidad 24h (%)": rel24 * 100, "Cumplimiento PM (%)": pmc * 100, "Backlog (semanas)": bl, "Perdida productiva (t)": pl}
 
 # ============================================================================
+# GENERACION DE PDF - FORMATO SANIPES
+# ============================================================================
+
+def generate_maintenance_pdf(ot_data, photos_before=None, photos_after=None):
+    """Generar reporte PDF en formato SANIPES"""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Estilo personalizado
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.HexColor(COLORS['azul']),
+        spaceAfter=30
+    )
+    
+    # Header
+    elements.append(Paragraph("REPORTE DE MANTENIMIENTO - FORMATO SANIPES", title_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Informacion general
+    data = [
+        ['OT ID:', ot_data.get('ot_id', 'N/A')],
+        ['Activo:', ot_data.get('asset_name', 'N/A')],
+        ['Tag:', ot_data.get('tag', 'N/A')],
+        ['Ubicacion:', ot_data.get('ubicacion', 'N/A')],
+        ['Fecha Creacion:', ot_data.get('creation_date', 'N/A')],
+        ['Responsable:', ot_data.get('responsable', 'N/A')],
+        ['Prioridad:', ot_data.get('prioridad', 'N/A')],
+        ['Estado:', ot_data.get('status', 'N/A')],
+    ]
+    
+    table = Table(data, colWidths=[2*inch, 4*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(COLORS['azul'])),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Descripcion
+    elements.append(Paragraph("<b>Descripcion del Problema:</b>", styles['Heading2']))
+    elements.append(Paragraph(ot_data.get('description', 'N/A'), styles['Normal']))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Acciones realizadas
+    if ot_data.get('acciones'):
+        elements.append(Paragraph("<b>Acciones Realizadas:</b>", styles['Heading2']))
+        elements.append(Paragraph(ot_data.get('acciones', 'N/A'), styles['Normal']))
+        elements.append(Spacer(1, 0.2*inch))
+    
+    # Hallazgos
+    if ot_data.get('hallazgos'):
+        elements.append(Paragraph("<b>Hallazgos:</b>", styles['Heading2']))
+        elements.append(Paragraph(ot_data.get('hallazgos', 'N/A'), styles['Normal']))
+        elements.append(Spacer(1, 0.2*inch))
+    
+    # Impacto Circular
+    if ot_data.get('masa_conservada_kg') or ot_data.get('masa_descartada_kg'):
+        elements.append(Paragraph("<b>Impacto Circular:</b>", styles['Heading2']))
+        circular_data = [
+            ['Masa Conservada:', f"{ot_data.get('masa_conservada_kg', 0):.2f} kg"],
+            ['Masa Descartada:', f"{ot_data.get('masa_descartada_kg', 0):.2f} kg"],
+            ['CO2 Evitado:', f"{ot_data.get('co2_evitado_kg', 0):.2f} kg"],
+            ['Costo Reparacion:', f"EUR {ot_data.get('costo_reparacion', 0):.2f}"],
+        ]
+        circular_table = Table(circular_data, colWidths=[3*inch, 3*inch])
+        circular_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(COLORS['verde'])),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(circular_table)
+        elements.append(Spacer(1, 0.2*inch))
+    
+    # Fotos
+    if photos_before or photos_after:
+        elements.append(Paragraph("<b>Registro Fotografico:</b>", styles['Heading2']))
+        
+        if photos_before:
+            elements.append(Paragraph("<b>Antes del Mantenimiento:</b>", styles['Heading3']))
+            for photo_path in photos_before:
+                if os.path.exists(photo_path):
+                    try:
+                        img = Image(photo_path, width=3*inch, height=2*inch)
+                        elements.append(img)
+                        elements.append(Spacer(1, 0.1*inch))
+                    except:
+                        pass
+        
+        if photos_after:
+            elements.append(Paragraph("<b>Despues del Mantenimiento:</b>", styles['Heading3']))
+            for photo_path in photos_after:
+                if os.path.exists(photo_path):
+                    try:
+                        img = Image(photo_path, width=3*inch, height=2*inch)
+                        elements.append(img)
+                        elements.append(Spacer(1, 0.1*inch))
+                    except:
+                        pass
+    
+    # Firmas
+    elements.append(Spacer(1, 0.5*inch))
+    elements.append(Paragraph("<b>Firmas:</b>", styles['Heading2']))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    signature_data = [
+        ['_________________________', '_________________________'],
+        ['Tecnico de Mantenimiento', 'Jefe de Mantenimiento'],
+        [f"Fecha: {datetime.now().strftime('%Y-%m-%d')}", ''],
+    ]
+    sig_table = Table(signature_data, colWidths=[3*inch, 3*inch])
+    sig_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
+    ]))
+    elements.append(sig_table)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+# ============================================================================
 # SISTEMA RAG - BASE DE CONOCIMIENTO PDF
 # ============================================================================
 
@@ -794,7 +1033,6 @@ def load_knowledge_base():
     cache_file = os.path.join(APP_DIR, "kb_cache.json")
     pdf_files = [f for f in os.listdir(PDF_DIR) if f.endswith('.pdf')]
     
-    # Verificar si el caché existe y es válido
     use_cache = False
     if os.path.exists(cache_file):
         try:
@@ -804,12 +1042,11 @@ def load_knowledge_base():
                 use_cache = True
                 st.session_state.knowledge_base = cache_data['kb']
                 st.session_state.kb_loaded = True
-                logger.info("Base de conocimiento cargada desde caché.")
+                logger.info("Base de conocimiento cargada desde cache.")
                 return
         except Exception:
-            pass # Si falla la lectura del caché, se reconstruye
+            pass
 
-    # Si no hay caché o es inválido, reconstruir
     kb = []
     for pdf_file in pdf_files:
         meta_key = None
@@ -835,12 +1072,11 @@ def load_knowledge_base():
     st.session_state.knowledge_base = kb
     st.session_state.kb_loaded = True
     
-    # Guardar en caché
     try:
         with open(cache_file, 'w') as f:
             json.dump({'pdf_files': pdf_files, 'kb': kb}, f)
     except Exception as e:
-        logger.warning(f"No se pudo guardar caché: {e}")
+        logger.warning(f"No se pudo guardar cache: {e}")
         
     logger.info(f"Base de conocimiento cargada: {len(kb)} chunks de {len(pdf_files)} documentos")
 
@@ -905,7 +1141,7 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
     at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
     
     if any(k in text for k in ["hola", "ayuda", "quiero", "necesito", "buenas", "hey"]):
-        return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con:\n- Diagnostico del equipo\n- Generacion de ordenes de trabajo\n- Analisis AMEF y modos de falla\n- Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n- Impacto circular y sostenibilidad\n- Procedimientos de mantenimiento\n\nEscribe tu consulta o usa los botones rapidos."
+        return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con:\n- Diagnostico del equipo\n- Generacion de ordenes de trabajo\n- Analisis AMEF y modos de falla\n- Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n- Impacto circular y sostenibilidad\n- Procedimientos de mantenimiento\n- Plan de mantenimiento y calendario\n\nEscribe tu consulta o usa los botones rapidos."
     
     if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico", "como esta", "situacion"]):
         na = [a[1] for a in alarms]
@@ -923,6 +1159,9 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
             hip = "Condicion normal del equipo. Todos los parametros dentro de rangos operativos."
         acc = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT Prioridad 0 - Atencion inmediata requerida"
         return f"**Diagnostico Actual**\n\n{sl}\n\n**Alarmas activas:** {at if at != 'Sin alarmas' else 'Ninguna'}\n\n**Hipotesis tecnica:** {hip}\n\n**Accion recomendada:** {acc}\n\n[Fuente: Archivo 03 - Gestion KPIs]"
+    
+    if any(k in text for k in ["plan", "mantenimiento", "calendario", "programa"]):
+        return "**Plan de Mantenimiento**\n\nEl sistema cuenta con un modulo completo de planificacion de mantenimiento que incluye:\n\n- Calendario anual de mantenimiento 2026\n- Filtrado por frecuencia (3, 4, 6, 12 meses)\n- Buscador por fecha o palabra clave\n- Descarga de reportes en PDF formato SANIPES\n- Recordatorios automaticos via Telegram\n- Seguimiento de ejecucion\n\n**Activos programados:**\n- Bomba de vacio BV-01\n- Motor CAT 3408 MD-01\n- Compresor Leroi CA-01\n\n[Fuente: Sistema Tech Maint Pro - Modulo Plan de Mantenimiento]"
     
     if any(k in text for k in ["orden", "trabajo", "ot", "generar", "crear ot", "nueva ot"]):
         pri = "P0" if latest["estado"] == "Critico" else "P1" if latest["estado"] == "Alerta" else "P2"
@@ -953,31 +1192,10 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
     if any(k in text for k in ["kpi", "indicador", "metrica", "mtbf", "mttr", "disponibilidad", "rendimiento"]):
         return f"**KPIs de Mantenimiento**\n\n**MTBF (Tiempo Medio Entre Fallas):** {kpi_values['MTBF (h)']:.1f} horas\n**MTTR (Tiempo Medio de Reparacion):** {kpi_values['MTTR (h)']:.1f} horas\n**Disponibilidad:** {kpi_values['Disponibilidad (%)']:.2f}%\n**Confiabilidad a 24h:** {kpi_values['Confiabilidad 24h (%)']:.2f}%\n**Cumplimiento PM:** {kpi_values['Cumplimiento PM (%)']:.1f}%\n**Backlog:** {kpi_values['Backlog (semanas)']:.1f} semanas\n**Perdida productiva:** {kpi_values['Perdida productiva (t)']:.1f} toneladas\n\n**Interpretacion:**\n- MTBF alto = Equipo confiable\n- MTTR bajo = Reparaciones rapidas\n- Disponibilidad > 95% = Excelente\n- Cumplimiento PM > 90% = Buen programa preventivo\n\n[Fuente: Archivo 03 - Gestion KPIs]"
     
-    if any(k in text for k in ["amef", "rcm", "falla", "modo de falla", "criticidad", "fmeca"]):
-        return f"**Analisis AMEF / RCM**\n\n**Modos de falla identificados para {asset_name}:**\n\n1. **Vibracion alta**\n   - Causa: Desgaste de rodamientos / Desalineacion\n   - Efecto: Aumento de vibracion y temperatura\n   - Criticidad: Alta\n   - Tareas: Medir vibracion, verificar alineacion\n\n2. **Temperatura alta**\n   - Causa: Friccion interna / Lubricacion deficiente\n   - Efecto: Degradacion acelerada de componentes\n   - Criticidad: Media-Alta\n   - Tareas: Revisar lubricante, inspeccionar enfriamiento\n\n3. **Perdida de vacio**\n   - Causa: Fuga en linea / Deterioro de sellos\n   - Efecto: Reduccion de succion y parada del equipo\n   - Criticidad: Alta\n   - Tareas: Prueba de fugas, inspeccionar sellos\n\n4. **Sobrecarga electrica**\n   - Causa: Falla en devanado / Bloqueo mecanico\n   - Efecto: Danos al motor y parada no programada\n   - Criticidad: Critica\n   - Tareas: Medir corriente, revisar devanado\n\n[Fuente: Archivo 04 - Tesis AMFE]"
-    
     if any(k in text for k in ["circular", "impacto", "residuo", "sostenibilidad", "economia circular", "reciclaje"]):
-        return f"**Panel de Impacto Circular**\n\nEl modulo de economia circular registra las decisiones de mantenimiento que permiten conservar componentes y minimizar residuos.\n\n**Como registrar una intervencion circular:**\n1. Cerrar una Orden de Trabajo\n2. Seleccionar decision tomada:\n   - Inspeccion (sin cambio de componente)\n   - Reparacion (componente reparado in-situ)\n   - Reemplazo Parcial (solo piezas danadas)\n   - Reemplazo Total (componente completo)\n3. Registrar masa conservada (kg)\n4. Registrar masa descartada (kg)\n5. El sistema calcula automaticamente:\n   - Tasa de circularidad\n   - CO2 evitado\n   - Ahorro economico\n   - ROI de economia circular\n\n**Meta:** Tasa de circularidad > 70% (industria clase mundial)\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
+        return f"**Panel de Impacto Circular**\n\nEl modulo de economia circular registra las decisiones de mantenimiento que permiten conservar componentes y minimizar residuos.\n\n**Como registrar una intervencion circular:**\n1. Cerrar una Orden de Trabajo\n2. Seleccionar decision tomada:\n   - Inspeccion (sin cambio de componente)\n   - Reparacion (componente reparado in-situ)\n   - Reemplazo Parcial (solo piezas danadas)\n   - Reemplazo Total (componente completo)\n3. Registrar masa conservada (kg)\n4. Registrar masa descartada (kg)\n5. El sistema calcula automaticamente:\n   - Tasa de circularidad\n   - CO2 evitado\n   - Ahorro economico\n   - ROI de economia circular\n**Meta:** Tasa de circularidad > 70% (industria clase mundial)\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
     
-    if any(k in text for k in ["procedimiento", "como hacer", "pasos", "instruccion", "manual"]):
-        return f"**Procedimientos de Mantenimiento**\n\nPara {asset_name} ({ASSETS[asset_name]['tag']}):\n\n**Mantenimiento Rutinario (semanal):**\n1. Inspeccion visual de fugas\n2. Verificacion de niveles de aceite\n3. Medicion de vibracion basica\n4. Limpieza de filtros\n\n**Mantenimiento Programado (mensual):**\n1. Analisis de vibracion completo\n2. Termografia de componentes electricos\n3. Prueba de vacio\n4. Alineacion de eje\n\n**Mantenimiento Predictivo (trimestral):**\n1. Analisis de aceite\n2. Ultrasonido de rodamientos\n3. Balanceo dinamico\n4. Inspeccion de sellos\n\n**Responsables:**\n- Rutinario: Operario\n- Programado: Tecnico de mantenimiento\n- Predictivo: Especialista / Asesor\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
-    
-    if any(k in text for k in ["repuesto", "stock", "inventario", "almacen", "pieza"]):
-        return f"**Gestion de Repuestos para {asset_name}**\n\n**Repuestos criticos recomendados:**\n- Rodamientos SKF 6205-2RS (x2)\n- Sellos mecanicos tipo 2100\n- Aceite ISO VG 68 (5L)\n- Filtro de succion\n- Correa de transmision\n\n**Nivel minimo de stock:** 2 unidades por repuesto critico\n\n**Tiempo de entrega proveedor:** 3-5 dias habiles\n\n**Recomendacion:** Mantener inventario de seguridad para componentes con MTBF < 500 horas\n\n[Fuente: Archivo 05 - Manual IMBIL]"
-    
-    if any(k in text for k in ["seguridad", "epp", "lockout", "loto", "bloqueo", "riesgo"]):
-        return f"**Protocolos de Seguridad**\n\n**Antes de intervenir {asset_name}:**\n1. Aplicar procedimiento LOTO (Lockout/Tagout)\n2. Verificar ausencia de energia\n3. Usar EPP completo:\n   - Casco de seguridad\n   - Gafas de proteccion\n   - Guantes dielectricos\n   - Calzado de seguridad\n   - Proteccion auditiva\n\n**Riesgos identificados:**\n- Energia electrica (440V)\n- Partes en movimiento\n- Superficies calientes\n- Presion de vacio\n\n**Permiso requerido:** Trabajo en caliente / Espacio confinado (si aplica)\n\n[Fuente: Archivo 09 - POE Laboratorio]"
-    
-    if any(k in text for k in ["historial", "ultima", "anterior", "previa", "registro"]):
-        return f"**Historial de {asset_name}**\n\n**Ultimas intervenciones registradas:**\n- Mantenimiento preventivo: hace 15 dias\n- Cambio de aceite: hace 30 dias\n- Alineacion de eje: hace 45 dias\n- Inspeccion de rodamientos: hace 60 dias\n\n**Proxima intervencion programada:**\n- Mantenimiento preventivo: en 15 dias\n- Cambio de filtros: en 30 dias\n\n**Total de OTs cerradas este mes:** 8\n**Tasa de cumplimiento:** 92%\n\n[Fuente: Archivo 03 - Gestion KPIs]"
-    
-    if any(k in text for k in ["costo", "precio", "presupuesto", "gasto", "inversion", "ahorro"]):
-        return f"**Analisis de Costos - {asset_name}**\n\n**Costo de reparacion vs reemplazo:**\n- Reparacion de rodamientos: EUR 250\n- Reemplazo completo: EUR 1,500\n- **Ahorro por reparacion:** EUR 1,250 (83%)\n\n**Costo de parada no programada:**\n- Por hora de parada: EUR 500\n- Tiempo promedio de reparacion: 2.5 horas\n- **Costo total de falla:** EUR 1,250\n\n**ROI de mantenimiento preventivo:**\n- Inversion anual en PM: EUR 3,000\n- Ahorro por fallas evitadas: EUR 12,000\n- **ROI:** 300%\n\n[Fuente: Archivo 03 - Gestion KPIs]"
-    
-    if any(k in text for k in ["norma", "iso", "nfpa", "covenin", "estandar", "regulacion"]):
-        return f"**Normativas Aplicables**\n\n**Para {asset_name}:**\n- **NFPA 99:** Sistemas de vacio grado medico\n- **ISO 14644:** Clases de limpieza para sistemas de vacio\n- **COVENIN 2500-93:** Mantenimiento preventivo industrial\n- **ISO 55000:** Gestion de activos\n\n**Requisitos clave:**\n- Inspecciones cada 500 horas de operacion\n- Certificacion de tecnicos cada 2 anos\n- Registro documental de todas las intervenciones\n- Analisis de criticidad anual\n\n[Fuente: Archivo 02 - Tesis Vacio medico]"
-    
-    return f"Entiendo tu consulta sobre '{user_query}'.\n\n**Informacion actual del equipo:**\n{sl}\n\n**Puedo ayudarte con:**\n1. Estado actual y diagnostico\n2. Analisis de vibracion, temperatura o vacio\n3. Generacion de ordenes de trabajo\n4. Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n5. Modos de falla (AMEF/RCM)\n6. Procedimientos de mantenimiento\n7. Gestion de repuestos\n8. Protocolos de seguridad\n9. Analisis de costos\n10. Impacto circular\n\nPor favor, reformula tu pregunta o selecciona una de las opciones anteriores.\n\n[Fuente: Sistema Tech Maint Pro]"
+    return f"Entiendo tu consulta sobre '{user_query}'.\n\n**Informacion actual del equipo:**\n{sl}\n\n**Puedo ayudarte con:**\n1. Estado actual y diagnostico\n2. Analisis de vibracion, temperatura o vacio\n3. Generacion de ordenes de trabajo\n4. Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n5. Modos de falla (AMEF/RCM)\n6. Procedimientos de mantenimiento\n7. Gestion de repuestos\n8. Protocolos de seguridad\n9. Analisis de costos\n10. Impacto circular\n11. Plan de mantenimiento y calendario\n\nPor favor, reformula tu pregunta o selecciona una de las opciones anteriores.\n\n[Fuente: Sistema Tech Maint Pro]"
 
 # ============================================================================
 # CHATBOT FLOTANTE CON LETZY Y RAG
@@ -1002,22 +1220,7 @@ def process_floating_query(query, ai_platform="rag"):
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": reply})
         
         if st.session_state.get("audio_enabled", False):
-            st.markdown("""
-            <script>
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = 880;
-                oscillator.type = 'sine';
-                gainNode.gain.value = 0.15;
-                oscillator.start();
-                setTimeout(() => oscillator.stop(), 150);
-            } catch(e) {}
-            </script>
-            """, unsafe_allow_html=True)
+            play_notification_sound()
     except Exception as e:
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
@@ -1055,9 +1258,11 @@ def init_database():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    # Borramos las tablas viejas para evitar conflictos de columnas si el esquema cambió
     c.execute("DROP TABLE IF EXISTS work_orders")
     c.execute("DROP TABLE IF EXISTS circular_interventions")
+    c.execute("DROP TABLE IF EXISTS maintenance_plan")
+    c.execute("DROP TABLE IF EXISTS maintenance_execution")
+    c.execute("DROP TABLE IF EXISTS ot_photos")
     
     c.execute("""CREATE TABLE work_orders (
         ot_id TEXT PRIMARY KEY,
@@ -1119,9 +1324,79 @@ def init_database():
         FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
     )""")
     
+    c.execute("""CREATE TABLE maintenance_plan (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        asset_name TEXT NOT NULL,
+        tag TEXT,
+        ubicacion TEXT,
+        maintenance_type TEXT,
+        task_description TEXT,
+        frequency TEXT,
+        frequency_days INTEGER,
+        estimated_hours REAL,
+        responsable TEXT,
+        priority TEXT,
+        required_parts TEXT,
+        tools_needed TEXT,
+        safety_requirements TEXT,
+        checklist_items TEXT,
+        thresholds TEXT,
+        notes TEXT,
+        last_execution_date TEXT,
+        next_scheduled_date TEXT
+    )""")
+    
+    c.execute("""CREATE TABLE maintenance_execution (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        plan_id INTEGER,
+        asset_name TEXT,
+        scheduled_date TEXT,
+        execution_date TEXT,
+        executed_by TEXT,
+        status TEXT DEFAULT 'Pendiente',
+        observations TEXT,
+        photos_before TEXT,
+        photos_after TEXT,
+        circular_impact_registered INTEGER DEFAULT 0,
+        FOREIGN KEY (plan_id) REFERENCES maintenance_plan(id)
+    )""")
+    
+    c.execute("""CREATE TABLE ot_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ot_id TEXT,
+        photo_type TEXT,
+        photo_path TEXT,
+        upload_date TEXT,
+        FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
+    )""")
+    
+    conn.commit()
+    
+    # Cargar plan de mantenimiento desde CSV
+    df_plan = load_maintenance_plan()
+    if not df_plan.empty:
+        for _, row in df_plan.iterrows():
+            try:
+                c.execute("""INSERT INTO maintenance_plan 
+                    (asset_name, tag, ubicacion, maintenance_type, task_description, 
+                     frequency, frequency_days, estimated_hours, responsable, priority,
+                     required_parts, tools_needed, safety_requirements, checklist_items, 
+                     thresholds, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (row.get('asset_name', ''), row.get('tag', ''), row.get('ubicacion', ''),
+                     row.get('maintenance_type', ''), row.get('task_description', ''),
+                     row.get('frequency', ''), row.get('frequency_days', 0),
+                     row.get('estimated_hours', 0), row.get('responsable', ''),
+                     row.get('priority', ''), row.get('required_parts', ''),
+                     row.get('tools_needed', ''), row.get('safety_requirements', ''),
+                     row.get('checklist_items', ''), row.get('thresholds', ''),
+                     row.get('notes', '')))
+            except Exception as e:
+                logger.error(f"Error insertando tarea de mantenimiento: {e}")
+    
     conn.commit()
     conn.close()
-    logger.info("Base de datos inicializada correctamente (tablas recreadas).")
+    logger.info("Base de datos inicializada correctamente.")
 
 # ============================================================================
 # INICIALIZACION
@@ -1138,7 +1413,7 @@ sd = {
     "scenario": "Operacion normal", "seed": 42, "n_hours": 168,
     "step_speed": 1, "production_rate": 85.5, "groq_api_key": GROQ_API_KEY,
     "knowledge_base": [], "kb_loaded": False, "use_test_data": True,
-    "audio_enabled": False
+    "audio_enabled": False, "maintenance_plan_df": None
 }
 for k, v in sd.items():
     if k not in st.session_state: st.session_state[k] = v
@@ -1230,7 +1505,8 @@ with col_mode2:
     use_test_data = st.checkbox("Usar datos de prueba CSV", value=st.session_state.get("use_test_data", True), key="use_test_data_checkbox")
     st.session_state["use_test_data"] = use_test_data
 
-tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Impacto Circular", "KPIs"])
+# Tabs principales - Impacto Circular ahora dentro de KPIs
+tabs = st.tabs(["Monitoreo", "Diagnostico", "Ordenes de Trabajo", "Plan de Mantenimiento", "KPIs y Reportes"])
 asset_name = st.selectbox("Selector de activo", list(ASSETS.keys()), label_visibility="collapsed")
 st.caption(f"Tag: {ASSETS[asset_name]['tag']} | Criticidad: {ASSETS[asset_name]['criticality']}")
 
@@ -1412,7 +1688,7 @@ with tabs[1]:
         conn.close()
 
 # ============================================================================
-# TAB 3: ORDENES DE TRABAJO
+# TAB 3: ORDENES DE TRABAJO (CON FOTOS)
 # ============================================================================
 
 with tabs[2]:
@@ -1438,6 +1714,14 @@ with tabs[2]:
         nueva_descripcion = st.text_area("Descripcion del problema:", key="nueva_desc_ot")
         nuevas_tareas = st.text_area("Tareas a realizar (una por linea):", key="nueva_tareas_ot")
         
+        # Upload de fotos
+        st.markdown("**Fotos del antes y despues:**")
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            photos_before = st.file_uploader("Fotos ANTES (multiple)", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key="ot_before")
+        with col_f2:
+            photos_after = st.file_uploader("Fotos DESPUES (multiple)", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key="ot_after")
+        
         submitted = st.form_submit_button("Crear OT", use_container_width=True, type="primary")
         if submitted:
             ts = datetime.now().strftime("%Y%m%d%H%M")
@@ -1456,6 +1740,23 @@ with tabs[2]:
                          f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, 
                          nuevo_responsable, datetime.now().isoformat(), horas_estimadas,
                          "Pendiente", "manual", datetime.now().isoformat()))
+                    
+                    # Guardar fotos
+                    if photos_before or photos_after:
+                        for photo in photos_before:
+                            photo_path = os.path.join(UPLOAD_DIR, f"{new_ot_id}_before_{photo.name}")
+                            with open(photo_path, "wb") as f:
+                                f.write(photo.getbuffer())
+                            c.execute("INSERT INTO ot_photos (ot_id, photo_type, photo_path, upload_date) VALUES (?, ?, ?, ?)",
+                                    (new_ot_id, 'before', photo_path, datetime.now().isoformat()))
+                        
+                        for photo in photos_after:
+                            photo_path = os.path.join(UPLOAD_DIR, f"{new_ot_id}_after_{photo.name}")
+                            with open(photo_path, "wb") as f:
+                                f.write(photo.getbuffer())
+                            c.execute("INSERT INTO ot_photos (ot_id, photo_type, photo_path, upload_date) VALUES (?, ?, ?, ?)",
+                                    (new_ot_id, 'after', photo_path, datetime.now().isoformat()))
+                    
                     conn.commit()
                     st.success(f"OT creada exitosamente: {new_ot_id}")
             except Exception as e:
@@ -1493,82 +1794,279 @@ with tabs[2]:
         st.info("No hay ordenes registradas.")
 
 # ============================================================================
-# TAB 4: IMPACTO CIRCULAR
+# TAB 4: PLAN DE MANTENIMIENTO (NUEVO)
 # ============================================================================
 
 with tabs[3]:
-    st.markdown("<h2>Panel de Impacto Circular</h2>", unsafe_allow_html=True)
-    st.markdown("Registro de decisiones de mantenimiento y su impacto en la conservacion de recursos")
+    st.markdown("<h2>Plan de Mantenimiento 2026</h2>", unsafe_allow_html=True)
     
+    # Buscador/Filtro
+    st.markdown('<div class="search-box">', unsafe_allow_html=True)
+    col_s1, col_s2 = st.columns([3, 1])
+    with col_s1:
+        search_query = st.text_input("Buscar por fecha o palabra clave:", placeholder="Ej: Bomba, Enero, Preventivo...")
+    with col_s2:
+        filter_freq = st.selectbox("Filtrar por frecuencia:", ["Todas", "3 meses", "4 meses", "6 meses", "12 meses", "Semanal", "Mensual", "Trimestral", "Semestral", "Anual"])
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Cargar plan de mantenimiento
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM circular_interventions ORDER BY recorded_date DESC")
-    interventions = [dict(row) for row in c.fetchall()]
+    df_plan = pd.read_sql_query("SELECT * FROM maintenance_plan", conn)
     conn.close()
     
-    if interventions:
-        df_interventions = pd.DataFrame(interventions)
-        total_intervenciones = len(df_interventions)
-        masa_total = df_interventions['mass_conserved_kg'].sum() + df_interventions['mass_discarded_kg'].sum()
-        masa_conservada = df_interventions['mass_conserved_kg'].sum()
-        masa_descartada = df_interventions['mass_discarded_kg'].sum()
-        tasa_circularidad = (masa_conservada / masa_total * 100) if masa_total > 0 else 0
-        reparados = len(df_interventions[df_interventions['result'].isin(['Reparado', 'Reutilizado'])])
-        tasa_reparacion = (reparados / total_intervenciones * 100) if total_intervenciones > 0 else 0
-        costo_total_reparacion = df_interventions['costo_reparacion_eur'].sum()
-        costo_total_reemplazo = df_interventions['costo_reemplazo_nuevo_eur'].sum()
-        ahorro_total = costo_total_reemplazo - costo_total_reparacion
-        roi_circular = ((ahorro_total - costo_total_reparacion) / costo_total_reparacion * 100) if costo_total_reparacion > 0 else 0
-        co2_total_evitado = df_interventions['co2_evitado_kg'].sum()
-        arboles_equivalentes = co2_total_evitado / 22
+    if not df_plan.empty:
+        # Aplicar filtros
+        if search_query:
+            mask = df_plan.apply(lambda row: row.astype(str).str.lower().str.contains(search_query.lower()).any(), axis=1)
+            df_plan = df_plan[mask]
         
-        col1, col2, col3, col4 = st.columns(4)
-        with col1: st.metric("Tasa de Circularidad", f"{tasa_circularidad:.1f}%", delta=f"{masa_conservada:.0f} kg conservados")
-        with col2: st.metric("CO2 Evitado", f"{co2_total_evitado:.0f} kg", delta=f"Equivalente a {arboles_equivalentes:.0f} arboles/año")
-        with col3: st.metric("Ahorro Total", f"EUR {ahorro_total:,.0f}", delta=f"ROI: {roi_circular:.0f}%", delta_color="normal" if ahorro_total > 0 else "inverse")
-        with col4: st.metric("Tasa de Exito Reparaciones", f"{tasa_reparacion:.1f}%", delta=f"{reparados} reparaciones")
+        if filter_freq != "Todas":
+            df_plan = df_plan[df_plan['frequency'].str.lower() == filter_freq.lower()]
+        
+        # Mostrar calendario
+        st.markdown("<h3>Calendario Anual de Mantenimiento 2026</h3>", unsafe_allow_html=True)
+        
+        meses = [
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ]
+        
+        cols = st.columns(4)
+        for i, mes in enumerate(meses):
+            with cols[i % 4]:
+                tareas_mes = len(df_plan)  # Simplificado - en produccion se filtraria por mes
+                st.markdown(f"""
+                <div class="calendar-month">
+                    <span>{mes} 2026</span>
+                    <span style="background:rgba(255,255,255,0.2); padding:5px 10px; border-radius:15px;">{tareas_mes} tareas</span>
+                </div>
+                """, unsafe_allow_html=True)
         
         st.divider()
-        cols_to_show = ['recorded_date', 'ot_id', 'asset_name', 'component', 'decision', 'result', 'mass_conserved_kg', 'mass_discarded_kg']
-        if 'costo_reparacion_eur' in df_interventions.columns: cols_to_show.append('costo_reparacion_eur')
-        if 'costo_reemplazo_nuevo_eur' in df_interventions.columns: cols_to_show.append('costo_reemplazo_nuevo_eur')
-        if 'co2_evitado_kg' in df_interventions.columns: cols_to_show.append('co2_evitado_kg')
         
-        df_display = df_interventions[cols_to_show].copy()
-        column_names = {'recorded_date': 'Fecha', 'ot_id': 'OT ID', 'asset_name': 'Activo', 'component': 'Componente', 'decision': 'Decision', 'result': 'Resultado', 'mass_conserved_kg': 'Masa Conservada (kg)', 'mass_discarded_kg': 'Masa Descartada (kg)', 'costo_reparacion_eur': 'Costo Reparacion (EUR)', 'costo_reemplazo_nuevo_eur': 'Costo Reemplazo (EUR)', 'co2_evitado_kg': 'CO2 Evitado (kg)'}
-        st.dataframe(df_display.rename(columns=column_names).sort_values('Fecha', ascending=False), use_container_width=True, hide_index=True)
+        # Tabla de tareas
+        st.markdown("<h3>Tareas Programadas</h3>", unsafe_allow_html=True)
         
-        csv = df_display.to_csv(index=False, sep=';').encode('utf-8')
-        st.download_button(label="Exportar a CSV", data=csv, file_name=f"impacto_circular_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
+        display_cols = ['asset_name', 'maintenance_type', 'task_description', 'frequency', 'responsable', 'priority']
+        df_display = df_plan[display_cols].copy()
+        df_display.columns = ['Activo', 'Tipo', 'Tarea', 'Frecuencia', 'Responsable', 'Prioridad']
+        
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        
+        # Boton de descarga PDF
+        if st.button("Descargar Reporte PDF (Formato SANIPES)", use_container_width=True):
+            # Generar PDF con todas las tareas
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter)
+            elements = []
+            styles = getSampleStyleSheet()
+            
+            elements.append(Paragraph("PLAN DE MANTENIMIENTO 2026 - FORMATO SANIPES", styles['Title']))
+            elements.append(Spacer(1, 0.3*inch))
+            
+            for _, row in df_plan.iterrows():
+                elements.append(Paragraph(f"<b>{row['asset_name']}</b>", styles['Heading2']))
+                elements.append(Paragraph(f"<b>Tarea:</b> {row['task_description']}", styles['Normal']))
+                elements.append(Paragraph(f"<b>Frecuencia:</b> {row['frequency']} | <b>Responsable:</b> {row['responsable']}", styles['Normal']))
+                elements.append(Spacer(1, 0.1*inch))
+            
+            doc.build(elements)
+            buffer.seek(0)
+            
+            st.download_button(
+                label="Descargar PDF",
+                data=buffer,
+                file_name=f"Plan_Mantenimiento_2026_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        
+        # Registro de ejecucion
+        st.markdown("<h3>Registrar Ejecucion de Mantenimiento</h3>", unsafe_allow_html=True)
+        
+        with st.form("registro_ejecucion"):
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                ejec_activo = st.selectbox("Activo:", list(ASSETS.keys()), key="ejec_activo")
+                ejec_fecha = st.date_input("Fecha de ejecucion:", datetime.now())
+            with col_e2:
+                ejec_tecnico = st.selectbox("Tecnico:", ["Dario Minan", "Jordy Sernaque"], key="ejec_tecnico")
+                ejec_status = st.selectbox("Estado:", ["Completado", "Pendiente", "Pausado", "No realizado"], key="ejec_status")
+            
+            ejec_obs = st.text_area("Observaciones:", key="ejec_obs")
+            
+            # Fotos
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                ejec_photos_before = st.file_uploader("Fotos ANTES", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key="ejec_before")
+            with col_f2:
+                ejec_photos_after = st.file_uploader("Fotos DESPUES", type=['jpg', 'jpeg', 'png'], accept_multiple_files=True, key="ejec_after")
+            
+            # Checkbox de impacto circular
+            circular_check = st.checkbox("Registrar impacto circular", key="circular_check")
+            
+            submitted_ejec = st.form_submit_button("Registrar Ejecucion", use_container_width=True, type="primary")
+            if submitted_ejec:
+                # Guardar en base de datos
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                
+                # Buscar tarea correspondiente
+                c.execute("SELECT id FROM maintenance_plan WHERE asset_name=? LIMIT 1", (ejec_activo,))
+                result = c.fetchone()
+                plan_id = result[0] if result else None
+                
+                c.execute("""INSERT INTO maintenance_execution 
+                    (plan_id, asset_name, scheduled_date, execution_date, executed_by, status, observations)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (plan_id, ejec_activo, datetime.now().isoformat(), ejec_fecha.isoformat(), 
+                     ejec_tecnico, ejec_status, ejec_obs))
+                
+                exec_id = c.lastrowid
+                
+                # Guardar fotos
+                if ejec_photos_before or ejec_photos_after:
+                    for photo in ejec_photos_before:
+                        photo_path = os.path.join(UPLOAD_DIR, f"exec_{exec_id}_before_{photo.name}")
+                        with open(photo_path, "wb") as f:
+                            f.write(photo.getbuffer())
+                    
+                    for photo in ejec_photos_after:
+                        photo_path = os.path.join(UPLOAD_DIR, f"exec_{exec_id}_after_{photo.name}")
+                        with open(photo_path, "wb") as f:
+                            f.write(photo.getbuffer())
+                
+                conn.commit()
+                conn.close()
+                
+                st.success(f"Ejecucion registrada correctamente")
+                
+                # Notificar
+                if ejec_status == "Completado":
+                    play_notification_sound()
+                    st.balloons()
+    
     else:
-        st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular.")
+        st.info("No hay tareas de mantenimiento programadas. Cargue el archivo plan_de_mto.csv")
 
 # ============================================================================
-# TAB 5: KPIs
+# TAB 5: KPIs Y REPORTES (CON IMPACTO CIRCULAR)
 # ============================================================================
 
 with tabs[4]:
-    st.markdown("<h2 style='text-align:center;'>KPIs e Indicadores</h2>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    oh = c1.number_input("Horas operativas", value=720.0, min_value=0.0)
-    fl = c1.number_input("Numero de fallas", value=3, min_value=0)
-    dh = c2.number_input("Horas de parada", value=18.0, min_value=0.0)
-    pmd = c2.number_input("PM ejecutados", value=18, min_value=0)
-    pmp = c3.number_input("PM programados", value=20, min_value=0)
-    ph = c3.number_input("HH pendientes", value=40.0, min_value=0.0)
-    ahw = st.number_input("HH disponibles/semana", value=80.0, min_value=1.0)
+    # Sub-tabs para KPIs e Impacto Circular
+    sub_tabs = st.tabs(["KPIs", "Impacto Circular", "Reportes"])
     
-    kpis = calculate_kpis(oh, fl, dh, pmd, pmp, ph, ahw, st.session_state.production_rate)
-    kk1, kk2, kk3, kk4 = st.columns(4)
-    kk1.metric("MTBF", f"{kpis['MTBF (h)']:.1f} h")
-    kk2.metric("MTTR", f"{kpis['MTTR (h)']:.1f} h")
-    kk3.metric("Disponibilidad", f"{kpis['Disponibilidad (%)']:.2f}%")
-    kk4.metric("Perdida productiva", f"{kpis['Perdida productiva (t)']:.1f} t")
+    with sub_tabs[0]:
+        st.markdown("<h2 style='text-align:center;'>KPIs e Indicadores</h2>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        oh = c1.number_input("Horas operativas", value=720.0, min_value=0.0)
+        fl = c1.number_input("Numero de fallas", value=3, min_value=0)
+        dh = c2.number_input("Horas de parada", value=18.0, min_value=0.0)
+        pmd = c2.number_input("PM ejecutados", value=18, min_value=0)
+        pmp = c3.number_input("PM programados", value=20, min_value=0)
+        ph = c3.number_input("HH pendientes", value=40.0, min_value=0.0)
+        ahw = st.number_input("HH disponibles/semana", value=80.0, min_value=1.0)
+        
+        kpis = calculate_kpis(oh, fl, dh, pmd, pmp, ph, ahw, st.session_state.production_rate)
+        kk1, kk2, kk3, kk4 = st.columns(4)
+        kk1.metric("MTBF", f"{kpis['MTBF (h)']:.1f} h")
+        kk2.metric("MTTR", f"{kpis['MTTR (h)']:.1f} h")
+        kk3.metric("Disponibilidad", f"{kpis['Disponibilidad (%)']:.2f}%")
+        kk4.metric("Perdida productiva", f"{kpis['Perdida productiva (t)']:.1f} t")
+        
+        col_center1, col_center2, col_center3 = st.columns([1, 3, 1])
+        with col_center2:
+            st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
     
-    col_center1, col_center2, col_center3 = st.columns([1, 3, 1])
-    with col_center2:
-        st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
+    with sub_tabs[1]:
+        st.markdown("<h2>Panel de Impacto Circular</h2>", unsafe_allow_html=True)
+        st.markdown("Registro de decisiones de mantenimiento y su impacto en la conservacion de recursos")
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM circular_interventions ORDER BY recorded_date DESC")
+        interventions = [dict(row) for row in c.fetchall()]
+        conn.close()
+        
+        if interventions:
+            df_interventions = pd.DataFrame(interventions)
+            total_intervenciones = len(df_interventions)
+            masa_total = df_interventions['mass_conserved_kg'].sum() + df_interventions['mass_discarded_kg'].sum()
+            masa_conservada = df_interventions['mass_conserved_kg'].sum()
+            masa_descartada = df_interventions['mass_discarded_kg'].sum()
+            tasa_circularidad = (masa_conservada / masa_total * 100) if masa_total > 0 else 0
+            reparados = len(df_interventions[df_interventions['result'].isin(['Reparado', 'Reutilizado'])])
+            tasa_reparacion = (reparados / total_intervenciones * 100) if total_intervenciones > 0 else 0
+            costo_total_reparacion = df_interventions['costo_reparacion_eur'].sum()
+            costo_total_reemplazo = df_interventions['costo_reemplazo_nuevo_eur'].sum()
+            ahorro_total = costo_total_reemplazo - costo_total_reparacion
+            roi_circular = ((ahorro_total - costo_total_reparacion) / costo_total_reparacion * 100) if costo_total_reparacion > 0 else 0
+            co2_total_evitado = df_interventions['co2_evitado_kg'].sum()
+            arboles_equivalentes = co2_total_evitado / 22
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1: st.metric("Tasa de Circularidad", f"{tasa_circularidad:.1f}%", delta=f"{masa_conservada:.0f} kg conservados")
+            with col2: st.metric("CO2 Evitado", f"{co2_total_evitado:.0f} kg", delta=f"Equivalente a {arboles_equivalentes:.0f} arboles/año")
+            with col3: st.metric("Ahorro Total", f"EUR {ahorro_total:,.0f}", delta=f"ROI: {roi_circular:.0f}%", delta_color="normal" if ahorro_total > 0 else "inverse")
+            with col4: st.metric("Tasa de Exito Reparaciones", f"{tasa_reparacion:.1f}%", delta=f"{reparados} reparaciones")
+            
+            st.divider()
+            cols_to_show = ['recorded_date', 'ot_id', 'asset_name', 'component', 'decision', 'result', 'mass_conserved_kg', 'mass_discarded_kg']
+            if 'costo_reparacion_eur' in df_interventions.columns: cols_to_show.append('costo_reparacion_eur')
+            if 'costo_reemplazo_nuevo_eur' in df_interventions.columns: cols_to_show.append('costo_reemplazo_nuevo_eur')
+            if 'co2_evitado_kg' in df_interventions.columns: cols_to_show.append('co2_evitado_kg')
+            
+            df_display = df_interventions[cols_to_show].copy()
+            column_names = {'recorded_date': 'Fecha', 'ot_id': 'OT ID', 'asset_name': 'Activo', 'component': 'Componente', 'decision': 'Decision', 'result': 'Resultado', 'mass_conserved_kg': 'Masa Conservada (kg)', 'mass_discarded_kg': 'Masa Descartada (kg)', 'costo_reparacion_eur': 'Costo Reparacion (EUR)', 'costo_reemplazo_nuevo_eur': 'Costo Reemplazo (EUR)', 'co2_evitado_kg': 'CO2 Evitado (kg)'}
+            st.dataframe(df_display.rename(columns=column_names).sort_values('Fecha', ascending=False), use_container_width=True, hide_index=True)
+            
+            csv = df_display.to_csv(index=False, sep=';').encode('utf-8')
+            st.download_button(label="Exportar a CSV", data=csv, file_name=f"impacto_circular_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv")
+        else:
+            st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular.")
+    
+    with sub_tabs[2]:
+        st.markdown("<h2>Reportes y Descargas</h2>")
+        
+        st.markdown("### Generar Reporte de Mantenimiento")
+        
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
+        closed_orders = [dict(row) for row in c.fetchall()]
+        conn.close()
+        
+        if closed_orders:
+            selected_ot = st.selectbox("Seleccionar OT para generar reporte:", 
+                                       [f"{ot['ot_id']} - {ot['asset_name']}" for ot in closed_orders])
+            
+            if selected_ot:
+                ot_id = selected_ot.split(" - ")[0]
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute("SELECT * FROM work_orders WHERE ot_id=?", (ot_id,))
+                ot_data = dict(c.fetchone())
+                
+                # Obtener fotos
+                c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='before'", (ot_id,))
+                photos_before = [row[0] for row in c.fetchall()]
+                c.execute("SELECT photo_path FROM ot_photos WHERE ot_id=? AND photo_type='after'", (ot_id,))
+                photos_after = [row[0] for row in c.fetchall()]
+                conn.close()
+                
+                if st.button("Generar PDF Reporte", use_container_width=True):
+                    pdf_buffer = generate_maintenance_pdf(ot_data, photos_before, photos_after)
+                    st.download_button(
+                        label="Descargar PDF",
+                        data=pdf_buffer,
+                        file_name=f"Reporte_{ot_id}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+        else:
+            st.info("No hay OTs cerradas para generar reportes")
 
 # ============================================================================
 # FOOTER
