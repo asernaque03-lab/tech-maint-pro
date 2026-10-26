@@ -1190,30 +1190,9 @@ if not st.session_state.get("kb_loaded", False):
 # ============================================================================
 
 with st.sidebar:
-        ui = st.chat_input("Escribe a Letzy...", key="chat_input_sidebar")
-    if ui: process_floating_query(ui, ai_mode)
-    if st.button("Limpiar chat", key="clear_chat_side", use_container_width=True): 
-        st.session_state["floating_chat_history"] = []
-    
-    st.divider()
-    st.markdown("### 🔧 Panel de Pruebas Telegram")
-    
-    if st.button("Probar Conexión Telegram", use_container_width=True, type="secondary"):
-        with st.spinner("Enviando mensajes de prueba a todos los usuarios..."):
-            success = test_telegram_connection()
-            if success:
-                st.success("✓ Mensajes de prueba enviados. Revisa tu Telegram.")
-            else:
-                st.error("✗ Error en la conexión. Revisa los logs de la app.")
-    
-    if st.button("Enviar Notificación de Prueba", use_container_width=True, type="secondary"):
-        msg = "<b>[PRUEBA]</b> Este es un mensaje de prueba del sistema Tech Maint Pro."
-        for key, staff in STAFF.items():
-            chat_id = staff.get("telegram_chat_id")
-            if chat_id:
-                send_telegram(chat_id, msg)
-        st.success("Notificaciones de prueba enviadas a todos los usuarios.")
-
+    if not st.session_state.get("audio_enabled", False):
+        st.warning("Haz clic para activar los sonidos de alarma")
+        if st.button("Activar Sonidos", key="enable_audio", use_container_width=True):
             st.session_state["audio_enabled"] = True
             st.markdown("""
             <script>
@@ -1266,6 +1245,25 @@ with st.sidebar:
     ui = st.chat_input("Escribe a Letzy...", key="chat_input_sidebar")
     if ui: process_floating_query(ui, ai_mode)
     if st.button("Limpiar chat", key="clear_chat_side", use_container_width=True): st.session_state["floating_chat_history"] = []
+    
+    st.divider()
+    st.markdown("### 🔧 Panel de Pruebas Telegram")
+    
+    if st.button("Probar Conexión Telegram", use_container_width=True, type="secondary"):
+        with st.spinner("Enviando mensajes de prueba a todos los usuarios..."):
+            success = test_telegram_connection()
+            if success:
+                st.success("✓ Mensajes de prueba enviados. Revisa tu Telegram.")
+            else:
+                st.error("✗ Error en la conexión. Revisa los logs de la app.")
+    
+    if st.button("Enviar Notificación de Prueba", use_container_width=True, type="secondary"):
+        msg = "<b>[PRUEBA]</b> Este es un mensaje de prueba del sistema Tech Maint Pro."
+        for key, staff in STAFF.items():
+            chat_id = staff.get("telegram_chat_id")
+            if chat_id:
+                send_telegram(chat_id, msg)
+        st.success("Notificaciones de prueba enviadas a todos los usuarios.")
 
 # ============================================================================
 # HEADER CON BOTON DE DOCUMENTOS
