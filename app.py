@@ -941,9 +941,214 @@ with tabs[1]:
         st.success("Sin alarmas activas. Condicion normal.")
 
 # ============================================================================
-# TAB 3: ORDENES DE TRABAJO 
+# TAB 3: ORDENES DE TRABAJO - VERSION COMPLETA PARA OPERARIO
 # ============================================================================
 
+# Función auxiliar para mostrar detalle de OT (DEFINIDA ANTES DE USARLA)
+def mostrar_detalle_ot(ot, conn):
+    """Muestra el detalle completo de una OT con todas las funcionalidades"""
+    
+    # Encabezado de la OT
+    prioridad_color = "#d32f2f" if ot["prioridad"] == "P0" else "#f5a623" if ot["prioridad"] == "P1" else "#8bc34a"
+    prioridad_text = "URGENTE" if ot["prioridad"] == "P0" else "ALTA" if ot["prioridad"] == "P1" else "NORMAL"
+    
+    st.markdown(f"""
+    <div style="background:{prioridad_color}; color:white; padding:15px; border-radius:12px; margin-bottom:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; color:white;">{ot['ot_id']} - {prioridad_text}</h3>
+            <span style="background:white; color:{prioridad_color}; padding:5px 15px; border-radius:20px; font-weight:bold;">{ot['status']}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Información esencial
+    col_info1, col_info2 = st.columns(2)
+    
+    with col_info1:
+        st.markdown(f"**Activo:** {ot['asset_name']}")
+        st.markdown(f"**Tag:** {ot.get('tag', 'N/A')}")
+        st.markdown(f"**Ubicacion:** {ot.get('ubicacion', 'N/A')}")
+        st.markdown(f"**Tipo:** {ot.get('tipo', 'N/A')}")
+    
+    with col_info2:
+        st.markdown(f"**Responsable:** {ot.get('responsable', 'Sin asignar')}")
+        st.markdown(f"**Creada:** {ot['creation_date'][:16] if ot.get('creation_date') else 'N/A'}")
+        st.markdown(f"**Horas estimadas:** {ot.get('estimated_hours', 2.0)}h")
+        if ot.get('start_time'):
+            st.markdown(f"**Inicio:** {ot['start_time'][:16]}")
+        if ot.get('end_time'):
+            st.markdown(f"**Fin:** {ot['end_time'][:16]}")
+    
+    st.divider()
+    
+    # Diagnóstico/Problema
+    if ot.get('description'):
+        st.markdown("<h4>Problema Reportado</h4>", unsafe_allow_html=True)
+        st.info(ot['description'])
+    
+    # Tareas a realizar (Checklist)
+    st.markdown("<h4>Tareas a Realizar</h4>", unsafe_allow_html=True)
+    
+    tareas_text = ot.get('acciones', '')
+    if tareas_text:
+        tareas_lista = tareas_text.split('\n')
+        for i, tarea in enumerate(tareas_lista):
+            if tarea.strip():
+                st.checkbox(tarea.strip(), key=f"tarea_{ot['ot_id']}_{i}")
+    else:
+        st.markdown("- Medir vibración en 3 puntos (horizontal/vertical/axial)")
+        st.markdown("- Verificar alineación")
+        st.markdown("- Revisar nivel de aceite")
+        st.markdown("- Inspeccionar componente")
+        st.markdown("- Tomar fotos del estado actual")
+    
+    st.divider()
+    
+    # Recursos necesarios
+    st.markdown("<h4>Recursos Necesarios</h4>", unsafe_allow_html=True)
+    
+    col_rec1, col_rec2 = st.columns(2)
+    
+    with col_rec1:
+        st.markdown("**Herramientas:**")
+        st.markdown("- Analizador de vibraciones")
+        st.markdown("- Llave dinamométrica")
+        st.markdown("- Multímetro")
+    
+    with col_rec2:
+        st.markdown("**Seguridad:**")
+        st.markdown("- Bloqueo/etiquetado LOTO")
+        st.markdown("- EPP completo")
+        st.markdown("- Permiso de trabajo")
+    
+    st.divider()
+    
+    # Formulario de registro rápido
+    st.markdown("<h4>Registro de Trabajo</h4>", unsafe_allow_html=True)
+    
+    with st.form(f"registro_{ot['ot_id']}"):
+        col_reg1, col_reg2 = st.columns(2)
+        
+        with col_reg1:
+            nuevo_estado = st.selectbox(
+                "Estado:",
+                options=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"],
+                index=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"].index(ot["status"]) if ot["status"] in ["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"] else 0,
+                key=f"estado_{ot['ot_id']}"
+            )
+        
+        with col_reg2:
+            tiempo_real = st.number_input(
+                "Tiempo real (horas):",
+                min_value=0.0,
+                max_value=24.0,
+                value=ot.get('tiempo_real_horas', 0.0),
+                step=0.5,
+                key=f"tiempo_{ot['ot_id']}"
+            )
+        
+        hallazgos = st.text_area(
+            "Hallazgos (que encontro?):",
+            value=ot.get('hallazgos', ''),
+            height=100,
+            key=f"hallazgos_{ot['ot_id']}"
+        )
+        
+        acciones_realizadas = st.text_area(
+            "Acciones realizadas:",
+            value=ot.get('acciones', ''),
+            height=100,
+            key=f"acciones_{ot['ot_id']}"
+        )
+        
+        repuestos = st.text_input(
+            "Repuestos utilizados:",
+            value=ot.get('repuestos', ''),
+            key=f"repuestos_{ot['ot_id']}"
+        )
+        
+        submitted_registro = st.form_submit_button("Guardar Cambios", use_container_width=True, type="primary")
+        
+        if submitted_registro:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            
+            update_fields = [
+                "status = ?",
+                "tiempo_real_horas = ?",
+                "hallazgos = ?",
+                "acciones = ?",
+                "repuestos = ?",
+                "updated_at = ?"
+            ]
+            update_values = [
+                nuevo_estado,
+                tiempo_real,
+                hallazgos,
+                acciones_realizadas,
+                repuestos,
+                datetime.now().isoformat()
+            ]
+            
+            # Si cambia a "En Ejecucion", registrar hora de inicio
+            if nuevo_estado == "En Ejecucion" and not ot.get('start_time'):
+                update_fields.append("start_time = ?")
+                update_values.append(datetime.now().isoformat())
+            
+            # Si cambia a "Completado", registrar hora de fin
+            if nuevo_estado == "Completado" and not ot.get('end_time'):
+                update_fields.append("end_time = ?")
+                update_values.append(datetime.now().isoformat())
+            
+            update_values.append(ot['ot_id'])
+            
+            c.execute(f"""UPDATE work_orders SET {', '.join(update_fields)} WHERE ot_id = ?""", update_values)
+            conn.commit()
+            conn.close()
+            
+            st.success(f"OT {ot['ot_id']} actualizada exitosamente")
+            st.rerun()
+    
+    # Botones de acción rápida
+    st.divider()
+    st.markdown("<h4>Acciones Rapidas</h4>", unsafe_allow_html=True)
+    
+    col_acc1, col_acc2, col_acc3 = st.columns(3)
+    
+    with col_acc1:
+        if st.button("Iniciar Trabajo", key=f"iniciar_{ot['ot_id']}", use_container_width=True):
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'En Ejecucion', start_time = ?, updated_at = ? WHERE ot_id = ?""",
+                     (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            conn.close()
+            st.success(f"OT {ot['ot_id']} iniciada")
+            st.rerun()
+    
+    with col_acc2:
+        if st.button("Completar", key=f"completar_{ot['ot_id']}", use_container_width=True):
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'Completado', end_time = ?, updated_at = ? WHERE ot_id = ?""",
+                     (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            conn.close()
+            st.success(f"OT {ot['ot_id']} completada")
+            st.rerun()
+    
+    with col_acc3:
+        if st.button("Pausar", key=f"pausar_{ot['ot_id']}", use_container_width=True):
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'Pausado', updated_at = ? WHERE ot_id = ?""",
+                     (datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            conn.close()
+            st.success(f"OT {ot['ot_id']} pausada")
+            st.rerun()
+
+# Ahora la pestaña principal
 with tabs[2]:
     st.markdown("<h2>Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
     
@@ -1160,210 +1365,6 @@ with tabs[2]:
             conn.close()
             
             st.success(f"OT creada exitosamente: {new_ot_id}")
-            st.rerun()
-
-# Función auxiliar para mostrar detalle de OT
-def mostrar_detalle_ot(ot, conn):
-    """Muestra el detalle completo de una OT con todas las funcionalidades"""
-    
-    # Encabezado de la OT
-    prioridad_color = "#d32f2f" if ot["prioridad"] == "P0" else "#f5a623" if ot["prioridad"] == "P1" else "#8bc34a"
-    prioridad_text = "URGENTE" if ot["prioridad"] == "P0" else "ALTA" if ot["prioridad"] == "P1" else "NORMAL"
-    
-    st.markdown(f"""
-    <div style="background:{prioridad_color}; color:white; padding:15px; border-radius:12px; margin-bottom:15px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; color:white;">{ot['ot_id']} - {prioridad_text}</h3>
-            <span style="background:white; color:{prioridad_color}; padding:5px 15px; border-radius:20px; font-weight:bold;">{ot['status']}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Información esencial
-    col_info1, col_info2 = st.columns(2)
-    
-    with col_info1:
-        st.markdown(f"**Activo:** {ot['asset_name']}")
-        st.markdown(f"**Tag:** {ot.get('tag', 'N/A')}")
-        st.markdown(f"**Ubicacion:** {ot.get('ubicacion', 'N/A')}")
-        st.markdown(f"**Tipo:** {ot.get('tipo', 'N/A')}")
-    
-    with col_info2:
-        st.markdown(f"**Responsable:** {ot.get('responsable', 'Sin asignar')}")
-        st.markdown(f"**Creada:** {ot['creation_date'][:16] if ot.get('creation_date') else 'N/A'}")
-        st.markdown(f"**Horas estimadas:** {ot.get('estimated_hours', 2.0)}h")
-        if ot.get('start_time'):
-            st.markdown(f"**Inicio:** {ot['start_time'][:16]}")
-        if ot.get('end_time'):
-            st.markdown(f"**Fin:** {ot['end_time'][:16]}")
-    
-    st.divider()
-    
-    # Diagnóstico/Problema
-    if ot.get('description'):
-        st.markdown("<h4>Problema Reportado</h4>", unsafe_allow_html=True)
-        st.info(ot['description'])
-    
-    # Tareas a realizar (Checklist)
-    st.markdown("<h4>Tareas a Realizar</h4>", unsafe_allow_html=True)
-    
-    tareas_text = ot.get('acciones', '')
-    if tareas_text:
-        tareas_lista = tareas_text.split('\n')
-        for i, tarea in enumerate(tareas_lista):
-            if tarea.strip():
-                st.checkbox(tarea.strip(), key=f"tarea_{ot['ot_id']}_{i}")
-    else:
-        st.markdown("- Medir vibración en 3 puntos (horizontal/vertical/axial)")
-        st.markdown("- Verificar alineación")
-        st.markdown("- Revisar nivel de aceite")
-        st.markdown("- Inspeccionar componente")
-        st.markdown("- Tomar fotos del estado actual")
-    
-    st.divider()
-    
-    # Recursos necesarios
-    st.markdown("<h4>Recursos Necesarios</h4>", unsafe_allow_html=True)
-    
-    col_rec1, col_rec2 = st.columns(2)
-    
-    with col_rec1:
-        st.markdown("**Herramientas:**")
-        st.markdown("- Analizador de vibraciones")
-        st.markdown("- Llave dinamométrica")
-        st.markdown("- Multímetro")
-    
-    with col_rec2:
-        st.markdown("**Seguridad:**")
-        st.markdown("- Bloqueo/etiquetado LOTO")
-        st.markdown("- EPP completo")
-        st.markdown("- Permiso de trabajo")
-    
-    st.divider()
-    
-    # Formulario de registro rápido
-    st.markdown("<h4>Registro de Trabajo</h4>", unsafe_allow_html=True)
-    
-    with st.form(f"registro_{ot['ot_id']}"):
-        col_reg1, col_reg2 = st.columns(2)
-        
-        with col_reg1:
-            nuevo_estado = st.selectbox(
-                "Estado:",
-                options=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"],
-                index=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"].index(ot["status"]) if ot["status"] in ["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"] else 0,
-                key=f"estado_{ot['ot_id']}"
-            )
-        
-        with col_reg2:
-            tiempo_real = st.number_input(
-                "Tiempo real (horas):",
-                min_value=0.0,
-                max_value=24.0,
-                value=ot.get('tiempo_real_horas', 0.0),
-                step=0.5,
-                key=f"tiempo_{ot['ot_id']}"
-            )
-        
-        hallazgos = st.text_area(
-            "Hallazgos (que encontro?):",
-            value=ot.get('hallazgos', ''),
-            height=100,
-            key=f"hallazgos_{ot['ot_id']}"
-        )
-        
-        acciones_realizadas = st.text_area(
-            "Acciones realizadas:",
-            value=ot.get('acciones', ''),
-            height=100,
-            key=f"acciones_{ot['ot_id']}"
-        )
-        
-        repuestos = st.text_input(
-            "Repuestos utilizados:",
-            value=ot.get('repuestos', ''),
-            key=f"repuestos_{ot['ot_id']}"
-        )
-        
-        submitted_registro = st.form_submit_button("Guardar Cambios", use_container_width=True, type="primary")
-        
-        if submitted_registro:
-            conn = sqlite3.connect(DB_PATH)
-            c = conn.cursor()
-            
-            update_fields = [
-                "status = ?",
-                "tiempo_real_horas = ?",
-                "hallazgos = ?",
-                "acciones = ?",
-                "repuestos = ?",
-                "updated_at = ?"
-            ]
-            update_values = [
-                nuevo_estado,
-                tiempo_real,
-                hallazgos,
-                acciones_realizadas,
-                repuestos,
-                datetime.now().isoformat()
-            ]
-            
-            # Si cambia a "En Ejecucion", registrar hora de inicio
-            if nuevo_estado == "En Ejecucion" and not ot.get('start_time'):
-                update_fields.append("start_time = ?")
-                update_values.append(datetime.now().isoformat())
-            
-            # Si cambia a "Completado", registrar hora de fin
-            if nuevo_estado == "Completado" and not ot.get('end_time'):
-                update_fields.append("end_time = ?")
-                update_values.append(datetime.now().isoformat())
-            
-            update_values.append(ot['ot_id'])
-            
-            c.execute(f"""UPDATE work_orders SET {', '.join(update_fields)} WHERE ot_id = ?""", update_values)
-            conn.commit()
-            conn.close()
-            
-            st.success(f"OT {ot['ot_id']} actualizada exitosamente")
-            st.rerun()
-    
-    # Botones de acción rápida
-    st.divider()
-    st.markdown("<h4>Acciones Rapidas</h4>", unsafe_allow_html=True)
-    
-    col_acc1, col_acc2, col_acc3 = st.columns(3)
-    
-    with col_acc1:
-        if st.button("Iniciar Trabajo", key=f"iniciar_{ot['ot_id']}", use_container_width=True):
-            conn = sqlite3.connect(DB_PATH)
-            c = conn.cursor()
-            c.execute("""UPDATE work_orders SET status = 'En Ejecucion', start_time = ?, updated_at = ? WHERE ot_id = ?""",
-                     (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-            conn.commit()
-            conn.close()
-            st.success(f"OT {ot['ot_id']} iniciada")
-            st.rerun()
-    
-    with col_acc2:
-        if st.button("Completar", key=f"completar_{ot['ot_id']}", use_container_width=True):
-            conn = sqlite3.connect(DB_PATH)
-            c = conn.cursor()
-            c.execute("""UPDATE work_orders SET status = 'Completado', end_time = ?, updated_at = ? WHERE ot_id = ?""",
-                     (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-            conn.commit()
-            conn.close()
-            st.success(f"OT {ot['ot_id']} completada")
-            st.rerun()
-    
-    with col_acc3:
-        if st.button("Pausar", key=f"pausar_{ot['ot_id']}", use_container_width=True):
-            conn = sqlite3.connect(DB_PATH)
-            c = conn.cursor()
-            c.execute("""UPDATE work_orders SET status = 'Pausado', updated_at = ? WHERE ot_id = ?""",
-                     (datetime.now().isoformat(), ot['ot_id']))
-            conn.commit()
-            conn.close()
-            st.success(f"OT {ot['ot_id']} pausada")
             st.rerun()
 
 # ============================================================================
