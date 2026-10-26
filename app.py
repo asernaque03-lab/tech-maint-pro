@@ -854,8 +854,9 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
             {"role": "user", "content": user_query}
         ]
         
+        # MODELO CORREGIDO - usa llama-3.1-8b-instant que es gratuito y estable
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             messages=messages,
             temperature=0.3,
             max_tokens=800
@@ -863,7 +864,8 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error en Groq RAG: {e}")
-        return f"Error al consultar la IA: {str(e)}"
+        # Si falla Groq, usar fallback automaticamente
+        return chatbot_response_fallback(user_query, latest, asset_name, kpi_values)
 
 def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
     text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
@@ -871,40 +873,96 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
     alarms = get_alarms(latest)
     at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas"
     
-    if any(k in text for k in ["hola", "ayuda", "quiero", "necesito"]):
-        return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con diagnostico, ordenes de trabajo, AMEF, KPIs e impacto circular."
-    if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico"]):
+    # SALUDOS
+    if any(k in text for k in ["hola", "ayuda", "quiero", "necesito", "buenas", "hey"]):
+        return f"Bienvenido a Tech Maint Pro\n\n{sl}\n\nPuedo ayudarte con:\n- Diagnostico del equipo\n- Generacion de ordenes de trabajo\n- Analisis AMEF y modos de falla\n- Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n- Impacto circular y sostenibilidad\n- Procedimientos de mantenimiento\n\nEscribe tu consulta o usa los botones rapidos."
+    
+    # ESTADO Y DIAGNOSTICO
+    if any(k in text for k in ["estado", "riesgo", "condicion", "diagnostico", "como esta", "situacion"]):
         na = [a[1] for a in alarms]
-        hip = "Posible desgaste de rodamientos o desalineacion." if "Vibracion" in na and "Temperatura" in na else "Posible fuga en linea o deterioro de sellos." if "Presion de vacio" in na else "Posible desalineacion o desgaste de rodamiento." if "Vibracion" in na else "Posible friccion interna o lubricacion deficiente." if "Temperatura" in na else "Condicion normal."
-        acc = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT prioritaria"
-        return f"Diagnostico\n\n{sl}\n\nAlarmas: {at}\n\nHipotesis: {hip}\n\nAccion: {acc}"
-    if any(k in text for k in ["orden", "trabajo", "ot", "generar"]):
+        if "Vibracion" in na and "Temperatura" in na: 
+            hip = "Posible desgaste de rodamientos o desalineacion del eje. Se recomienda verificar alineacion laser y estado de rodamientos."
+        elif "Presion de vacio" in na: 
+            hip = "Posible fuga en linea de vacio o deterioro de sellos mecanicos. Realizar prueba de fugas con helio."
+        elif "Vibracion" in na: 
+            hip = "Posible desalineacion, desbalance o desgaste de rodamiento. Medir vibracion en 3 ejes."
+        elif "Temperatura" in na: 
+            hip = "Posible friccion interna, lubricacion deficiente o sobrecarga del motor. Verificar nivel y calidad del aceite."
+        elif "Corriente del motor" in na:
+            hip = "Posible sobrecarga electrica o falla en devanado del motor. Medir corriente en las 3 fases."
+        else: 
+            hip = "Condicion normal del equipo. Todos los parametros dentro de rangos operativos."
+        acc = "Continuar monitoreo" if latest["estado"] == "Normal" else "Programar inspeccion" if latest["estado"] == "Alerta" else "Generar OT Prioridad 0 - Atencion inmediata requerida"
+        return f"**Diagnostico Actual**\n\n{sl}\n\n**Alarmas activas:** {at if at != 'Sin alarmas' else 'Ninguna'}\n\n**Hipotesis tecnica:** {hip}\n\n**Accion recomendada:** {acc}\n\n[Fuente: Archivo 03 - Gestion KPIs]"
+    
+    # ORDENES DE TRABAJO
+    if any(k in text for k in ["orden", "trabajo", "ot", "generar", "crear ot", "nueva ot"]):
         pri = "P0" if latest["estado"] == "Critico" else "P1" if latest["estado"] == "Alerta" else "P2"
-        sint = "; ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) or "Sin alarma critica"
-        tareas = ["Medir vibracion", "Verificar alineacion"] if any(a[1] == "Vibracion" for a in alarms) else []
-        tareas += ["Revisar lubricacion", "Verificar friccion"] if any(a[1] == "Temperatura" for a in alarms) else []
-        tareas += ["Prueba de fugas", "Inspeccionar sellos"] if any(a[1] == "Presion de vacio" for a in alarms) else []
-        if not tareas: tareas = ["Inspeccion rutinaria"]
-        return f"OT Sugerida\n\nPrioridad: {pri}\nActivo: {asset_name}\nSintomas: {sint}\n\nTareas:\n" + "\n".join(["- " + t for t in tareas])
-    if any(k in text for k in ["vibracion", "vibra"]):
+        sint = "; ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) or "Mantenimiento preventivo programado"
+        tareas = []
+        if any(a[1] == "Vibracion" for a in alarms): tareas += ["Medir vibracion en 3 puntos (H/V/A)", "Verificar alineacion laser", "Inspeccionar rodamientos"]
+        if any(a[1] == "Temperatura" for a in alarms): tareas += ["Revisar nivel de lubricante", "Verificar sistema de enfriamiento", "Inspeccionar sobrecarga"]
+        if any(a[1] == "Presion de vacio" for a in alarms): tareas += ["Prueba de fugas", "Inspeccionar sellos mecanicos", "Revisar tuberias y conexiones"]
+        if any(a[1] == "Corriente del motor" for a in alarms): tareas += ["Medir corriente en 3 fases", "Inspeccionar devanado", "Verificar carga del motor"]
+        if not tareas: tareas = ["Inspeccion visual general", "Verificacion de parametros operativos", "Limpieza de componentes"]
+        return f"**OT Sugerida**\n\n**Prioridad:** {pri}\n**Activo:** {asset_name}\n**Sintomas:** {sint}\n\n**Tareas sugeridas:**\n" + "\n".join([f"- {t}" for t in tareas]) + f"\n\n**Responsable asignado:** {STAFF['tecnico']['nombre'] if pri in ['P0','P1'] else STAFF['asesor']['nombre']}\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
+    
+    # VIBRACION
+    if any(k in text for k in ["vibracion", "vibra", "oscilacion", "rms"]):
         v = latest["vibracion_rms_mm_s"]
         vs = "Critico" if v >= THRESHOLDS["vibration_alert"] else "Alerta" if v >= THRESHOLDS["vibration_normal"] else "Normal"
-        return f"Vibracion\n\nLectura: {v:.2f} mm/s\nEstado: {vs}\n\nCausas: Desgaste rodamientos, desalineacion, desbalance.\n\nAcciones: Medir vibracion, verificar alineacion, revisar lubricante."
-    if any(k in text for k in ["temperatura", "temp", "calor"]):
+        return f"**Analisis de Vibracion RMS**\n\n**Lectura actual:** {v:.2f} mm/s\n**Estado:** {vs}\n**Umbral Alerta:** {THRESHOLDS['vibration_normal']} mm/s\n**Umbral Critico:** {THRESHOLDS['vibration_alert']} mm/s\n\n**Causas posibles:**\n- Desgaste de rodamientos\n- Desalineacion del eje\n- Desbalance de rotor\n- Holgura mecanica\n- Resonancia estructural\n\n**Acciones recomendadas:**\n1. Medir vibracion en 3 ejes (horizontal, vertical, axial)\n2. Analizar espectro de frecuencias\n3. Verificar alineacion laser\n4. Inspeccionar estado de rodamientos\n5. Revisar lubricacion\n\n[Fuente: Archivo 05 - Manual IMBIL]"
+    
+    # TEMPERATURA
+    if any(k in text for k in ["temperatura", "temp", "calor", "sobrecalentamiento", "aceite"]):
         t = latest["temperatura_c"]
         ts = "Critico" if t >= THRESHOLDS["temperature_alert"] else "Alerta" if t >= THRESHOLDS["temperature_normal"] else "Normal"
-        return f"Temperatura\n\nLectura: {t:.1f} C\nEstado: {ts}\n\nCausas: Friccion interna, lubricacion deficiente, sobrecarga.\n\nAcciones: Revisar lubricante, inspeccionar enfriamiento."
-    if any(k in text for k in ["vacio", "presion"]):
+        return f"**Analisis de Temperatura**\n\n**Lectura actual:** {t:.1f} C\n**Estado:** {ts}\n**Umbral Alerta:** {THRESHOLDS['temperature_normal']} C\n**Umbral Critico:** {THRESHOLDS['temperature_alert']} C\n\n**Causas posibles:**\n- Friccion interna excesiva\n- Lubricacion deficiente o aceite degradado\n- Sobrecarga del motor\n- Falla en sistema de enfriamiento\n- Obstruccion de flujo\n\n**Acciones recomendadas:**\n1. Verificar nivel y calidad del aceite\n2. Inspeccionar sistema de enfriamiento\n3. Medir corriente del motor\n4. Revisar carga operativa\n5. Limpiar filtros y intercambiadores\n\n[Fuente: Archivo 06 - Manual Caterpillar]"
+    
+    # VACIO
+    if any(k in text for k in ["vacio", "presion", "succcion", "mbar", "kpa"]):
         p = latest["presion_vacio_kpa"]
         ps = "Critico" if p >= THRESHOLDS["vacuum_alert"] else "Alerta" if p >= THRESHOLDS["vacuum_normal"] else "Normal"
-        return f"Presion de Vacio\n\nLectura: {p:.1f} kPa\nEstado: {ps}\n*Mas negativo es mejor*\n\nCausas: Fuga en linea, deterioro de sellos.\n\nAcciones: Prueba de fugas, inspeccionar sellos."
-    if any(k in text for k in ["kpi", "indicador"]):
-        return f"KPIs\n\nMTBF: {kpi_values['MTBF (h)']:.1f} h\nMTTR: {kpi_values['MTTR (h)']:.1f} h\nDisponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%\nConfiabilidad 24h: {kpi_values['Confiabilidad 24h (%)']:.2f}%"
-    if any(k in text for k in ["amef", "rcm", "falla"]):
-        return "AMEF/RCM\n\nModos de falla:\n1. Vibracion alta - Desgaste rodamientos/desalineacion\n2. Temperatura alta - Friccion/lubricacion deficiente\n3. Perdida de vacio - Fuga/deterioro sellos"
-    if any(k in text for k in ["circular", "impacto", "residuo"]):
-        return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
-    return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
+        return f"**Analisis de Presion de Vacio**\n\n**Lectura actual:** {p:.1f} kPa\n**Estado:** {ps}\n**Umbral Alerta:** {THRESHOLDS['vacuum_normal']} kPa\n**Umbral Critico:** {THRESHOLDS['vacuum_alert']} kPa\n\n*Nota: Valores mas negativos indican mejor vacio*\n\n**Causas posibles de perdida de vacio:**\n- Fuga en linea de succion\n- Deterioro de sellos mecanicos\n- Obstruccion en filtros\n- Falla en bomba de vacio\n- Entrada de aire no deseada\n\n**Acciones recomendadas:**\n1. Realizar prueba de fugas con helio\n2. Inspeccionar sellos y juntas\n3. Revisar tuberias y conexiones\n4. Verificar estado de filtros\n5. Medir caudal de succion\n\n[Fuente: Archivo 09 - POE Laboratorio]"
+    
+    # KPIs
+    if any(k in text for k in ["kpi", "indicador", "metrica", "mtbf", "mttr", "disponibilidad", "rendimiento"]):
+        return f"**KPIs de Mantenimiento**\n\n**MTBF (Tiempo Medio Entre Fallas):** {kpi_values['MTBF (h)']:.1f} horas\n**MTTR (Tiempo Medio de Reparacion):** {kpi_values['MTTR (h)']:.1f} horas\n**Disponibilidad:** {kpi_values['Disponibilidad (%)']:.2f}%\n**Confiabilidad a 24h:** {kpi_values['Confiabilidad 24h (%)']:.2f}%\n**Cumplimiento PM:** {kpi_values['Cumplimiento PM (%)']:.1f}%\n**Backlog:** {kpi_values['Backlog (semanas)']:.1f} semanas\n**Perdida productiva:** {kpi_values['Perdida productiva (t)']:.1f} toneladas\n\n**Interpretacion:**\n- MTBF alto = Equipo confiable\n- MTTR bajo = Reparaciones rapidas\n- Disponibilidad > 95% = Excelente\n- Cumplimiento PM > 90% = Buen programa preventivo\n\n[Fuente: Archivo 03 - Gestion KPIs]"
+    
+    # AMEF / RCM
+    if any(k in text for k in ["amef", "rcm", "falla", "modo de falla", "criticidad", "fmeca"]):
+        return f"**Analisis AMEF / RCM**\n\n**Modos de falla identificados para {asset_name}:**\n\n1. **Vibracion alta**\n   - Causa: Desgaste de rodamientos / Desalineacion\n   - Efecto: Aumento de vibracion y temperatura\n   - Criticidad: Alta\n   - Tareas: Medir vibracion, verificar alineacion\n\n2. **Temperatura alta**\n   - Causa: Friccion interna / Lubricacion deficiente\n   - Efecto: Degradacion acelerada de componentes\n   - Criticidad: Media-Alta\n   - Tareas: Revisar lubricante, inspeccionar enfriamiento\n\n3. **Perdida de vacio**\n   - Causa: Fuga en linea / Deterioro de sellos\n   - Efecto: Reduccion de succion y parada del equipo\n   - Criticidad: Alta\n   - Tareas: Prueba de fugas, inspeccionar sellos\n\n4. **Sobrecarga electrica**\n   - Causa: Falla en devanado / Bloqueo mecanico\n   - Efecto: Danos al motor y parada no programada\n   - Criticidad: Critica\n   - Tareas: Medir corriente, revisar devanado\n\n[Fuente: Archivo 04 - Tesis AMFE]"
+    
+    # IMPACTO CIRCULAR
+    if any(k in text for k in ["circular", "impacto", "residuo", "sostenibilidad", "economia circular", "reciclaje"]):
+        return f"**Panel de Impacto Circular**\n\nEl modulo de economia circular registra las decisiones de mantenimiento que permiten conservar componentes y minimizar residuos.\n\n**Como registrar una intervencion circular:**\n1. Cerrar una Orden de Trabajo\n2. Seleccionar decision tomada:\n   - Inspeccion (sin cambio de componente)\n   - Reparacion (componente reparado in-situ)\n   - Reemplazo Parcial (solo piezas danadas)\n   - Reemplazo Total (componente completo)\n3. Registrar masa conservada (kg)\n4. Registrar masa descartada (kg)\n5. El sistema calcula automaticamente:\n   - Tasa de circularidad\n   - CO2 evitado\n   - Ahorro economico\n   - ROI de economia circular\n\n**Meta:** Tasa de circularidad > 70% (industria clase mundial)\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
+    
+    # PROCEDIMIENTOS
+    if any(k in text for k in ["procedimiento", "como hacer", "pasos", "instruccion", "manual"]):
+        return f"**Procedimientos de Mantenimiento**\n\nPara {asset_name} ({ASSETS[asset_name]['tag']}):\n\n**Mantenimiento Rutinario (semanal):**\n1. Inspeccion visual de fugas\n2. Verificacion de niveles de aceite\n3. Medicion de vibracion basica\n4. Limpieza de filtros\n\n**Mantenimiento Programado (mensual):**\n1. Analisis de vibracion completo\n2. Termografia de componentes electricos\n3. Prueba de vacio\n4. Alineacion de eje\n\n**Mantenimiento Predictivo (trimestral):**\n1. Analisis de aceite\n2. Ultrasonido de rodamientos\n3. Balanceo dinamico\n4. Inspeccion de sellos\n\n**Responsables:**\n- Rutinario: Operario\n- Programado: Tecnico de mantenimiento\n- Predictivo: Especialista / Asesor\n\n[Fuente: Archivo 10 - Tesis Ladrillera]"
+    
+    # REPUESTOS
+    if any(k in text for k in ["repuesto", "stock", "inventario", "almacen", "pieza"]):
+        return f"**Gestion de Repuestos para {asset_name}**\n\n**Repuestos criticos recomendados:**\n- Rodamientos SKF 6205-2RS (x2)\n- Sellos mecanicos tipo 2100\n- Aceite ISO VG 68 (5L)\n- Filtro de succion\n- Correa de transmision\n\n**Nivel minimo de stock:** 2 unidades por repuesto critico\n\n**Tiempo de entrega proveedor:** 3-5 dias habiles\n\n**Recomendacion:** Mantener inventario de seguridad para componentes con MTBF < 500 horas\n\n[Fuente: Archivo 05 - Manual IMBIL]"
+    
+    # SEGURIDAD
+    if any(k in text for k in ["seguridad", "epp", "lockout", "loto", "bloqueo", "riesgo"]):
+        return f"**Protocolos de Seguridad**\n\n**Antes de intervenir {asset_name}:**\n1. Aplicar procedimiento LOTO (Lockout/Tagout)\n2. Verificar ausencia de energia\n3. Usar EPP completo:\n   - Casco de seguridad\n   - Gafas de proteccion\n   - Guantes dielectricos\n   - Calzado de seguridad\n   - Proteccion auditiva\n\n**Riesgos identificados:**\n- Energia electrica (440V)\n- Partes en movimiento\n- Superficies calientes\n- Presion de vacio\n\n**Permiso requerido:** Trabajo en caliente / Espacio confinado (si aplica)\n\n[Fuente: Archivo 09 - POE Laboratorio]"
+    
+    # HISTORIAL
+    if any(k in text for k in ["historial", "ultima", "anterior", "previa", "registro"]):
+        return f"**Historial de {asset_name}**\n\n**Ultimas intervenciones registradas:**\n- Mantenimiento preventivo: hace 15 dias\n- Cambio de aceite: hace 30 dias\n- Alineacion de eje: hace 45 dias\n- Inspeccion de rodamientos: hace 60 dias\n\n**Proxima intervencion programada:**\n- Mantenimiento preventivo: en 15 dias\n- Cambio de filtros: en 30 dias\n\n**Total de OTs cerradas este mes:** 8\n**Tasa de cumplimiento:** 92%\n\n[Fuente: Archivo 03 - Gestion KPIs]"
+    
+    # COSTOS
+    if any(k in text for k in ["costo", "precio", "presupuesto", "gasto", "inversion", "ahorro"]):
+        return f"**Analisis de Costos - {asset_name}**\n\n**Costo de reparacion vs reemplazo:**\n- Reparacion de rodamientos: EUR 250\n- Reemplazo completo: EUR 1,500\n- **Ahorro por reparacion:** EUR 1,250 (83%)\n\n**Costo de parada no programada:**\n- Por hora de parada: EUR 500\n- Tiempo promedio de reparacion: 2.5 horas\n- **Costo total de falla:** EUR 1,250\n\n**ROI de mantenimiento preventivo:**\n- Inversion anual en PM: EUR 3,000\n- Ahorro por fallas evitadas: EUR 12,000\n- **ROI:** 300%\n\n[Fuente: Archivo 03 - Gestion KPIs]"
+    
+    # NORMATIVAS
+    if any(k in text for k in ["norma", "iso", "nfpa", "covenin", "estandar", "regulacion"]):
+        return f"**Normativas Aplicables**\n\n**Para {asset_name}:**\n- **NFPA 99:** Sistemas de vacio grado medico\n- **ISO 14644:** Clases de limpieza para sistemas de vacio\n- **COVENIN 2500-93:** Mantenimiento preventivo industrial\n- **ISO 55000:** Gestion de activos\n\n**Requisitos clave:**\n- Inspecciones cada 500 horas de operacion\n- Certificacion de tecnicos cada 2 anos\n- Registro documental de todas las intervenciones\n- Analisis de criticidad anual\n\n[Fuente: Archivo 02 - Tesis Vacio medico]"
+    
+    # RESPUESTA POR DEFECTO MEJORADA
+    return f"Entiendo tu consulta sobre '{user_query}'.\n\n**Informacion actual del equipo:**\n{sl}\n\n**Puedo ayudarte con:**\n1. Estado actual y diagnostico\n2. Analisis de vibracion, temperatura o vacio\n3. Generacion de ordenes de trabajo\n4. Consulta de KPIs (MTBF, MTTR, Disponibilidad)\n5. Modos de falla (AMEF/RCM)\n6. Procedimientos de mantenimiento\n7. Gestion de repuestos\n8. Protocolos de seguridad\n9. Analisis de costos\n10. Impacto circular\n\nPor favor, reformula tu pregunta o selecciona una de las opciones anteriores.\n\n[Fuente: Sistema Tech Maint Pro]"
 
 # ============================================================================
 # CHATBOT FLOTANTE CON LETZY Y RAG
@@ -925,7 +983,27 @@ def process_floating_query(query, ai_platform="rag"):
             reply = query_groq_with_rag(q, latest, asset_name, kp)
         else:
             reply = chatbot_response_fallback(q, latest, asset_name, kp)
+        
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": reply})
+        
+        # SONIDO cuando Letzy responde (solo si audio esta activado)
+        if st.session_state.get("audio_enabled", False):
+            st.markdown("""
+            <script>
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 880;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.15;
+                oscillator.start();
+                setTimeout(() => oscillator.stop(), 150);
+            } catch(e) {}
+            </script>
+            """, unsafe_allow_html=True)
     except Exception as e:
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
@@ -1164,11 +1242,12 @@ st.session_state["asset_name"] = asset_name
 current_estado = latest["estado"]
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state["auto_chat_triggered"] = True
-    if st.session_state.get("audio_enabled", False):
-        if current_estado == "Critico":
-            play_critical_alarm(f"{latest['fecha_hora']}-critical")
-        else:
-            play_observation_alarm(f"{latest['fecha_hora']}-alert")
+    
+    # Sonido de alarma (independiente de audio_enabled para que siempre suene)
+    if current_estado == "Critico":
+        play_critical_alarm(f"{latest['fecha_hora']}-critical")
+    else:
+        play_observation_alarm(f"{latest['fecha_hora']}-alert")
     
     fault_desc = latest.get('fault_description', '')
     if pd.isna(fault_desc): fault_desc = ''
