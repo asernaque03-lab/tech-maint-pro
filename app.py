@@ -662,34 +662,62 @@ def notify_high_circular_impact(intervention):
 # ============================================================================
 
 def play_critical_alarm(event_id):
+    """Alarma critica con sonido en el navegador via JavaScript"""
     if st.session_state.get("last_beep_event") == event_id:
         return
     st.session_state["last_beep_event"] = event_id
     
-    if HAS_WINSOUND:
-        try:
-            for i in range(5):
-                winsound.Beep(1200, 400)
-                time.sleep(0.15)
-        except Exception as e:
-            logger.warning(f"No se pudo reproducir alarma critica: {e}")
-    else:
-        logger.info(f"[ALARMA CRITICA SIMULADA] {event_id}")
+    # Sonido de alarma critica via JavaScript (funciona en navegador)
+    st.markdown("""
+    <script>
+    // Alarma critica: 5 beeps agudos
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = 1200; // Frecuencia alta
+            oscillator.type = 'square';
+            gainNode.gain.value = 0.3;
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 400);
+        }, i * 550);
+    }
+    </script>
+    """, unsafe_allow_html=True)
+    
+    logger.info(f"[ALARMA CRITICA] {event_id}")
 
 def play_observation_alarm(event_id):
+    """Alarma de advertencia con sonido en el navegador via JavaScript"""
     if st.session_state.get("last_observation_event") == event_id:
         return
     st.session_state["last_observation_event"] = event_id
     
-    if HAS_WINSOUND:
-        try:
-            for i in range(2):
-                winsound.Beep(600, 200)
-                time.sleep(0.3)
-        except Exception as e:
-            logger.warning(f"No se pudo reproducir alarma observacion: {e}")
-    else:
-        logger.info(f"[ALARMA OBSERVACION SIMULADA] {event_id}")
+    # Sonido de advertencia via JavaScript
+    st.markdown("""
+    <script>
+    // Alarma de advertencia: 2 beeps suaves
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    for (let i = 0; i < 2; i++) {
+        setTimeout(() => {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = 600; // Frecuencia media
+            oscillator.type = 'sine';
+            gainNode.gain.value = 0.2;
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 200);
+        }, i * 500);
+    }
+    </script>
+    """, unsafe_allow_html=True)
+    
+    logger.info(f"[ALARMA OBSERVACION] {event_id}")
 
 # ============================================================================
 # FUNCIONES DE DATOS Y RIESGO
@@ -1504,16 +1532,18 @@ for k, v in sd.items():
 # ============================================================================
 
 with st.sidebar:
+    # Header compacto
     st.markdown(f"""
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid #e8ecf1;">
-        {render_letzy("40px")}
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e8ecf1;">
+        {render_letzy("35px")}
         <div>
-            <h4 style="margin:0; color:#1a5fa8; font-size:1.1rem;">Letzy</h4>
-            <p style="margin:0; color:#5a6b7c; font-size:0.8rem;">Asistente de Mantenimiento</p>
+            <h4 style="margin:0; color:#1a5fa8; font-size:1rem;">Letzy</h4>
+            <p style="margin:0; color:#5a6b7c; font-size:0.7rem;">Asistente de Mantenimiento</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # Modo IA compacto
     ai_mode = st.selectbox(
         "Modo:",
         options=["rag", "fallback"],
@@ -1525,20 +1555,18 @@ with st.sidebar:
     )
     
     if ai_mode == "rag" and not st.session_state.get("groq_api_key", ""):
-        st.session_state["groq_api_key"] = st.text_input("API Key Groq", type="password", key="groq_key_side", placeholder="Pega tu API Key aqui")
+        st.session_state["groq_api_key"] = st.text_input("API Key Groq", type="password", key="groq_key_side", placeholder="API Key aqui")
 
-    st.divider()
-
+    # Contenedor de chat con altura fija pequeña
     chat_history = st.session_state.get("floating_chat_history", [])
     
-    # Contenedor scrollable para el chat
-    chat_container = st.container(height=400)
+    chat_container = st.container(height=200)  # Reducido de 400 a 200
     with chat_container:
         if not chat_history:
             with st.chat_message("assistant", avatar=LETZY_BASE64):
-                st.markdown("**Hola! Soy Letzy.**\n\nEn que puedo ayudarte? Puedo consultar los manuales tecnicos o responder rapidamente.")
+                st.markdown("**Hola! Soy Letzy.** En que puedo ayudarte?")
         
-        for msg in chat_history[-15:]:
+        for msg in chat_history[-8:]:  # Solo últimos 8 mensajes
             if msg["role"] == "assistant":
                 with st.chat_message("assistant", avatar=LETZY_BASE64):
                     st.markdown(msg["content"])
@@ -1546,8 +1574,7 @@ with st.sidebar:
                 with st.chat_message("user"):
                     st.markdown(msg["content"])
 
-    st.divider()
-    
+    # Botones rápidos en 2 columnas compactas
     st.markdown("**Consultas rapidas:**")
     c1, c2 = st.columns(2)
     with c1:
@@ -1561,7 +1588,7 @@ with st.sidebar:
         if st.button("KPIs", key="sq4", use_container_width=True):
             process_floating_query("Cuales son los KPIs?", ai_mode)
             
-    st.divider()
+    # Input de chat
     ui = st.chat_input("Escribe a Letzy...", key="chat_input_sidebar")
     if ui:
         process_floating_query(ui, ai_mode)
