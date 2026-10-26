@@ -1,11 +1,11 @@
 streamlit
-streamlit-autorefresh
-numpy
 pandas
+numpy
 plotly
-requests
+reportlab
+Pillow
 PyPDF2
-PyMuPDF
-python-docx
-openpyxl
+pymupdf
 groq
+requests
+streamlit-autorefresh
