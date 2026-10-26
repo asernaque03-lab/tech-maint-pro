@@ -593,14 +593,98 @@ def create_risk_chart(df):
     return fig
 
 # ============================================================================
-# BASE DE DATOS
+# BASE DE DATOS CON MIGRACIÓN
 # ============================================================================
 
 def init_database():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS work_orders (ot_id TEXT PRIMARY KEY, asset_name TEXT NOT NULL, alert_id TEXT, description TEXT, priority TEXT NOT NULL, responsible TEXT, creation_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Pendiente', created_by TEXT, updated_at TEXT)""")
-    c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (id INTEGER PRIMARY KEY AUTOINCREMENT, ot_id TEXT NOT NULL, component TEXT NOT NULL, decision TEXT NOT NULL, result TEXT, mass_conserved_kg REAL DEFAULT 0, mass_discarded_kg REAL DEFAULT 0, evidence TEXT, recorded_date TEXT NOT NULL, recorded_by TEXT, FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id))""")
+    
+    # Crear tabla work_orders si no existe
+    c.execute("""CREATE TABLE IF NOT EXISTS work_orders (
+        ot_id TEXT PRIMARY KEY,
+        asset_name TEXT NOT NULL,
+        tag TEXT,
+        ubicacion TEXT,
+        alert_id TEXT,
+        description TEXT,
+        prioridad TEXT NOT NULL DEFAULT 'P2',
+        tipo TEXT DEFAULT 'Correctivo',
+        responsable TEXT,
+        creation_date TEXT NOT NULL,
+        due_date TEXT,
+        estimated_hours REAL DEFAULT 2.0,
+        status TEXT NOT NULL DEFAULT 'Pendiente',
+        start_time TEXT,
+        end_time TEXT,
+        hallazgos TEXT,
+        acciones TEXT,
+        repuestos TEXT,
+        evidencia TEXT,
+        firma_operario TEXT,
+        firma_supervisor TEXT,
+        tiempo_real_horas REAL,
+        created_by TEXT,
+        updated_at TEXT
+    )""")
+    
+    # Verificar y agregar columnas faltantes
+    c.execute("PRAGMA table_info(work_orders)")
+    existing_columns = [row[1] for row in c.fetchall()]
+    
+    columns_to_add = {
+        'tag': 'TEXT',
+        'ubicacion': 'TEXT',
+        'prioridad': "TEXT NOT NULL DEFAULT 'P2'",
+        'tipo': "TEXT DEFAULT 'Correctivo'",
+        'responsable': 'TEXT',
+        'due_date': 'TEXT',
+        'estimated_hours': 'REAL DEFAULT 2.0',
+        'start_time': 'TEXT',
+        'end_time': 'TEXT',
+        'hallazgos': 'TEXT',
+        'acciones': 'TEXT',
+        'repuestos': 'TEXT',
+        'evidencia': 'TEXT',
+        'firma_operario': 'TEXT',
+        'firma_supervisor': 'TEXT',
+        'tiempo_real_horas': 'REAL',
+        'created_by': 'TEXT',
+        'updated_at': 'TEXT'
+    }
+    
+    for col_name, col_type in columns_to_add.items():
+        if col_name not in existing_columns:
+            try:
+                c.execute(f"ALTER TABLE work_orders ADD COLUMN {col_name} {col_type}")
+                logger.info(f"Agregada columna {col_name} a work_orders")
+            except Exception as e:
+                logger.error(f"Error agregando columna {col_name}: {e}")
+    
+    # Crear tabla circular_interventions si no existe
+    c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ot_id TEXT NOT NULL,
+        asset_name TEXT,
+        component TEXT NOT NULL,
+        decision TEXT NOT NULL,
+        result TEXT,
+        mass_conserved_kg REAL DEFAULT 0,
+        mass_discarded_kg REAL DEFAULT 0,
+        costo_reparacion_eur REAL DEFAULT 0,
+        costo_reemplazo_nuevo_eur REAL DEFAULT 0,
+        vida_util_extendida_horas REAL DEFAULT 0,
+        co2_evitado_kg REAL DEFAULT 0,
+        disponibilidad_post_reparacion_pct REAL DEFAULT 0,
+        tiempo_entre_fallas_reparado_horas REAL DEFAULT 0,
+        nivel_reparacion INTEGER DEFAULT 0,
+        fabricante_original TEXT,
+        garantia_reparacion_meses INTEGER DEFAULT 0,
+        recorded_date TEXT NOT NULL,
+        recorded_by TEXT,
+        FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
+    )""")
+    
     conn.commit()
     conn.close()
 
@@ -857,7 +941,7 @@ with tabs[1]:
         st.success("Sin alarmas activas. Condicion normal.")
 
 # ============================================================================
-# TAB 3: ORDENES DE TRABAJO - VERSION COMPLETA PARA OPERARIO
+# TAB 3: ORDENES DE TRABAJO 
 # ============================================================================
 
 with tabs[2]:
