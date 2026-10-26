@@ -265,7 +265,6 @@ def send_email(to_email, subject, body_html):
         
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
-        # NOTA: Reemplaza "" con tu contraseña de aplicación de Gmail si deseas que funcione el envío de correos
         server.login(STAFF["asesor"]["email"], "")
         server.send_message(msg)
         server.quit()
@@ -424,6 +423,75 @@ def notify_high_circular_impact(intervention):
     for key in ["gerencia", "asesor"]:
         send_email(STAFF[key]["email"], f"[Circular] {ot_id} - {component}", cuerpo_email)
 
+# ============================================================================
+# ALARMAS SONORAS MEJORADAS
+# ============================================================================
+
+def play_critical_alarm(event_id):
+    """Alarma critica con sonido via JavaScript"""
+    if st.session_state.get("last_beep_event") == event_id:
+        return
+    st.session_state["last_beep_event"] = event_id
+    
+    st.components.v1.html("""
+    <script>
+    (function() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    oscillator.frequency.value = 1200;
+                    oscillator.type = 'square';
+                    gainNode.gain.value = 0.3;
+                    oscillator.start();
+                    setTimeout(() => oscillator.stop(), 400);
+                }, i * 550);
+            }
+        } catch(e) {
+            console.log('Audio no disponible:', e);
+        }
+    })();
+    </script>
+    """, height=0)
+    
+    logger.info(f"[ALARMA CRITICA] {event_id}")
+
+def play_observation_alarm(event_id):
+    """Alarma de advertencia con sonido via JavaScript"""
+    if st.session_state.get("last_observation_event") == event_id:
+        return
+    st.session_state["last_observation_event"] = event_id
+    
+    st.components.v1.html("""
+    <script>
+    (function() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            for (let i = 0; i < 2; i++) {
+                setTimeout(() => {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    oscillator.frequency.value = 600;
+                    oscillator.type = 'sine';
+                    gainNode.gain.value = 0.2;
+                    oscillator.start();
+                    setTimeout(() => oscillator.stop(), 200);
+                }, i * 500);
+            }
+        } catch(e) {
+            console.log('Audio no disponible:', e);
+        }
+    })();
+    </script>
+    """, height=0)
+    
+    logger.info(f"[ALARMA OBSERVACION] {event_id}")
 
 # ============================================================================
 # ESTILOS CSS PERSONALIZADOS
@@ -767,20 +835,36 @@ def format_context_for_llm(search_results):
     return "\n".join(context_parts)
 
 # ============================================================================
-# INTEGRACION CON GROQ + RAG - CORREGIDA
+# INTEGRACION CON GROQ + RAG
 # ============================================================================
 
 def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
     try:
         api_key = st.session_state.get("groq_api_key", "")
-        if not api_key:
-            return "Por favor, ingresa tu API Key gratuita de Groq en la configuracion del chatbot."
+        if not api_key: return "Por favor, ingresa tu API Key gratuita de Groq en la configuracion del chatbot."
         
         alarms = get_alarms(latest)
         at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
+        current_context = f"=== ESTADO ACTUAL ===\nActivo: {asset_name}\nEstado: {latest['estado']}\nIR: {latest['indice_riesgo']:.1f}/100\nVibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s\nTemperatura: {latest['temperatura_c']:.1f} C\nVacio: {latest['presion_vacio_kpa']:.1f} kPa\nAlarmas: {at}\n\nKPIs: MTBF: {kpi_values['MTBF (h)']:.1f} h, MTTR: {kpi_values['MTTR (h)']:.1f} h, Disponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%"
         
-        current_context = f"""
+        search_results = search_knowledge_base(user_query, top_k=8)
+        kb_context = format_context_for_llm(search_results)
+        full_system_prompt = f"{SYSTEM_PROMPT}\n\n{current_context}\n\n{kb_context}\n\nINSTRUCCION FINAL: Responde basandote EXCLUSIVAMENTE en la informacion proporcionada. Cita siempre la fuente."
+        
+        client = Groq(api_key=api_key)
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "system", "content": full_system_prompt}, {"role": "user", "content": user_query}],
+            temperature=0.3,
+            max_tokens=800
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"Error en Groq RAG: {e}")
+        return f"Error al consultar la IA: {str(e)}. Verifica tu API Key."
+
 def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
+    """Respuesta fallback basada en reglas cuando no hay Groq"""
     text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
     sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
     alarms = get_alarms(latest)
@@ -834,122 +918,6 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
         return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
     
     return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
-    
-=== ESTADO ACTUAL DEL EQUIPO ===
-Activo: {asset_name}
-Estado: {latest['estado']}
-IR: {latest['indice_riesgo']:.1f}/100
-Vibracion: {latest['vibracion_rms_mm_s']:.2f} mm/s
-Temperatura: {latest['temperatura_c']:.1f} C
-Vacio: {latest['presion_vacio_kpa']:.1f} kPa
-Alarmas: {at}
-
-KPIs Actuales:
-- MTBF: {kpi_values['MTBF (h)']:.1f} h
-- MTTR: {kpi_values['MTTR (h)']:.1f} h
-- Disponibilidad: {kpi_values['Disponibilidad (%)']:.2f}%
-"""
-        
-        search_results = search_knowledge_base(user_query, top_k=8)
-        kb_context = format_context_for_llm(search_results)
-        
-        full_system_prompt = f"""{SYSTEM_PROMPT}
-
-{current_context}
-
-{kb_context}
-
-INSTRUCCION FINAL: Responde la pregunta del usuario basandote EXCLUSIVAMENTE en la informacion proporcionada arriba. Cita siempre la fuente."""
-        
-        client = Groq(api_key=api_key)
-        
-        # DEFINIR CORRECTAMENTE LA VARIABLE MESSAGES
-        messages = [
-            {"role": "system", "content": full_system_prompt},
-            {"role": "user", "content": user_query}
-        ]
-        
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=messages,  # AHORA SÍ ESTÁ DEFINIDA
-            temperature=0.3,
-            max_tokens=800
-        )
-        
-        return response.choices[0].message.content
-        
-    except Exception as e:
-        logger.error(f"Error en Groq RAG: {e}")
-        return f"Error al consultar la IA: {str(e)}. Verifica tu API Key de Groq."
-
-# ============================================================================
-# ALARMAS SONORAS - CORREGIDAS Y MEJORADAS
-# ============================================================================
-
-def play_critical_alarm(event_id):
-    """Alarma critica con sonido via JavaScript (funciona en navegador)"""
-    if st.session_state.get("last_beep_event") == event_id:
-        return
-    st.session_state["last_beep_event"] = event_id
-    
-    # Inyectar JavaScript para reproducir sonido en el navegador
-    st.markdown("""
-    <script>
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        // 5 beeps agudos de 1200 Hz (400ms cada uno)
-        for (let i = 0; i < 5; i++) {
-            setTimeout(() => {
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = 1200;
-                oscillator.type = 'square';
-                gainNode.gain.value = 0.3;
-                oscillator.start();
-                setTimeout(() => oscillator.stop(), 400);
-            }, i * 550);
-        }
-    } catch(e) {
-        console.log('Audio no disponible:', e);
-    }
-    </script>
-    """, unsafe_allow_html=True)
-    
-    logger.info(f"[ALARMA CRITICA] {event_id}")
-
-def play_observation_alarm(event_id):
-    """Alarma de advertencia con sonido via JavaScript"""
-    if st.session_state.get("last_observation_event") == event_id:
-        return
-    st.session_state["last_observation_event"] = event_id
-    
-    st.markdown("""
-    <script>
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        // 2 beeps suaves de 600 Hz (200ms cada uno)
-        for (let i = 0; i < 2; i++) {
-            setTimeout(() => {
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                oscillator.frequency.value = 600;
-                oscillator.type = 'sine';
-                gainNode.gain.value = 0.2;
-                oscillator.start();
-                setTimeout(() => oscillator.stop(), 200);
-            }, i * 500);
-        }
-    } catch(e) {
-        console.log('Audio no disponible:', e);
-    }
-    </script>
-    """, unsafe_allow_html=True)
-    
-    logger.info(f"[ALARMA OBSERVACION] {event_id}")
 
 # ============================================================================
 # CHATBOT FLOTANTE CON LETZY Y RAG
@@ -975,16 +943,143 @@ def process_floating_query(query, ai_platform="rag"):
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
 # ============================================================================
+# FUNCION AUXILIAR PARA MOSTRAR DETALLE DE OT
+# ============================================================================
+
+def mostrar_detalle_ot(ot, conn):
+    prioridad_color = "#d32f2f" if ot["prioridad"] == "P0" else "#f5a623" if ot["prioridad"] == "P1" else "#8bc34a"
+    prioridad_text = "URGENTE" if ot["prioridad"] == "P0" else "ALTA" if ot["prioridad"] == "P1" else "NORMAL"
+    
+    st.markdown(f"""
+    <div style="background:{prioridad_color}; color:white; padding:15px; border-radius:12px; margin-bottom:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; color:white;">{ot['ot_id']} - {prioridad_text}</h3>
+            <span style="background:white; color:{prioridad_color}; padding:5px 15px; border-radius:20px; font-weight:bold;">{ot['status']}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        st.markdown(f"**Activo:** {ot['asset_name']}")
+        st.markdown(f"**Tag:** {ot.get('tag', 'N/A')}")
+        st.markdown(f"**Ubicacion:** {ot.get('ubicacion', 'N/A')}")
+        st.markdown(f"**Tipo:** {ot.get('tipo', 'N/A')}")
+    with col_info2:
+        st.markdown(f"**Responsable:** {ot.get('responsable', 'Sin asignar')}")
+        st.markdown(f"**Creada:** {ot['creation_date'][:16] if ot.get('creation_date') else 'N/A'}")
+        st.markdown(f"**Horas estimadas:** {ot.get('estimated_hours', 2.0)}h")
+        if ot.get('start_time'): st.markdown(f"**Inicio:** {ot['start_time'][:16]}")
+        if ot.get('end_time'): st.markdown(f"**Fin:** {ot['end_time'][:16]}")
+    
+    st.divider()
+    
+    if ot.get('description'):
+        st.markdown("<h4>Problema Reportado</h4>", unsafe_allow_html=True)
+        st.info(ot['description'])
+    
+    st.markdown("<h4>Tareas a Realizar</h4>", unsafe_allow_html=True)
+    tareas_text = ot.get('acciones', '')
+    if tareas_text:
+        tareas_lista = tareas_text.split('\n')
+        for i, tarea in enumerate(tareas_lista):
+            if tarea.strip(): st.checkbox(tarea.strip(), key=f"tarea_{ot['ot_id']}_{i}")
+    else:
+        st.markdown("- Medir vibracion en 3 puntos (horizontal/vertical/axial)")
+        st.markdown("- Verificar alineacion")
+        st.markdown("- Revisar nivel de aceite")
+        st.markdown("- Inspeccionar componente")
+        st.markdown("- Tomar fotos del estado actual")
+    
+    st.divider()
+    
+    st.markdown("<h4>Recursos Necesarios</h4>", unsafe_allow_html=True)
+    col_rec1, col_rec2 = st.columns(2)
+    with col_rec1:
+        st.markdown("**Herramientas:**")
+        st.markdown("- Analizador de vibraciones")
+        st.markdown("- Llave dinamometrica")
+        st.markdown("- Multimetro")
+    with col_rec2:
+        st.markdown("**Seguridad:**")
+        st.markdown("- Bloqueo/etiquetado LOTO")
+        st.markdown("- EPP completo")
+        st.markdown("- Permiso de trabajo")
+    
+    st.divider()
+    
+    st.markdown("<h4>Registro de Trabajo</h4>", unsafe_allow_html=True)
+    with st.form(f"registro_{ot['ot_id']}"):
+        col_reg1, col_reg2 = st.columns(2)
+        with col_reg1:
+            nuevo_estado = st.selectbox("Estado:", options=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"], index=["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"].index(ot["status"]) if ot["status"] in ["Pendiente", "En Ejecucion", "Completado", "Pausado", "No realizado"] else 0, key=f"estado_{ot['ot_id']}")
+        with col_reg2:
+            tiempo_real = st.number_input("Tiempo real (horas):", min_value=0.0, max_value=24.0, value=ot.get('tiempo_real_horas', 0.0), step=0.5, key=f"tiempo_{ot['ot_id']}")
+        
+        hallazgos = st.text_area("Hallazgos (que encontro?):", value=ot.get('hallazgos', ''), height=100, key=f"hallazgos_{ot['ot_id']}")
+        acciones_realizadas = st.text_area("Acciones realizadas:", value=ot.get('acciones', ''), height=100, key=f"acciones_{ot['ot_id']}")
+        repuestos = st.text_input("Repuestos utilizados:", value=ot.get('repuestos', ''), key=f"repuestos_{ot['ot_id']}")
+        
+        submitted_registro = st.form_submit_button("Guardar Cambios", use_container_width=True, type="primary")
+        if submitted_registro:
+            c = conn.cursor()
+            update_fields = ["status = ?", "tiempo_real_horas = ?", "hallazgos = ?", "acciones = ?", "repuestos = ?", "updated_at = ?"]
+            update_values = [nuevo_estado, tiempo_real, hallazgos, acciones_realizadas, repuestos, datetime.now().isoformat()]
+            
+            if nuevo_estado == "En Ejecucion" and not ot.get('start_time'):
+                update_fields.append("start_time = ?")
+                update_values.append(datetime.now().isoformat())
+            if nuevo_estado == "Completado" and not ot.get('end_time'):
+                update_fields.append("end_time = ?")
+                update_values.append(datetime.now().isoformat())
+            
+            update_values.append(ot['ot_id'])
+            c.execute(f"""UPDATE work_orders SET {', '.join(update_fields)} WHERE ot_id = ?""", update_values)
+            conn.commit()
+            
+            responsable = ot.get('responsable', 'Sin asignar')
+            asset = ot.get('asset_name', 'N/A')
+            if nuevo_estado == "En Ejecucion" and ot["status"] != "En Ejecucion": notify_ot_started(ot['ot_id'], asset, responsable)
+            elif nuevo_estado == "Pausado" and ot["status"] != "Pausado": notify_ot_paused(ot['ot_id'], asset, responsable, hallazgos or "Sin motivo especificado")
+            elif nuevo_estado == "Completado" and ot["status"] != "Completado": notify_ot_completed({"ot_id": ot['ot_id'], "responsable": responsable, "tiempo_real_horas": tiempo_real, "hallazgos": hallazgos})
+            
+            st.success(f"OT {ot['ot_id']} actualizada a '{nuevo_estado}'")
+            st.rerun()
+    
+    st.divider()
+    st.markdown("<h4>Acciones Rapidas</h4>", unsafe_allow_html=True)
+    col_acc1, col_acc2, col_acc3 = st.columns(3)
+    with col_acc1:
+        if st.button("Iniciar Trabajo", key=f"iniciar_{ot['ot_id']}", use_container_width=True):
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'En Ejecucion', start_time = ?, updated_at = ? WHERE ot_id = ?""", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            st.success(f"OT {ot['ot_id']} iniciada")
+            st.rerun()
+    with col_acc2:
+        if st.button("Completar", key=f"completar_{ot['ot_id']}", use_container_width=True):
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'Completado', end_time = ?, updated_at = ? WHERE ot_id = ?""", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            st.success(f"OT {ot['ot_id']} completada")
+            st.rerun()
+    with col_acc3:
+        if st.button("Pausar", key=f"pausar_{ot['ot_id']}", use_container_width=True):
+            c = conn.cursor()
+            c.execute("""UPDATE work_orders SET status = 'Pausado', updated_at = ? WHERE ot_id = ?""", (datetime.now().isoformat(), ot['ot_id']))
+            conn.commit()
+            st.success(f"OT {ot['ot_id']} pausada")
+            st.rerun()
+
+# ============================================================================
 # VISUALIZACION - GRAFICAS
 # ============================================================================
 
 def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None, threshold_alert=None, reverse=False):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df[column], mode="lines+markers", name=title, line=dict(color=color, width=3), marker=dict(size=4), fill="tozeroy" if not reverse else None, fillcolor="rgba(26,95,168,0.08)" if not reverse else None))
-    if threshold_normal is not None:
-        fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
-    if threshold_alert is not None:
-        fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
+    if threshold_normal is not None: fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
+    if threshold_alert is not None: fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
     fig.update_layout(title=dict(text=title, font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")), template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=78, b=30), xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45), yaxis=dict(title=dict(text=y_title, font=dict(color=COLORS["texto_oscuro"], size=12)), autorange="reversed" if reverse else True, showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)), hovermode="x unified", showlegend=False, height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12))
     return fig
 
@@ -1027,16 +1122,18 @@ def init_database():
 # ============================================================================
 
 init_database()
+
 sd = {"running": True, "sim_idx": 1, "orders": [], "last_order_event": None, "chat_history": [], "theme_mode": "default", "kb_docs": [], "kb_chunks": [], "kb_ready": False, "last_beep_event": None, "floating_chat_open": False, "floating_chat_history": [], "auto_chat_triggered": False, "previous_estado": None, "scenario": "Operacion normal", "seed": 42, "n_hours": 168, "step_speed": 1, "production_rate": 85.5, "groq_api_key": "", "knowledge_base": [], "kb_loaded": False, "use_test_data": True}
 for k, v in sd.items():
     if k not in st.session_state: st.session_state[k] = v
 
 apply_custom_styles()
+
 if not st.session_state.get("kb_loaded", False):
     with st.spinner("Cargando base de conocimiento PDF..."): load_knowledge_base()
 
 # ============================================================================
-# SIDEBAR CON CHATBOT LETZY COMPACTO
+# SIDEBAR CON CHATBOT LETZY
 # ============================================================================
 
 with st.sidebar:
@@ -1143,10 +1240,8 @@ st.session_state["asset_name"] = asset_name
 current_estado = latest["estado"]
 if current_estado in ["Alerta", "Critico"] and st.session_state.previous_estado != current_estado:
     st.session_state["auto_chat_triggered"] = True
-    if current_estado == "Critico":
-        play_critical_alarm(f"{latest['fecha_hora']}-critical")
-    else:
-        play_observation_alarm(f"{latest['fecha_hora']}-alert")
+    if current_estado == "Critico": play_critical_alarm(f"{latest['fecha_hora']}-critical")
+    else: play_observation_alarm(f"{latest['fecha_hora']}-alert")
     
     fault_desc = latest.get('fault_description', '')
     if pd.isna(fault_desc): fault_desc = ''
@@ -1199,7 +1294,6 @@ with tabs[0]:
             <div style="font-size:0.8rem;color:{get_text_color(statuses['Vibracion'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['vibration_normal']} / {THRESHOLDS['vibration_alert']}</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_vibration_chart(DF), use_container_width=True)
-    
     with col2:
         st.markdown(f"""<div class="metric-card status-{statuses['Temperatura'].lower()}">
             <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Temperatura'])};margin-bottom:8px;">TEMPERATURA</div>
@@ -1208,7 +1302,6 @@ with tabs[0]:
             <div style="font-size:0.8rem;color:{get_text_color(statuses['Temperatura'])};margin-top:8px;opacity:0.9;">Ref: {THRESHOLDS['temperature_normal']} / {THRESHOLDS['temperature_alert']}</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_temperature_chart(DF), use_container_width=True)
-    
     with col3:
         st.markdown(f"""<div class="metric-card status-{statuses['Presion de vacio'].lower()}">
             <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(statuses['Presion de vacio'])};margin-bottom:8px;">PRESION DE VACIO</div>
@@ -1217,7 +1310,6 @@ with tabs[0]:
             <div style="font-size:0.8rem;color:{get_text_color(statuses['Presion de vacio'])};margin-top:8px;opacity:0.9;">Mas negativo = mejor</div>
         </div>""", unsafe_allow_html=True)
         st.plotly_chart(create_vacuum_chart(DF), use_container_width=True)
-    
     with col4:
         st.markdown(f"""<div class="metric-card status-{latest['estado'].lower()}">
             <div style="font-size:1.1rem;font-weight:800;color:{get_text_color(latest['estado'])};margin-bottom:8px;">ESTADO GLOBAL</div>
@@ -1287,7 +1379,6 @@ with tabs[1]:
 
 with tabs[2]:
     st.markdown("<h2>Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
-    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -1314,15 +1405,13 @@ with tabs[2]:
             new_ot_id = f"OT-{ts}-{nueva_prioridad}"
             try:
                 c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot_id,))
-                if c.fetchone():
-                    st.info(f"La OT {new_ot_id} ya existe")
+                if c.fetchone(): st.info(f"La OT {new_ot_id} ya existe")
                 else:
                     c.execute("""INSERT INTO work_orders (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable, creation_date, estimated_hours, status, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion, f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable, datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual", datetime.now().isoformat()))
                     conn.commit()
                     st.success(f"OT creada exitosamente: {new_ot_id}")
-            except Exception as e:
-                st.error(f"Error creando OT: {e}")
+            except Exception as e: st.error(f"Error creando OT: {e}")
     conn.close()
     
     st.markdown("<h3>Ordenes Existentes</h3>", unsafe_allow_html=True)
@@ -1362,7 +1451,6 @@ with tabs[2]:
 with tabs[3]:
     st.markdown("<h2>Panel de Impacto Circular</h2>", unsafe_allow_html=True)
     st.markdown("Registro de decisiones de mantenimiento y su impacto en la conservacion de recursos")
-    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -1430,8 +1518,7 @@ with tabs[4]:
     kk4.metric("Perdida productiva", f"{kpis['Perdida productiva (t)']:.1f} t")
     
     col_center1, col_center2, col_center3 = st.columns([1, 3, 1])
-    with col_center2:
-        st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
+    with col_center2: st.dataframe(pd.DataFrame({"KPI": list(kpis.keys()), "Valor": list(kpis.values())}), use_container_width=True, hide_index=True)
 
 # ============================================================================
 # FOOTER
