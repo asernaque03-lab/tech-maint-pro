@@ -1812,16 +1812,16 @@ with tabs[4]:
         else:
             st.info("No hay intervenciones registradas. Complete ordenes de trabajo para registrar el impacto circular.")
     with sub_tabs[2]:
-    st.markdown("<h2>Reportes y Descargas</h2>")
-    st.markdown("### Generar Reporte de Mantenimiento")
+        st.markdown("<h2>Reportes y Descargas</h2>")
+        st.markdown("### Generar Reporte de Mantenimiento")
     
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # <-- IMPORTANTE: agregar esta línea
-    c = conn.cursor()
-    c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
-    rows = c.fetchall()
-    closed_orders = [dict(row) for row in (rows if rows else [])]
-    conn.close()
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row  # <-- IMPORTANTE: agregar esta línea
+        c = conn.cursor()
+        c.execute("SELECT * FROM work_orders WHERE status='Cerrada' ORDER BY creation_date DESC LIMIT 10")
+        rows = c.fetchall()
+        closed_orders = [dict(row) for row in (rows if rows else [])]
+        conn.close()
     
     if closed_orders:
         selected_ot = st.selectbox("Seleccionar OT para generar reporte:", [f"{ot['ot_id']} - {ot['asset_name']}" for ot in closed_orders])
