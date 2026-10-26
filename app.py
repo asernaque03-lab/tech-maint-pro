@@ -756,63 +756,70 @@ def floating_chat_dialog():
     # Nota: El diálogo se cierra de forma nativa en Streamlit haciendo clic fuera del cuadro o presionando la tecla Esc.
 
 # ============================================================================
-# BOTÓN FLOTANTE DE LETZY - VERSIÓN DEFINITIVA
+# BOTÓN FLOTANTE DE LETZY - CON PARÁMETROS URL
 # ============================================================================
 
-# CSS para posicionar el botón en la esquina inferior derecha
-st.markdown(f"""
+chatbot_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
 <style>
-/* Posicionar el botón de Letzy en la esquina inferior derecha */
-div[data-testid="stVerticalBlock"] > div:has(button[aria-label="Abrir Letzy"]) {{
-    position: fixed !important;
-    bottom: 30px !important;
-    right: 30px !important;
-    z-index: 9999 !important;
+* {{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }}
-
-/* Estilo del botón circular */
-button[aria-label="Abrir Letzy"] {{
-    width: 90px !important;
-    height: 90px !important;
-    border-radius: 50% !important;
-    padding: 0 !important;
-    background: linear-gradient(135deg, #1a5fa8, #7cb342) !important;
-    border: 3px solid #f5a623 !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-    cursor: pointer !important;
-    overflow: hidden !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: transform 0.3s ease !important;
+body {{
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: transparent;
 }}
-
-button[aria-label="Abrir Letzy"]:hover {{
-    transform: scale(1.1) !important;
+.letzy-btn {{
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a5fa8, #7cb342);
+    border: 3px solid #f5a623;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+    z-index: 9999;
 }}
-
-/* Ocultar el texto del botón y mostrar solo la imagen */
-button[aria-label="Abrir Letzy"] p {{
-    display: none !important;
+.letzy-btn:hover {{
+    transform: scale(1.1);
 }}
-
-button[aria-label="Abrir Letzy"] img {{
-    width: 84px !important;
-    height: 84px !important;
-    border-radius: 50% !important;
-    object-fit: cover !important;
+.letzy-btn img {{
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    object-fit: cover;
 }}
 </style>
-""", unsafe_allow_html=True)
+</head>
+<body>
+<a href="?open_letzy=1" class="letzy-btn" title="Abrir Asistente Letzy">
+    <img src="{LETZY_BASE64}" alt="Letzy">
+</a>
+</body>
+</html>
+"""
 
-# Botón nativo de Streamlit con la imagen de Letzy
-if st.button(
-    f'<img src="{LETZY_BASE64}" alt="Letzy" />',
-    key="open_letzy_btn",
-    help="Abrir Asistente Letzy",
-    aria_label="Abrir Letzy"
-):
+# Renderizar el botón flotante
+import streamlit.components.v1 as components
+components.html(chatbot_html, height=120, width=120)
+
+# Detectar si se abrió el chat desde el botón
+if "open_letzy" in st.query_params:
     st.session_state.floating_chat_open = True
+    st.query_params.clear()
 
 # Mostrar el diálogo si está abierto
 if st.session_state.get("floating_chat_open", False):
