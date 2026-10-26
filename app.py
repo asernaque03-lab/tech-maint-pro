@@ -1428,60 +1428,57 @@ with tabs[1]:
 
 with tabs[2]:
     st.markdown("<h2>Gestion de Ordenes de Trabajo</h2>", unsafe_allow_html=True)
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM work_orders ORDER BY creation_date DESC")
     all_orders = [dict(row) for row in c.fetchall()]
-    
+
     st.markdown("<h3>Crear Nueva Orden de Trabajo</h3>", unsafe_allow_html=True)
+
     with st.form("nueva_ot_form", clear_on_submit=True):
         col_n1, col_n2 = st.columns(2)
+
         with col_n1:
             nuevo_activo = st.selectbox("Activo:", list(ASSETS.keys()), key="nuevo_activo_ot")
             nueva_prioridad = st.selectbox("Prioridad:", ["P0", "P1", "P2"], key="nueva_prioridad_ot")
             nuevo_tipo = st.selectbox("Tipo:", ["Correctivo", "Preventivo", "Predictivo"], key="nuevo_tipo_ot")
+
         with col_n2:
             nuevo_responsable = st.selectbox("Responsable:", ["Dario Minan", "Jordy Sernaque", "Sin asignar"], key="nuevo_resp_ot")
             nueva_ubicacion = st.text_input("Ubicacion:", "Planta Principal", key="nueva_ubicacion_ot")
             horas_estimadas = st.number_input("Horas estimadas:", min_value=0.5, max_value=24.0, value=2.0, step=0.5, key="nueva_horas_ot")
+
         nueva_descripcion = st.text_area("Descripcion del problema:", key="nueva_desc_ot")
         nuevas_tareas = st.text_area("Tareas a realizar (una por linea):", key="nueva_tareas_ot")
-        
+
         submitted = st.form_submit_button("Crear OT", use_container_width=True, type="primary")
-       if submitted:
-    ts = datetime.now().strftime("%Y%m%d%H%M")
-    new_ot_id = f"OT-{ts}-{nueva_prioridad}"
-    try:
-        c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot_id,))
-        if c.fetchone():
-            st.info(f"La OT {new_ot_id} ya existe")
-        else:
-            # INSERT corregido con todos los campos requeridos
-            c.execute("""INSERT INTO work_orders 
-                (ot_id, asset_name, tag, ubicacion, alert_id, description, 
-                 prioridad, tipo, responsable, creation_date, estimated_hours, 
-                 status, created_by, updated_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (new_ot_id, 
-                 nuevo_activo, 
-                 ASSETS[nuevo_activo]["tag"], 
-                 nueva_ubicacion, 
-                 f"ALM-{ts}", 
-                 nueva_descripcion, 
-                 nueva_prioridad,  # ← Este es el campo que faltaba
-                 nuevo_tipo, 
-                 nuevo_responsable, 
-                 datetime.now().isoformat(), 
-                 horas_estimadas, 
-                 "Pendiente", 
-                 "manual", 
-                 datetime.now().isoformat()))
-            conn.commit()
-            st.success(f"OT creada exitosamente: {new_ot_id}")
-    except Exception as e:
-        st.error(f"Error creando OT: {e}")
-        logger.error(f"Error detallado: {str(e)}")
+
+        if submitted:
+            ts = datetime.now().strftime("%Y%m%d%H%M")
+            new_ot_id = f"OT-{ts}-{nueva_prioridad}"
+            try:
+                c.execute("SELECT ot_id FROM work_orders WHERE ot_id=?", (new_ot_id,))
+                if c.fetchone():
+                    st.info(f"La OT {new_ot_id} ya existe")
+                else:
+                    c.execute("""INSERT INTO work_orders
+                        (ot_id, asset_name, tag, ubicacion, alert_id, description, prioridad, tipo, responsable,
+                         creation_date, estimated_hours, status, created_by, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (new_ot_id, nuevo_activo, ASSETS[nuevo_activo]["tag"], nueva_ubicacion,
+                         f"ALM-{ts}", nueva_descripcion, nueva_prioridad, nuevo_tipo, nuevo_responsable,
+                         datetime.now().isoformat(), horas_estimadas, "Pendiente", "manual", datetime.now().isoformat()))
+                    conn.commit()
+                    st.success(f"OT creada exitosamente: {new_ot_id}")
+            except Exception as e:
+                st.error(f"Error creando OT: {e}")
+    conn.close()
+
+    st.divider()
+
+    st.markdown("<h3>Ordenes Existentes</h3>", unsafe_allow_html=True)
     if all_orders:
         for ot in all_orders[:10]:
             with st.expander(f"{ot['ot_id']} - {ot['asset_name']} ({ot['status']})"):
@@ -1490,22 +1487,31 @@ with tabs[2]:
                 col_a1, col_a2, col_a3 = st.columns(3)
                 with col_a1:
                     if st.button("Iniciar", key=f"ini_{ot['ot_id']}"):
-                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
-                        c.execute("UPDATE work_orders SET status='En Ejecucion', start_time=?, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-                        conn.commit(); conn.close()
+                        conn2 = sqlite3.connect(DB_PATH)
+                        c2 = conn2.cursor()
+                        c2.execute("UPDATE work_orders SET status='En Ejecucion', start_time=?, updated_at=? WHERE ot_id=?",
+                                   (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+                        conn2.commit()
+                        conn2.close()
                         notify_ot_started(ot['ot_id'], ot['asset_name'], ot['responsible'])
                         st.rerun()
                 with col_a2:
                     if st.button("Pausar", key=f"pau_{ot['ot_id']}"):
-                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
-                        c.execute("UPDATE work_orders SET status='Pausado', updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), ot['ot_id']))
-                        conn.commit(); conn.close()
+                        conn2 = sqlite3.connect(DB_PATH)
+                        c2 = conn2.cursor()
+                        c2.execute("UPDATE work_orders SET status='Pausado', updated_at=? WHERE ot_id=?",
+                                   (datetime.now().isoformat(), ot['ot_id']))
+                        conn2.commit()
+                        conn2.close()
                         st.rerun()
                 with col_a3:
                     if st.button("Completar", key=f"com_{ot['ot_id']}"):
-                        conn = sqlite3.connect(DB_PATH); c = conn.cursor()
-                        c.execute("UPDATE work_orders SET status='Cerrada', end_time=?, updated_at=? WHERE ot_id=?", (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
-                        conn.commit(); conn.close()
+                        conn2 = sqlite3.connect(DB_PATH)
+                        c2 = conn2.cursor()
+                        c2.execute("UPDATE work_orders SET status='Cerrada', end_time=?, updated_at=? WHERE ot_id=?",
+                                   (datetime.now().isoformat(), datetime.now().isoformat(), ot['ot_id']))
+                        conn2.commit()
+                        conn2.close()
                         notify_ot_completed({"ot_id": ot['ot_id'], "responsible": ot['responsible'], "tiempo_real_horas": 0, "hallazgos": "Completado"})
                         st.rerun()
     else:
