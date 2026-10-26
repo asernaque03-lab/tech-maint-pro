@@ -780,7 +780,7 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         at = ", ".join([f"{n}: {v} ({l})" for l, n, v in alarms]) if alarms else "Sin alarmas activas"
         
         current_context = f"""
-        def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
+def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
     """Respuesta fallback basada en reglas cuando no hay Groq"""
     text = unicodedata.normalize('NFKD', user_query.lower().strip()).encode('ascii', 'ignore').decode('utf-8')
     sl = f"Estado: {latest['estado']} | IR {latest['indice_riesgo']:.1f}/100 | Vibracion {latest['vibracion_rms_mm_s']:.2f} mm/s | Temp {latest['temperatura_c']:.1f} C | Vacio {latest['presion_vacio_kpa']:.1f} kPa"
@@ -835,6 +835,7 @@ def query_groq_with_rag(user_query, latest, asset_name, kpi_values):
         return "Impacto Circular\n\nRegistro de decisiones que permiten conservar componentes y minimizar residuos.\n\nComo registrar: Cierra una OT -> Selecciona decision -> Registra masa conservada/descartada."
     
     return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
+    
 === ESTADO ACTUAL DEL EQUIPO ===
 Activo: {asset_name}
 Estado: {latest['estado']}
