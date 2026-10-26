@@ -101,144 +101,51 @@ st.set_page_config(
     page_title="Tech Maint Pro",
     page_icon="",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="collapsed", # Comienza colapsado para efecto de pestaña
 )
 
-st.markdown("""
-<style>
-[data-testid="stSidebar"] { display: none !important; }
-[data-testid="stSidebarCollapsedControl"] { display: none !important; }
-.stApp > header { background-color: transparent; }
-</style>
-""", unsafe_allow_html=True)
-
 # ============================================================================
-# COLORES OFICIALES DEL LOGO
-# ============================================================================
-
-COLORS = {
-    "azul": "#1a5fa8",
-    "verde": "#8bc34a",
-    "amarillo": "#f5a623",
-    "rojo": "#d32f2f",
-    "blanco": "#ffffff",
-    "gris_claro": "#f5f7fa",
-    "gris_medio": "#e8ecf1",
-    "texto_oscuro": "#1a2b4c",
-    "texto_gris": "#5a6b7c",
-}
-
-# ============================================================================
-# ACTIVOS INDUSTRIALES
-# ============================================================================
-
-ASSETS = {
-    "Bomba de vacio BV-01": {"tag": "BV-ABS-001", "criticality": "Alta"},
-    "Motor CAT 3408 MD-01": {"tag": "MD-3408-001", "criticality": "Alta"},
-    "Compresor Leroi CA-01": {"tag": "CA-LER-001", "criticality": "Media-Alta"},
-}
-
-THRESHOLDS = {
-    "vibration_normal": 4.5, "vibration_alert": 7.1,
-    "temperature_normal": 75.0, "temperature_alert": 85.0,
-    "vacuum_normal": -3.0, "vacuum_alert": -5.0,
-}
-
-# ============================================================================
-# METADATOS DE DOCUMENTOS
-# ============================================================================
-
-DOCUMENT_METADATA = {
-    "01": {"category": "Tesis / Codificacion de equipos", "tags": ["Eternit Pacifico", "codificacion", "MTBF", "MTTR", "software SM"], "desc": "Sistema de codificacion de equipos industriales y uso del software SM Real World"},
-    "02": {"category": "Tesis / Vacio medico", "tags": ["NFPA 99", "vacio grado medico", "bombas rotativas", "hospital"], "desc": "Programa de mantenimiento para sistemas de vacio medico segun norma NFPA 99"},
-    "03": {"category": "Gestion / KPIs", "tags": ["KPI", "MTBF", "MTTR", "disponibilidad", "indicadores"], "desc": "Guia de indicadores clave de rendimiento con formulas y ejemplos"},
-    "04": {"category": "Tesis / AMFE", "tags": ["AMFE", "FMEA", "criticidad", "casa de maquinas", "hospital"], "desc": "Analisis de Modos de Falla y Efectos aplicado a casa de maquinas hospitalaria"},
-    "05": {"category": "Manual tecnico / IMBIL", "tags": ["anillo liquido", "instalacion", "desmontaje", "lubricacion"], "desc": "Manual completo de bombas de vacio IMBIL serie BVI"},
-    "06": {"category": "Manual OEM / Caterpillar", "tags": ["G3408", "G3412", "motores a gas", "intervalos de mantenimiento"], "desc": "Manual oficial de operacion y mantenimiento de motores Caterpillar"},
-    "07": {"category": "Ficha tecnica / CPS", "tags": ["VP6D", "VP12D", "doble etapa", "10 micrones", "ensayo Rice"], "desc": "Especificaciones tecnicas de bombas de vacio CPS para laboratorio"},
-    "08": {"category": "Manual de usuario / Gadnic", "tags": ["Serie TW", "paletas rotativas", "cambio de aceite", "solucion de problemas"], "desc": "Manual de usuario y troubleshooting de bombas Gadnic compactas"},
-    "09": {"category": "POE / Laboratorio", "tags": ["Thomas BV-1", "diafragma", "trampas", "silica gel", "seguridad"], "desc": "Procedimiento operativo para uso seguro de bomba de vacio en laboratorio"},
-    "10": {"category": "Tesis / Ladrillera", "tags": ["Arcillas de Colombia", "COVENIN 2500-93", "criticidad", "programacion anual"], "desc": "Plan completo de mantenimiento preventivo para empresa ladrillera con 37 equipos"}
-}
-
-# ============================================================================
-# SYSTEM PROMPT PARA LETZY
-# ============================================================================
-
-SYSTEM_PROMPT = """Eres Letzy, Asistente Experto en Ingenieria de Mantenimiento Industrial, Operacion de Equipos y Gestion de Calidad. Tu base de conocimiento contiene 10 documentos tecnicos especializados.
-
-REGLAS DE RESPUESTA:
-1. Se preciso, tecnico y conciso. Ve directo al dato solicitado.
-2. CITA SIEMPRE la fuente entre parentesis al final, usando el numero del archivo. Ejemplo: [Fuente: Archivo 10 - Tesis Arcillas de Colombia]
-3. Si te preguntan por PROCEDIMIENTOS o INSTRUCCIONES TECNICAS de equipos especificos (extrusora, molino, banda transportadora), busca primero en el Archivo 10 (Arcillas de Colombia) que contiene los anexos detallados.
-4. Si te preguntan por COMO CALCULAR MTBF, MTTR o Disponibilidad, usa el Archivo 03 (KPIs) para las formulas y el Archivo 10 para ejemplos aplicados.
-5. Si te preguntan por BOMBAS DE VACIO, diferencia segun el contexto:
-   - Laboratorio/acidos -> Archivo 09 (Thomas BV-1 con trampas)
-   - Industrial/anillo liquido -> Archivo 05 (IMBIL)
-   - Compacta/HVAC -> Archivo 08 (Gadnic)
-   - Especificaciones tecnicas -> Archivo 07 (CPS)
-   - Grado medico -> Archivo 02 (NFPA 99)
-6. Si te preguntan por MOTORES Caterpillar G3408/G3412 -> Archivo 06
-7. Si te preguntan por ANALISIS DE CRITICIDAD o AMFE -> Archivo 04 o Archivo 10
-8. Si te preguntan por SISTEMAS DE CODIFICACION de equipos -> Archivo 01 o Archivo 10
-9. Si la informacion NO esta en los documentos, di: "No encuentro esa informacion especifica en los documentos proporcionados. Puedes reformular tu pregunta o indicarme que equipo/sistema te interesa?"
-10. NUNCA inventes datos tecnicos, valores de torque, frecuencias de mantenimiento o especificaciones que no esten en los documentos.
-
-FORMATO DE RESPUESTA PREFERIDO:
-- Usa vinetas y tablas cuando sea posible
-- Incluye valores numericos exactos (torques, frecuencias, tiempos)
-- Menciona el responsable (mecanico, electricista, operario) cuando aplique
-- Indica si la actividad es rutinaria (R) o programada (P)"""
-
-# ============================================================================
-# CONFIGURACION TELEGRAM
-# ============================================================================
-
-TELEGRAM_BOT_TOKEN = "8944581569:AAFw2rfEn3zU5iOpdNrtIzYHLTs30xg_cIA"
-TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
-
-STAFF = {
-    "tecnico": {
-        "nombre": "DARIO MINAN ESPINOZA",
-        "telefono": "958000191",
-        "email": "dario.minanespinoza@gmail.com",
-        "telegram_chat_id": "1330744031",
-        "rol": "Tecnico de Mantenimiento"
-    },
-    "asesor": {
-        "nombre": "JORDY ALBERTO SERNAQUE SABA",
-        "telefono": "902631386",
-        "email": "ajordyss0602@gmail.com",
-        "telegram_chat_id": "8665066190",
-        "rol": "Asesor de Mantenimiento"
-    },
-    "gerencia": {
-        "nombre": "Irina Nicole Castillo Coronado",
-        "telefono": "966153839",
-        "email": "nicolecastc@gmail.com",
-        "telegram_chat_id": "8533612747",
-        "rol": "Gerencia"
-    }
-}
-
-# ============================================================================
-# ESTILOS CSS PERSONALIZADOS
+# ESTILOS CSS PERSONALIZADOS (INCLUYE PANEL LATERAL DERECHO)
 # ============================================================================
 
 def apply_custom_styles():
     css = f"""
     <style>
+    /* 1. Fondo general */
     .stApp {{ 
         background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%) !important; 
         padding-top: 0 !important;
     }}
     
-    .block-container {{
-        padding-top: 0.5rem !important;
-        padding-bottom: 1rem !important;
-        max-width: 100% !important;
+    /* 2. Mover la barra lateral a la DERECHA y estilizarla como panel de chat */
+    section[data-testid="stSidebar"] {{
+        left: auto !important;
+        right: 0 !important;
+        width: 380px !important;
+        min-width: 380px !important;
+        background-color: #ffffff !important;
+        border-left: 1px solid #e8ecf1 !important;
+        z-index: 9998 !important;
+        padding-top: 1.5rem !important;
+        box-shadow: -4px 0 15px rgba(0,0,0,0.05) !important;
     }}
     
+    /* 3. Ajustar el contenedor principal para que no quede oculto tras el sidebar */
+    .stApp > div[data-testid="stAppViewBlockContainer"] {{
+        margin-right: 380px !important;
+    }}
+
+    /* 4. Ocultar visualmente el botón nativo de Streamlit (usaremos el botón flotante de Letzy) */
+    div[data-testid="stSidebarCollapsedControl"] {{
+        position: fixed !important;
+        top: -100px !important; 
+        z-index: -1 !important;
+    }}
+    div[data-testid="stSidebarCollapsedControl"] button {{
+        display: block !important; /* Asegurar que el botón exista en el DOM para que el JS lo encuentre */
+    }}
+
+    /* 5. Estilos de tarjetas y demás */
     .main-header {{
         padding: 10px 0;
         margin-bottom: 8px;
@@ -259,10 +166,8 @@ def apply_custom_styles():
     
     .status-normal {{ background: {COLORS['verde']} !important; }}
     .badge-normal-text {{ color: #ffffff; font-weight: bold; }}
-    
     .status-alerta {{ background: {COLORS['amarillo']} !important; }}
     .badge-alerta-text {{ color: #ffffff; font-weight: bold; }}
-    
     .status-critico {{ background: {COLORS['rojo']} !important; }}
     .badge-critico-text {{ color: #ffffff; font-weight: bold; }}
     
@@ -312,29 +217,6 @@ def apply_custom_styles():
         margin: 0 auto;
     }}
     
-    div[data-testid="stDialog"] {{
-        background: #f5f7fa !important;
-        color: #1a2b4c !important;
-    }}
-    div[data-testid="stDialog"] * {{
-        color: #1a2b4c !important;
-    }}
-    div[data-testid="stDialog"] h3 {{
-        color: #1a5fa8 !important;
-    }}
-    div[data-testid="stDialog"] input {{
-        background: #ffffff !important;
-        color: #1a2b4c !important;
-        border: 1px solid #e8ecf1 !important;
-    }}
-    div[data-testid="stChatMessage"] {{
-        background: #ffffff !important;
-        border: 1px solid #e8ecf1 !important;
-    }}
-    div[data-testid="stChatMessage"] p {{
-        color: #1a2b4c !important;
-    }}
-    
     .doc-button {{
         display: inline-flex;
         align-items: center;
@@ -354,12 +236,35 @@ def apply_custom_styles():
         box-shadow: 0 6px 20px rgba(0,0,0,0.3);
         color: white;
     }}
+
+    /* 6. Estilos específicos para el chat en la barra lateral */
+    section[data-testid="stSidebar"] .stChatMessage {{
+        background-color: #f5f7fa !important;
+        border: 1px solid #e8ecf1 !important;
+        border-radius: 12px !important;
+    }}
+    section[data-testid="stSidebar"] .stChatInputContainer {{
+        position: sticky;
+        bottom: 0;
+        background-color: #ffffff;
+        padding-top: 10px;
+        border-top: 1px solid #e8ecf1;
+        z-index: 10;
+    }}
     
     @media (max-width: 768px) {{
         .metric-value {{ font-size: 1.5rem !important; }}
         .main-header {{ padding: 8px 0; }}
         h1 {{ font-size: 1.6rem !important; }}
         h2 {{ font-size: 1.3rem !important; }}
+        /* En móviles, el sidebar ocupa toda la pantalla al abrirse */
+        section[data-testid="stSidebar"] {{
+            width: 100% !important;
+            min-width: 100% !important;
+        }}
+        .stApp > div[data-testid="stAppViewBlockContainer"] {{
+            margin-right: 0 !important;
+        }}
     }}
     </style>
     """
@@ -867,7 +772,7 @@ def chatbot_response_fallback(user_query, latest, asset_name, kpi_values):
     return f"En que puedo ayudarte?\n\n{sl}\n\nConsultas sugeridas:\n1. Diagnostico: estado actual\n2. Variables: vibracion, temperatura, vacio\n3. Ordenes: generar OT\n4. AMEF: modos de falla\n5. KPIs: indicadores\n6. Circular: impacto"
 
 # ============================================================================
-# CHATBOT FLOTANTE CON LETZY Y RAG
+# CHATBOT FLOTANTE CON LETZY Y RAG (PANEL LATERAL)
 # ============================================================================
 
 def process_floating_query(query, ai_platform="rag"):
@@ -894,153 +799,31 @@ def process_floating_query(query, ai_platform="rag"):
     except Exception as e:
         st.session_state["floating_chat_history"].append({"role": "assistant", "content": f"Error: {e}"})
 
-@st.dialog("Asistente Tech Maint Pro - Letzy", width="large")
-def floating_chat_dialog():
-    st.markdown(f"""
-    <style>
-    div[data-testid="stDialog"] {{ background: #f5f7fa !important; color: #1a2b4c !important; }}
-    div[data-testid="stDialog"] * {{ color: #1a2b4c !important; }}
-    div[data-testid="stDialog"] h3 {{ color: #1a5fa8 !important; }}
-    div[data-testid="stDialog"] input {{ background: #ffffff !important; color: #1a2b4c !important; border: 1px solid #e8ecf1 !important; }}
-    div[data-testid="stChatMessage"] {{ background: #ffffff !important; border: 1px solid #e8ecf1 !important; }}
-    div[data-testid="stChatMessage"] p {{ color: #1a2b4c !important; }}
-    </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown(f"""
-    <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
-        {render_letzy("60px")}
-        <div>
-            <h3 style="margin:0; color:#1a5fa8; font-size:1.5rem;">Hola, soy Letzy</h3>
-            <p style="margin:5px 0 0 0; color:#5a6b7c; font-size:0.95rem;">Tu asistente de Tech Maint Pro</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    ai_mode = st.selectbox(
-        "Modo de respuesta:",
-        options=["rag", "fallback"],
-        format_func=lambda x: "IA con Base de Conocimiento PDF (Groq)" if x == "rag" else "Respuestas rapidas (local)",
-        index=0 if st.session_state.get("groq_api_key", "") else 1,
-        key="ai_mode_selector",
-        disabled=not st.session_state.get("kb_loaded", False)
-    )
-    
-    if ai_mode == "rag":
-        if not st.session_state.get("groq_api_key", ""):
-            st.warning("Ingresa tu API Key de Groq para usar la IA con documentos PDF")
-            st.session_state["groq_api_key"] = st.text_input("API Key de Groq", type="password", key="groq_key_rag", help="Obten tu clave gratis en console.groq.com")
-        else:
-            st.success(f"Base de conocimiento activa: {len(st.session_state.get('knowledge_base', []))} chunks cargados")
-    
-    st.caption("Respuestas basadas en 10 documentos tecnicos especializados")
-    st.divider()
-    
-    chat_history = st.session_state.get("floating_chat_history", [])
-    if not chat_history:
-        with st.chat_message("assistant", avatar=LETZY_BASE64):
-            st.markdown("**HOLA, SOY LETZY TU ASISTENTE DE TECH MAINT PRO**\n\nEn que puedo ayudarte hoy? Tengo acceso a manuales tecnicos, procedimientos de mantenimiento, fichas de equipos y guias de KPIs.")
-    
-    for msg in chat_history[-10:]:
-        if msg["role"] == "assistant":
-            with st.chat_message("assistant", avatar=LETZY_BASE64):
-                st.markdown(msg["content"])
-        else:
-            with st.chat_message("user"):
-                st.markdown(msg["content"])
-    
-    st.divider()
-    st.markdown("#### Consultas sugeridas:")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("Estado actual", key="qr1", use_container_width=True):
-            process_floating_query("Estado actual", ai_mode)
-        if st.button("Alta vibracion", key="qr2", use_container_width=True):
-            process_floating_query("Que causa alta vibracion?", ai_mode)
-        if st.button("KPIs", key="qr3", use_container_width=True):
-            process_floating_query("Cuales son los KPIs?", ai_mode)
-    with c2:
-        if st.button("Caída de vacio", key="qr4", use_container_width=True):
-            process_floating_query("Que revisar si cae el vacio?", ai_mode)
-        if st.button("Generar OT", key="qr5", use_container_width=True):
-            process_floating_query("Generar orden de trabajo", ai_mode)
-        if st.button("Impacto circular", key="qr6", use_container_width=True):
-            process_floating_query("Que es impacto circular?", ai_mode)
-    with c3:
-        if st.button("Modos de falla", key="qr7", use_container_width=True):
-            process_floating_query("Modos de falla AMEF", ai_mode)
-        if st.button("Temperatura", key="qr8", use_container_width=True):
-            process_floating_query("Analiza la temperatura actual", ai_mode)
-        if st.button("Limpiar", key="qr9", use_container_width=True):
-            st.session_state["floating_chat_history"] = []
-    
-    st.divider()
-    ui = st.chat_input("Escribe tu consulta a Letzy...", key="fci")
-    if ui:
-        process_floating_query(ui, ai_mode)
-    
-    if st.button("Cerrar chat", key="fcc", use_container_width=True):
-        st.session_state["floating_chat_open"] = False
-        st.session_state["auto_chat_triggered"] = False
-
 # ============================================================================
 # BOTON FLOTANTE DE LETZY - HTML FIJO EN EL DOM
 # ============================================================================
 
 st.markdown(f"""
-<a href="?open_letzy=1" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999; width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #1a5fa8, #8bc34a); border: 3px solid #f5a623; box-shadow: 0 4px 20px rgba(0,0,0,0.3); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease; text-decoration: none;">
-    <img src="{LETZY_BASE64}" style="width: 84px; height: 84px; border-radius: 50%; object-fit: cover;" alt="Letzy">
+<a href="#" class="letzy-btn" id="letzyToggleBtn" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #1a5fa8, #8bc34a); border: 3px solid #f5a623; box-shadow: 0 4px 20px rgba(0,0,0,0.3); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease; text-decoration: none;">
+    <img src="{LETZY_BASE64}" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover;" alt="Letzy">
 </a>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {{
+    let btn = document.getElementById('letzyToggleBtn');
+    if (btn) {{
+        btn.addEventListener('click', function(e) {{
+            e.preventDefault();
+            // Busca el botón nativo de colapsar/expandir sidebar de Streamlit y haz clic
+            let toggleBtn = document.querySelector('div[data-testid="stSidebarCollapsedControl"] button');
+            if (toggleBtn) {{
+                toggleBtn.click();
+            }}
+        }});
+    }}
+}});
+</script>
 """, unsafe_allow_html=True)
-
-if "open_letzy" in st.query_params:
-    st.session_state["floating_chat_open"] = True
-    st.query_params.clear()
-
-if st.session_state.get("floating_chat_open", False):
-    floating_chat_dialog()
-
-if st.session_state.get("auto_chat_triggered", False) and not st.session_state.get("floating_chat_open", False):
-    st.session_state["floating_chat_open"] = True
-
-# ============================================================================
-# VISUALIZACION - GRAFICAS
-# ============================================================================
-
-def create_sensor_chart(df, column, title, y_title, color, threshold_normal=None, threshold_alert=None, reverse=False):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df[column], mode="lines+markers", name=title, line=dict(color=color, width=3), marker=dict(size=4), fill="tozeroy" if not reverse else None, fillcolor="rgba(26,95,168,0.08)" if not reverse else None))
-    if threshold_normal is not None:
-        fig.add_hline(y=threshold_normal, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
-    if threshold_alert is not None:
-        fig.add_hline(y=threshold_alert, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
-    
-    fig.update_layout(
-        title=dict(text=title, font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
-        template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=78, b=30),
-        xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45),
-        yaxis=dict(title=dict(text=y_title, font=dict(color=COLORS["texto_oscuro"], size=12)), autorange="reversed" if reverse else True, showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)),
-        hovermode="x unified", showlegend=False, height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12)
-    )
-    return fig
-
-def create_vibration_chart(df): return create_sensor_chart(df, "vibracion_rms_mm_s", "Vibracion RMS", "mm/s", COLORS["azul"], THRESHOLDS["vibration_normal"], THRESHOLDS["vibration_alert"])
-def create_temperature_chart(df): return create_sensor_chart(df, "temperatura_c", "Temperatura", "C", COLORS["amarillo"], THRESHOLDS["temperature_normal"], THRESHOLDS["temperature_alert"])
-def create_vacuum_chart(df): return create_sensor_chart(df, "presion_vacio_kpa", "Presion de vacio", "kPa", COLORS["verde"], THRESHOLDS["vacuum_normal"], THRESHOLDS["vacuum_alert"], reverse=True)
-
-def create_risk_chart(df):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["fecha_hora"], y=df["indice_riesgo"], mode="lines+markers", name="IR", line=dict(color=COLORS["amarillo"], width=3), fill="tozeroy", fillcolor="rgba(245,166,35,0.10)", marker=dict(size=4)))
-    fig.add_hline(y=40, line_dash="dash", line_color=COLORS["amarillo"], line_width=2, annotation_text="Alerta", annotation_position="top right", annotation_font_color=COLORS["amarillo"], annotation_font_size=11)
-    fig.add_hline(y=70, line_dash="dash", line_color=COLORS["rojo"], line_width=2, annotation_text="Critico", annotation_position="top right", annotation_font_color=COLORS["rojo"], annotation_font_size=11)
-    fig.update_layout(
-        title=dict(text="Indice de riesgo", font=dict(color=COLORS["texto_oscuro"], size=14, family="Arial")),
-        template="plotly_white", paper_bgcolor="rgba(255,255,255,0.95)", plot_bgcolor="rgba(255,255,255,0.95)", margin=dict(l=20, r=20, t=52, b=20),
-        xaxis=dict(title=dict(text="Fecha/hora", font=dict(color=COLORS["texto_oscuro"], size=12)), showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10), tickangle=-45),
-        yaxis=dict(title=dict(text="IR", font=dict(color=COLORS["texto_oscuro"], size=12)), range=[0, 100], showgrid=True, gridcolor="rgba(0,0,0,0.08)", tickfont=dict(color=COLORS["texto_oscuro"], size=10)),
-        hovermode="x unified", height=280, font=dict(color=COLORS["texto_oscuro"], family="Arial", size=12)
-    )
-    return fig
 
 # ============================================================================
 # BASE DE DATOS
@@ -1079,6 +862,77 @@ apply_custom_styles()
 if not st.session_state.get("kb_loaded", False):
     with st.spinner("Cargando base de conocimiento PDF..."):
         load_knowledge_base()
+
+# ============================================================================
+# PANEL LATERAL DE CHAT (BARRA LATERAL DERECHA)
+# ============================================================================
+
+with st.sidebar:
+    st.markdown(f"""
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid #e8ecf1;">
+        {render_letzy("40px")}
+        <div>
+            <h4 style="margin:0; color:#1a5fa8; font-size:1.1rem;">Letzy</h4>
+            <p style="margin:0; color:#5a6b7c; font-size:0.8rem;">Asistente de Mantenimiento</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    ai_mode = st.selectbox(
+        "Modo:",
+        options=["rag", "fallback"],
+        format_func=lambda x: "IA (PDF)" if x == "rag" else "Rápido",
+        index=0 if st.session_state.get("groq_api_key", "") else 1,
+        key="ai_mode_selector_sidebar",
+        disabled=not st.session_state.get("kb_loaded", False),
+        label_visibility="collapsed"
+    )
+    
+    if ai_mode == "rag" and not st.session_state.get("groq_api_key", ""):
+        st.session_state["groq_api_key"] = st.text_input("API Key Groq", type="password", key="groq_key_side", placeholder="Pega tu API Key aquí")
+
+    st.divider()
+
+    chat_history = st.session_state.get("floating_chat_history", [])
+    
+    # Contenedor de mensajes con altura fija y scroll
+    st.markdown('<div style="height: 400px; overflow-y: auto; padding-right: 5px;">', unsafe_allow_html=True)
+    if not chat_history:
+        with st.chat_message("assistant", avatar=LETZY_BASE64):
+            st.markdown("**¡Hola! Soy Letzy.**\n\n¿En qué puedo ayudarte? Puedo consultar los manuales técnicos o responder rápidamente.")
+    
+    for msg in chat_history[-15:]: # Mostrar últimos 15 mensajes
+        if msg["role"] == "assistant":
+            with st.chat_message("assistant", avatar=LETZY_BASE64):
+                st.markdown(msg["content"])
+        else:
+            with st.chat_message("user"):
+                st.markdown(msg["content"])
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.divider()
+    
+    # Botones rápidos en formato compacto
+    st.markdown("**Consultas rápidas:**")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Estado actual", key="sq1", use_container_width=True):
+            process_floating_query("Estado actual", ai_mode)
+        if st.button("Generar OT", key="sq2", use_container_width=True):
+            process_floating_query("Generar orden de trabajo", ai_mode)
+    with c2:
+        if st.button("Alta vibración", key="sq3", use_container_width=True):
+            process_floating_query("Que causa alta vibracion?", ai_mode)
+        if st.button("KPIs", key="sq4", use_container_width=True):
+            process_floating_query("Cuales son los KPIs?", ai_mode)
+            
+    st.divider()
+    ui = st.chat_input("Escribe a Letzy...", key="chat_input_sidebar")
+    if ui:
+        process_floating_query(ui, ai_mode)
+        
+    if st.button("Limpiar chat", key="clear_chat_side", use_container_width=True):
+        st.session_state["floating_chat_history"] = []
 
 # ============================================================================
 # HEADER CON BOTON DE DOCUMENTOS
