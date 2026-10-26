@@ -1289,15 +1289,59 @@ def init_database():
         FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
     )""")
     
-    # (Mantén el resto de tu código de migración de columnas aquí si lo tienes)
+    # Crear tabla maintenance_plan si no existe
+    c.execute("""CREATE TABLE IF NOT EXISTS maintenance_plan (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        asset_name TEXT NOT NULL,
+        tag TEXT,
+        ubicacion TEXT,
+        maintenance_type TEXT,
+        task_description TEXT,
+        frequency TEXT,
+        frequency_days INTEGER,
+        estimated_hours REAL,
+        responsable TEXT,
+        priority TEXT,
+        required_parts TEXT,
+        tools_needed TEXT,
+        safety_requirements TEXT,
+        checklist_items TEXT,
+        thresholds TEXT,
+        notes TEXT,
+        last_execution_date TEXT,
+        next_scheduled_date TEXT
+    )""")
     
-    conn.commit()
-    conn.close()
-    logger.info("Base de datos verificada correctamente.")
+    # Crear tabla maintenance_execution si no existe
+    c.execute("""CREATE TABLE IF NOT EXISTS maintenance_execution (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        plan_id INTEGER,
+        asset_name TEXT,
+        scheduled_date TEXT,
+        execution_date TEXT,
+        executed_by TEXT,
+        status TEXT DEFAULT 'Pendiente',
+        observations TEXT,
+        photos_before TEXT,
+        photos_after TEXT,
+        circular_impact_registered INTEGER DEFAULT 0,
+        FOREIGN KEY (plan_id) REFERENCES maintenance_plan(id)
+    )""")
     
-    # Cargar plan de mantenimiento desde CSV
+    # Crear tabla ot_photos si no existe
+    c.execute("""CREATE TABLE IF NOT EXISTS ot_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ot_id TEXT,
+        photo_type TEXT,
+        photo_path TEXT,
+        upload_date TEXT,
+        FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
+    )""")
+    
+    # Cargar plan de mantenimiento desde CSV (ANTES del commit)
     df_plan = load_maintenance_plan()
     if not df_plan.empty:
+        logger.info(f"Cargando {len(df_plan)} tareas de mantenimiento desde CSV...")
         for _, row in df_plan.iterrows():
             try:
                 c.execute("""INSERT INTO maintenance_plan 
@@ -1314,9 +1358,13 @@ def init_database():
                      row.get('tools_needed', ''), row.get('safety_requirements', ''),
                      row.get('checklist_items', ''), row.get('thresholds', ''),
                      row.get('notes', '')))
+            except sqlite3.IntegrityError:
+                # Si ya existe, ignorar (esto pasa si ya se cargó antes)
+                pass
             except Exception as e:
                 logger.error(f"Error insertando tarea de mantenimiento: {e}")
     
+    # AHORA sí hacemos commit y cerramos
     conn.commit()
     conn.close()
     logger.info("Base de datos inicializada correctamente.")
