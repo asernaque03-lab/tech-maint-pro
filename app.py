@@ -865,12 +865,448 @@ with tabs[2]:
     st.info("Módulo de gestión de órdenes de trabajo - Próximamente")
 
 # ============================================================================
-# TAB 4: IMPACTO CIRCULAR
+# TAB 4: IMPACTO CIRCULAR - VERSIÓN COMPLETA
 # ============================================================================
 
 with tabs[3]:
     st.markdown("<h2>♻️ Panel de Impacto Circular</h2>", unsafe_allow_html=True)
-    st.info("Módulo de impacto circular - Próximamente")
+    st.markdown("Registro de decisiones de mantenimiento y su impacto en la conservación de recursos")
+    
+    # Conexión a base de datos
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Crear tabla mejorada si no existe
+    c.execute("""CREATE TABLE IF NOT EXISTS circular_interventions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ot_id TEXT NOT NULL,
+        asset_name TEXT,
+        component TEXT NOT NULL,
+        decision TEXT NOT NULL,
+        result TEXT,
+        mass_conserved_kg REAL DEFAULT 0,
+        mass_discarded_kg REAL DEFAULT 0,
+        costo_reparacion_eur REAL DEFAULT 0,
+        costo_reemplazo_nuevo_eur REAL DEFAULT 0,
+        vida_util_extendida_horas REAL DEFAULT 0,
+        co2_evitado_kg REAL DEFAULT 0,
+        disponibilidad_post_reparacion_pct REAL DEFAULT 0,
+        tiempo_entre_fallas_reparado_horas REAL DEFAULT 0,
+        nivel_reparacion INTEGER DEFAULT 0,
+        fabricante_original TEXT,
+        garantia_reparacion_meses INTEGER DEFAULT 0,
+        recorded_date TEXT NOT NULL,
+        recorded_by TEXT,
+        FOREIGN KEY (ot_id) REFERENCES work_orders(ot_id)
+    )""")
+    conn.commit()
+    
+    # Cargar intervenciones
+    c.execute("""SELECT * FROM circular_interventions 
+                 ORDER BY recorded_date DESC""")
+    interventions = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    # ========================================================================
+    # CÁLCULO DE KPIs AVANZADOS
+    # ========================================================================
+    
+    if interventions:
+        df_interventions = pd.DataFrame(interventions)
+        
+        # KPIs básicos
+        total_intervenciones = len(df_interventions)
+        masa_total = df_interventions['mass_conserved_kg'].sum() + df_interventions['mass_discarded_kg'].sum()
+        masa_conservada = df_interventions['mass_conserved_kg'].sum()
+        masa_descartada = df_interventions['mass_discarded_kg'].sum()
+        
+        # Tasa de circularidad
+        tasa_circularidad = (masa_conservada / masa_total * 100) if masa_total > 0 else 0
+        
+        # Reparados vs reemplazados
+        reparados = len(df_interventions[df_interventions['result'].isin(['Reparado', 'Reutilizado'])])
+        tasa_reparacion = (reparados / total_intervenciones * 100) if total_intervenciones > 0 else 0
+        
+        # Indicadores económicos
+        costo_total_reparacion = df_interventions['costo_reparacion_eur'].sum()
+        costo_total_reemplazo = df_interventions['costo_reemplazo_nuevo_eur'].sum()
+        ahorro_total = costo_total_reemplazo - costo_total_reparacion
+        roi_circular = ((ahorro_total - costo_total_reparacion) / costo_total_reparacion * 100) if costo_total_reparacion > 0 else 0
+        
+        # Indicadores ambientales
+        co2_total_evitado = df_interventions['co2_evitado_kg'].sum()
+        # Equivalencias
+        arboles_equivalentes = co2_total_evitado / 22  # 1 árbol absorbe ~22 kg CO2/año
+        autos_retirados = co2_total_evitado / 4600  # 1 auto emite ~4600 kg CO2/año
+        
+        # Vida útil extendida
+        vida_util_total = df_interventions['vida_util_extendida_horas'].sum()
+        
+        # Tasa de éxito de reparaciones
+        if 'disponibilidad_post_reparacion_pct' in df_interventions.columns:
+            avg_disponibilidad = df_interventions['disponibilidad_post_reparacion_pct'].mean()
+        else:
+            avg_disponibilidad = 0
+        
+        # ====================================================================
+        # TARJETAS DE KPI PRINCIPALES
+        # ====================================================================
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                label="🔄 Tasa de Circularidad",
+                value=f"{tasa_circularidad:.1f}%",
+                delta=f"{masa_conservada:.0f} kg conservados",
+                delta_color="normal"
+            )
+        
+        with col2:
+            st.metric(
+                label="🌍 CO₂ Evitado",
+                value=f"{co2_total_evitado:.0f} kg",
+                delta=f"≈ {arboles_equivalentes:.0f} árboles/año",
+                delta_color="normal"
+            )
+        
+        with col3:
+            st.metric(
+                label="💰 Ahorro Total",
+                value=f"€ {ahorro_total:,.0f}",
+                delta=f"ROI: {roi_circular:.0f}%",
+                delta_color="normal" if ahorro_total > 0 else "inverse"
+            )
+        
+        with col4:
+            st.metric(
+                label="✅ Tasa de Éxito Reparaciones",
+                value=f"{avg_disponibilidad:.1f}%" if avg_disponibilidad > 0 else "N/A",
+                delta=f"{reparados} reparaciones",
+                delta_color="normal"
+            )
+        
+        st.divider()
+        
+        # ====================================================================
+        # FILTROS Y SELECCIÓN DE ACTIVO
+        # ====================================================================
+        
+        col_f1, col_f2, col_f3 = st.columns([2, 2, 1])
+        
+        with col_f1:
+            asset_filter = st.selectbox(
+                "Filtrar por activo:",
+                options=["Todos"] + list(ASSETS.keys()),
+                key="circular_asset_filter"
+            )
+        
+        with col_f2:
+            date_filter = st.selectbox(
+                "Período:",
+                options=["Todos", "Últimos 30 días", "Últimos 90 días", "Último año"],
+                key="circular_date_filter"
+            )
+        
+        with col_f3:
+            decision_filter = st.multiselect(
+                "Tipo de decisión:",
+                options=["Inspección", "Reparación", "Reemplazo Parcial", "Reemplazo Total"],
+                default=["Inspección", "Reparación", "Reemplazo Parcial", "Reemplazo Total"],
+                key="circular_decision_filter"
+            )
+        
+        # Aplicar filtros
+        df_filtered = df_interventions.copy()
+        
+        if asset_filter != "Todos":
+            df_filtered = df_filtered[df_filtered['asset_name'] == asset_filter]
+        
+        if decision_filter:
+            df_filtered = df_filtered[df_filtered['decision'].isin(decision_filter)]
+        
+        if date_filter != "Todos":
+            df_filtered['recorded_date'] = pd.to_datetime(df_filtered['recorded_date'])
+            today = datetime.now()
+            if date_filter == "Últimos 30 días":
+                df_filtered = df_filtered[df_filtered['recorded_date'] >= today - timedelta(days=30)]
+            elif date_filter == "Últimos 90 días":
+                df_filtered = df_filtered[df_filtered['recorded_date'] >= today - timedelta(days=90)]
+            elif date_filter == "Último año":
+                df_filtered = df_filtered[df_filtered['recorded_date'] >= today - timedelta(days=365)]
+        
+        # ====================================================================
+        # GRÁFICOS Y VISUALIZACIONES
+        # ====================================================================
+        
+        # Fila 1: Gráficos principales
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            st.subheader("📊 Tendencia Mensual")
+            
+            # Agrupar por mes
+            if not df_filtered.empty:
+                df_filtered['mes'] = pd.to_datetime(df_filtered['recorded_date']).dt.to_period('M')
+                df_mensual = df_filtered.groupby('mes').agg({
+                    'mass_conserved_kg': 'sum',
+                    'mass_discarded_kg': 'sum',
+                    'costo_reparacion_eur': 'sum',
+                    'costo_reemplazo_nuevo_eur': 'sum'
+                }).reset_index()
+                
+                fig_tendencia = go.Figure()
+                fig_tendencia.add_trace(go.Scatter(
+                    x=[str(m) for m in df_mensual['mes']],
+                    y=df_mensual['mass_conserved_kg'],
+                    mode='lines+markers',
+                    name='Masa Conservada',
+                    line=dict(color='#8bc34a', width=3),
+                    fill='tozeroy'
+                ))
+                fig_tendencia.add_trace(go.Scatter(
+                    x=[str(m) for m in df_mensual['mes']],
+                    y=df_mensual['mass_discarded_kg'],
+                    mode='lines+markers',
+                    name='Masa Descartada',
+                    line=dict(color='#d32f2f', width=3),
+                    fill='tozeroy'
+                ))
+                fig_tendencia.update_layout(
+                    height=350,
+                    xaxis_title="Mes",
+                    yaxis_title="Masa (kg)",
+                    hovermode='x unified',
+                    showlegend=True
+                )
+                st.plotly_chart(fig_tendencia, use_container_width=True)
+        
+        with col_g2:
+            st.subheader(" Distribución por Decisión")
+            
+            if not df_filtered.empty:
+                decision_counts = df_filtered['decision'].value_counts()
+                
+                colors = ['#1a5fa8', '#8bc34a', '#f5a623', '#d32f2f']
+                
+                fig_pie = go.Figure(data=[go.Pie(
+                    labels=decision_counts.index,
+                    values=decision_counts.values,
+                    hole=.3,
+                    marker=dict(colors=colors)
+                )])
+                fig_pie.update_layout(
+                    height=350,
+                    showlegend=True,
+                    annotations=[dict(
+                        text=f'Total:<br>{len(df_filtered)}',
+                        x=0.5, y=0.5,
+                        font_size=20,
+                        showarrow=False
+                    )]
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
+        
+        # Fila 2: Más gráficos
+        col_g3, col_g4 = st.columns(2)
+        
+        with col_g3:
+            st.subheader("🏆 Top 5 Componentes Más Circulares")
+            
+            if not df_filtered.empty:
+                df_componentes = df_filtered.groupby('component').agg({
+                    'mass_conserved_kg': 'sum',
+                    'id': 'count'
+                }).reset_index()
+                df_componentes.columns = ['Componente', 'Masa Conservada (kg)', 'Intervenciones']
+                df_componentes['Tasa Circularidad'] = (
+                    df_componentes['Masa Conservada (kg)'] / 
+                    (df_componentes['Masa Conservada (kg)'] + 1) * 100
+                )
+                df_top5 = df_componentes.nlargest(5, 'Masa Conservada (kg)')
+                
+                fig_barras = go.Figure()
+                fig_barras.add_trace(go.Bar(
+                    x=df_top5['Masa Conservada (kg)'],
+                    y=df_top5['Componente'],
+                    orientation='h',
+                    marker=dict(color='#1a5fa8'),
+                    text=df_top5['Intervenciones'],
+                    textposition='outside',
+                    hovertemplate='%{y}<br>Masa: %{x:.1f} kg<br>Intervenciones: %{text}<extra></extra>'
+                ))
+                fig_barras.update_layout(
+                    height=350,
+                    xaxis_title="Masa Conservada (kg)",
+                    showlegend=False
+                )
+                st.plotly_chart(fig_barras, use_container_width=True)
+        
+        with col_g4:
+            st.subheader("💰 Ahorro Acumulado")
+            
+            if not df_filtered.empty and 'costo_reemplazo_nuevo_eur' in df_filtered.columns:
+                df_filtered_sorted = df_filtered.sort_values('recorded_date')
+                df_filtered_sorted['ahorro_acumulado'] = (
+                    df_filtered_sorted['costo_reemplazo_nuevo_eur'].cumsum() - 
+                    df_filtered_sorted['costo_reparacion_eur'].cumsum()
+                )
+                
+                fig_area = go.Figure()
+                fig_area.add_trace(go.Scatter(
+                    x=df_filtered_sorted['recorded_date'],
+                    y=df_filtered_sorted['ahorro_acumulado'],
+                    mode='lines',
+                    fill='tozeroy',
+                    line=dict(color='#8bc34a', width=3),
+                    name='Ahorro Acumulado'
+                ))
+                fig_area.update_layout(
+                    height=350,
+                    xaxis_title="Fecha",
+                    yaxis_title="Ahorro (€)",
+                    hovermode='x unified'
+                )
+                st.plotly_chart(fig_area, use_container_width=True)
+        
+        st.divider()
+        
+        # ====================================================================
+        # INSIGHTS Y RECOMENDACIONES AUTOMÁTICAS
+        # ====================================================================
+        
+        st.subheader(" Insights y Recomendaciones")
+        
+        if not df_filtered.empty:
+            # Análisis por componente
+            for componente in df_filtered['component'].unique():
+                df_comp = df_filtered[df_filtered['component'] == componente]
+                
+                tasa_exito = len(df_comp[df_comp['result'].isin(['Reparado', 'Reutilizado'])]) / len(df_comp) * 100
+                
+                if tasa_exito >= 80:
+                    st.success(f"✅ **{componente}**: {tasa_exito:.0f}% tasa de reparación exitosa - **Recomendación**: Priorizar reparación sobre reemplazo")
+                elif tasa_exito <= 40:
+                    st.warning(f"⚠️ **{componente}**: Solo {tasa_exito:.0f}% de éxito en reparación - **Recomendación**: Evaluar cambio de tecnología o mantener stock de repuestos")
+                
+                # Análisis económico
+                if 'costo_reparacion_eur' in df_comp.columns and 'costo_reemplazo_nuevo_eur' in df_comp.columns:
+                    costo_rep = df_comp['costo_reparacion_eur'].sum()
+                    costo_rep_new = df_comp['costo_reemplazo_nuevo_eur'].sum()
+                    ahorro = costo_rep_new - costo_rep
+                    pct_ahorro = (ahorro / costo_rep_new * 100) if costo_rep_new > 0 else 0
+                    
+                    if ahorro > 0:
+                        st.info(f"💰 **{componente}**: Inversión reparación €{costo_rep:,.0f} vs Reemplazo €{costo_rep_new:,.0f} = **Ahorro €{ahorro:,.0f} ({pct_ahorro:.0f}%)**")
+        
+        # ====================================================================
+        # BENCHMARKS
+        # ====================================================================
+        
+        st.divider()
+        st.subheader("📈 Benchmarks de Desempeño")
+        
+        col_b1, col_b2, col_b3 = st.columns(3)
+        
+        with col_b1:
+            st.metric(
+                label="Tu Tasa de Circularidad",
+                value=f"{tasa_circularidad:.1f}%",
+                delta="Meta: >70% (Industria clase mundial)",
+                delta_color="normal" if tasa_circularidad >= 70 else "inverse"
+            )
+        
+        with col_b2:
+            st.metric(
+                label="CO₂ Evitado vs Meta",
+                value=f"{co2_total_evitado:.0f} kg",
+                delta=f"Equivalente a {arboles_equivalentes:.0f} árboles",
+                delta_color="normal"
+            )
+        
+        with col_b3:
+            st.metric(
+                label="Alineación SDG 12",
+                value="Producción Responsable",
+                delta="Objetivo: Reducción 30% residuos",
+                delta_color="normal"
+            )
+        
+        # ====================================================================
+        # TABLA DETALLADA
+        # ====================================================================
+        
+        st.divider()
+        st.subheader(" Registro Detallado de Intervenciones")
+        
+        # Columnas a mostrar
+        cols_to_show = [
+            'recorded_date', 'ot_id', 'asset_name', 'component', 'decision', 
+            'result', 'mass_conserved_kg', 'mass_discarded_kg'
+        ]
+        
+        # Agregar columnas económicas si existen
+        if 'costo_reparacion_eur' in df_filtered.columns:
+            cols_to_show.append('costo_reparacion_eur')
+        if 'costo_reemplazo_nuevo_eur' in df_filtered.columns:
+            cols_to_show.append('costo_reemplazo_nuevo_eur')
+        if 'co2_evitado_kg' in df_filtered.columns:
+            cols_to_show.append('co2_evitado_kg')
+        
+        df_display = df_filtered[cols_to_show].copy()
+        
+        # Formatear nombres de columnas
+        column_names = {
+            'recorded_date': 'Fecha',
+            'ot_id': 'OT ID',
+            'asset_name': 'Activo',
+            'component': 'Componente',
+            'decision': 'Decisión',
+            'result': 'Resultado',
+            'mass_conserved_kg': 'Masa Conservada (kg)',
+            'mass_discarded_kg': 'Masa Descartada (kg)',
+            'costo_reparacion_eur': 'Costo Reparación (€)',
+            'costo_reemplazo_nuevo_eur': 'Costo Reemplazo (€)',
+            'co2_evitado_kg': 'CO₂ Evitado (kg)'
+        }
+        df_display = df_display.rename(columns=column_names)
+        
+        st.dataframe(
+            df_display.sort_values('Fecha', ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+        
+        # Botón de exportación
+        csv = df_display.to_csv(index=False, sep=';').encode('utf-8')
+        st.download_button(
+            label=" Exportar a CSV",
+            data=csv,
+            file_name=f"impacto_circular_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+        
+    else:
+        st.info(" No hay intervenciones registradas. Complete órdenes de trabajo para registrar el impacto circular.")
+        
+        # Ejemplo de cómo registrar
+        st.markdown("""
+        ### ¿Cómo registrar intervenciones?
+        
+        1. **Complete una Orden de Trabajo** en el módulo correspondiente
+        2. **Al cerrar la OT**, seleccione:
+           - Componente intervenido
+           - Decisión tomada (Inspección/Reparación/Reemplazo)
+           - Masa conservada y descartada
+           - Costos asociados
+           - Vida útil extendida
+        3. **El sistema calculará automáticamente**:
+           - Tasa de circularidad
+           - CO₂ evitado
+           - Ahorro económico
+           - ROI de la economía circular
+        """)
 
 # ============================================================================
 # TAB 5: KPIs
